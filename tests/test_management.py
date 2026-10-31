@@ -13,6 +13,8 @@ from custom_components.smart_heating.management import (  # noqa: E402
     upsert_item,
     validate_management,
 )
+from custom_components.smart_heating.models import evaluate_decision  # noqa: E402
+from custom_components.smart_heating.storage import load_schedule  # noqa: E402
 
 
 class State:
@@ -63,3 +65,10 @@ class ManagementTests(unittest.TestCase):
         upsert_item(data, "sensors", {"type": "window", "entity_id": "binary_sensor.window", "zone_ids": ["one"]})
         self.assertFalse(validate_management(data))
         self.assertTrue(validate_management({**data, "zones": []}))
+
+    def test_internal_modes_and_zone_schedule_work_without_helpers(self):
+        data = default_management()
+        upsert_item(data, "zones", {"id": "zone", "name": "Zone", "schedule": {"monday": [{"start": "05:00", "end": "06:00"}]}})
+        data["internal"]["operating_mode"] = "manual_heat"
+        self.assertEqual(evaluate_decision(schedule_active=False, overrides={"manual_heat": True}, comfort_temperature=21).mode, "manual_heat")
+        self.assertTrue(load_schedule({"schedule": {}, "management": data}).windows["monday"])

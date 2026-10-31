@@ -73,6 +73,9 @@ class RuntimeTests(unittest.TestCase):
                     self.assertIsNotNone(hass.states.get("sensor.next_switch"))
                     self.assertIsNotNone(hass.states.get("sensor.calculated_heating_mode"))
                     self.assertIsNotNone(hass.states.get("binary_sensor.schedule_active"))
+                    self.assertTrue(hass.states.async_all("switch"))
+                    self.assertTrue(hass.states.async_all("select"))
+                    self.assertTrue(hass.states.async_all("sensor"))
                     websocket_commands = hass.data["websocket_api"]
                     self.assertTrue({
                         "smart_heating/plan/get",
@@ -84,6 +87,8 @@ class RuntimeTests(unittest.TestCase):
                         "smart_heating/admin/zone/set",
                         "smart_heating/admin/sensor/set",
                         "smart_heating/admin/controller/set",
+                        "smart_heating/admin/outdoor/set",
+                        "smart_heating/admin/safety/set",
                         "smart_heating/admin/validate",
                     }.issubset(websocket_commands))
 

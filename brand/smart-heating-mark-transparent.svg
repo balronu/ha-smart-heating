@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Smart Heating transparent mark</title>
+  <path d="M70 238 256 78l186 160" fill="none" stroke="#1475bd" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M110 224v190h292V224M363 157v-44h42v80" fill="none" stroke="#173247" stroke-width="26" stroke-linejoin="round"/>
+  <path d="M145 275h45v45h-45zm0 65h45v45h-45zm64-65h45v45h-45zm0 65h45v45h-45z" fill="#173247"/>
+  <path d="M273 180v161a55 55 0 1 0 34 0V180a17 17 0 0 0-34 0Z" fill="#173247"/>
+  <path d="M286 187v169a29 29 0 1 0 8 0V187a8 8 0 0 0-8 0Z" fill="#ff7026"/>
+  <path d="M352 274c-18 27-18 47 0 67m31-83c-23 36-23 61 0 88m31-105c-28 45-28 76 0 109" fill="none" stroke="#ff8427" stroke-width="18" stroke-linecap="round"/>
+  <path d="M94 408c35-51 77-59 119-23-10 44-50 70-119 23Z" fill="#56b931"/><path d="M105 407c32-7 61-17 88-36" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+</svg>

@@ -1,22 +1,23 @@
-# Smart Heating (Beta 8)
+# Smart Heating (Beta 9)
 
 **Smart Heating** is a HACS-compatible Home Assistant integration for weekly
 schedules, status, simulation, and a compact Lovelace card.
 
-> **Beta 8 safety boundary:** The integration calculates the full heating
+> **Beta 9 safety boundary:** The integration calculates the full heating
 > decision passively. It does not actuate
 > climate entities, existing helpers, schedulers, or special modes. Productive
 > migration is not included.
 
-## Beta 8 management and climate zones
+## Beta 9 backend management and climate zones
 
-Beta 8 adds a versioned passive backend model for people, climate zones,
+Beta 9 adds a versioned passive backend model for people, climate zones,
 thermostats, window/tilt contacts, room temperature sensors, outdoor
 temperature, and one central controller. Changes are persisted through Config
 Entry options and the supported WebSocket API; Home Assistant entities are
 never created or deleted. People are sourced only from `person.*`. Unknown
 presence is not treated as away, and a thermostat cannot belong to two active
-zones.
+zones. Backend menus are independently collapsible; HA Areas are read-only and
+used only for room suggestions.
 
 ## Features
 
@@ -37,10 +38,28 @@ zones.
 - isolated Home Assistant lifecycle fixture for flows, entities, and reload
 - explicit persistent entity association editing in the Options Flow with Beta 6 compatibility
 - unknown window states are shown as unknown rather than closed in passive previews
+- persistent internal operating state exposed through native switch/select/number/sensor entities
+- an internal passive weekly scheduler; Simple Scheduler and manually created helpers are not required by Smart Heating
+
+## Branding
+
+Independent branding assets are available in [`brand/`](brand/): a square
+mark without lettering in SVG/PNG, a transparent variant, and a GitHub banner.
+They retain the reference design's house, thermometer, heat, blue, and orange
+motifs. These are project assets; no official marketplace or HACS branding
+acceptance is claimed here.
+
+## UI screenshots
+
+The rendered card was checked in the UI fixtures on desktop, iPhone, and a
+narrow touch monitor:
+
+![Smart Heating Desktop](docs/screenshots/smart-heating-card-desktop.png)
+![Smart Heating iPhone](docs/screenshots/smart-heating-card-iphone.png)
 
 ## Installation and setup
 
-Beta 8 is published as a GitHub pre-release. Pre-releases must be enabled
+Beta 9 is published as a GitHub pre-release. Pre-releases must be enabled
 explicitly in HACS. Then install **Smart Heating** through **HACS → Integrations**.
 If Home Assistant requires a restart, treat it as a separately approved step.
 
@@ -72,7 +91,7 @@ available:
 - Sunday–Thursday setback starts at 21:00
 - Friday–Saturday setback starts at 22:00
 
-Beta 8 does not import these values automatically and never writes
+Beta 9 does not import these values automatically and never writes
 `input_boolean.heizung`. The transaction adapter accepts writes only through
 an isolated test transport; production activation remains locked.
 
@@ -89,7 +108,7 @@ fixture. Productive VM 104 installation is explicitly outside this beta. The
 compatibility mode is passive; full mode remains locked until a separately
 verified single-writer proof exists.
 
-Version: `0.1.0-beta.8`
+Version: `0.1.0-beta.9`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 

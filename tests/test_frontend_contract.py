@@ -14,7 +14,7 @@ class FrontendContractTests(unittest.TestCase):
         self.assertIn('static getStubConfig()', source)
         self.assertIn('smart-heating-card-editor', source)
         self.assertIn('actual_mode', source)
-        self.assertIn('SMART_HEATING_CARD_VERSION = "0.1.0-beta.8"', source)
+        self.assertIn('SMART_HEATING_CARD_VERSION = "0.1.0-beta.9"', source)
         self.assertIn("target_temperature", source)
         self.assertIn("control_state", source)
         self.assertIn("operation_mode", source)
@@ -24,3 +24,5 @@ class FrontendContractTests(unittest.TestCase):
         self.assertIn("unbekannt", source)
         self.assertIn("smart_heating/admin/zone/set", source)
         self.assertIn("smart_heating/admin/person/set", source)
+        for label in ("Räume &amp; Klimazonen", "Fenster &amp; Kippsensoren", "Personen &amp; Anwesenheit", "Außentemperatur", "Heizungscontroller", "Sondermodi &amp; Sicherheit", "Diagnose &amp; Migration"):
+            self.assertIn(label, source)

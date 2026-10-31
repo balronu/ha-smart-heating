@@ -12,11 +12,14 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import SmartHeatingCoordinator
 from .const import DOMAIN
+from .management import normalize_management, zone_status
+from .storage import effective_config
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([SmartHeatingNextSwitchSensor(coordinator, entry), SmartHeatingModeSensor(coordinator, entry)])
+    management = normalize_management(effective_config(entry).get("management"))
+    async_add_entities([SmartHeatingNextSwitchSensor(coordinator, entry), SmartHeatingModeSensor(coordinator, entry), SmartHeatingInternalStateSensor(coordinator, entry), *[SmartHeatingZoneStatusSensor(coordinator, entry, zone["id"], zone.get("name", zone["id"])) for zone in management["zones"]]])
 
 
 class _Base(CoordinatorEntity[SmartHeatingCoordinator], SensorEntity):
@@ -55,3 +58,40 @@ class SmartHeatingModeSensor(_Base):
         data = self.coordinator.data or {}
         return {"reason": data.get("reason"), "simulated": data.get("simulated", True)}
 
+
+class SmartHeatingInternalStateSensor(_Base):
+    _attr_name = "Internal state"
+
+    def __init__(self, coordinator: SmartHeatingCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry, "internal_state")
+        self._entry = entry
+
+    @property
+    def native_value(self) -> str:
+        internal = normalize_management(effective_config(self._entry).get("management"))["internal"]
+        return str(internal.get("operating_mode", "automatic"))
+
+    @property
+    def extra_state_attributes(self):
+        internal = normalize_management(effective_config(self._entry).get("management"))["internal"]
+        return {key: value for key, value in internal.items() if key != "zones"}
+
+
+class SmartHeatingZoneStatusSensor(_Base):
+    _attr_name = "Zone status"
+
+    def __init__(self, coordinator: SmartHeatingCoordinator, entry: ConfigEntry, zone_id: str, name: str) -> None:
+        super().__init__(coordinator, entry, f"zone_{zone_id}_status")
+        self._entry = entry
+        self._zone_id = zone_id
+
+    @property
+    def native_value(self) -> str:
+        management = normalize_management(effective_config(self._entry).get("management"))
+        item = next((item for item in zone_status(self.hass, management["zones"]) if item["zone_id"] == self._zone_id), None)
+        return "available" if item and item["available"] else "unavailable" if item else "unknown"
+
+    @property
+    def extra_state_attributes(self):
+        management = normalize_management(effective_config(self._entry).get("management"))
+        return next((item for item in zone_status(self.hass, management["zones"]) if item["zone_id"] == self._zone_id), {"zone_id": self._zone_id})

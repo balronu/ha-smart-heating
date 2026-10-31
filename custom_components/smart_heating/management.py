@@ -11,6 +11,7 @@ from .models import ScheduleValidationError, WeeklySchedule
 SCHEMA_VERSION = 2
 COLLECTION_KEYS = ("persons", "zones", "sensors")
 SENSOR_TYPES = ("window", "tilt", "temperature", "thermostat")
+OPERATING_MODES = ("automatic", "manual_heat", "manual_setback")
 
 
 def discover_persons(hass: Any) -> list[dict[str, Any]]:
@@ -43,6 +44,27 @@ def person_presence(hass: Any, persons: list[Mapping[str, Any]]) -> dict[str, An
     return {"status": "home" if home else "unknown" if unknown else "away" if away else "unknown", "home": home, "away": away, "unknown": unknown, "persons": states}
 
 
+def zone_status(hass: Any, zones: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Return read-only availability and observed HVAC state per configured zone."""
+    result = []
+    for zone in zones:
+        thermostats = []
+        for entity_id in zone.get("thermostat_entities", []):
+            state = hass.states.get(entity_id)
+            thermostats.append({"entity_id": entity_id, "state": str(state.state) if state else "missing", "hvac_action": state.attributes.get("hvac_action") if state else None})
+        temperatures = []
+        for entity_id in zone.get("temperature_entities", []):
+            state = hass.states.get(entity_id)
+            temperatures.append({"entity_id": entity_id, "state": str(state.state) if state else "missing"})
+        result.append({"zone_id": zone.get("id"), "name": zone.get("name"), "enabled": zone.get("enabled", True), "thermostats": thermostats, "temperatures": temperatures, "available": bool(thermostats) and all(item["state"] not in {"missing", "unknown", "unavailable"} for item in thermostats)})
+    return result
+
+
+def internal_zone_settings(management: Mapping[str, Any], zone_id: str) -> dict[str, Any]:
+    data = normalize_management(management)
+    return deepcopy(data["internal"]["zones"].get(zone_id, {}))
+
+
 def _id(value: Any) -> str:
     return str(value) if value else uuid4().hex
 
@@ -54,6 +76,19 @@ def default_management() -> dict[str, Any]:
         "zones": [],
         "sensors": {kind: [] for kind in SENSOR_TYPES},
         "controller": {},
+        "outdoor_temperature": {},
+        "safety": {},
+        "internal": {
+            "enabled": True,
+            "operating_mode": "automatic",
+            "party": False,
+            "visit": False,
+            "return_home": False,
+            "summer": False,
+            "chimney_sweep": False,
+            "templates": {},
+            "zones": {},
+        },
     }
 
 
@@ -71,16 +106,30 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
             for kind in SENSOR_TYPES
         }
     result["controller"] = deepcopy(source.get("controller", {})) if isinstance(source.get("controller", {}), Mapping) else {}
+    result["outdoor_temperature"] = deepcopy(source.get("outdoor_temperature", {})) if isinstance(source.get("outdoor_temperature", {}), Mapping) else {}
+    result["safety"] = deepcopy(source.get("safety", {})) if isinstance(source.get("safety", {}), Mapping) else {}
+    internal = source.get("internal", {})
+    result["internal"].update(deepcopy(internal) if isinstance(internal, Mapping) else {})
+    if result["internal"].get("operating_mode") not in OPERATING_MODES:
+        result["internal"]["operating_mode"] = "automatic"
+    result["internal"]["zones"] = deepcopy(result["internal"].get("zones", {})) if isinstance(result["internal"].get("zones", {}), Mapping) else {}
     for collection in (result["persons"], result["zones"]):
         for item in collection:
             item["id"] = _id(item.get("id"))
             item.setdefault("enabled", True)
+    for zone in result["zones"]:
+        settings = result["internal"]["zones"].setdefault(zone["id"], {})
+        settings.setdefault("comfort_temperature", zone.get("comfort_temperature", 20.0))
+        settings.setdefault("night_temperature", zone.get("night_temperature", 17.0))
+        settings.setdefault("operating_mode", "automatic")
+        settings.setdefault("schedule", deepcopy(zone.get("schedule", {})))
     for kind, items in result["sensors"].items():
         for item in items:
             item["id"] = _id(item.get("id"))
             item["type"] = kind
             item.setdefault("enabled", True)
             item.setdefault("zone_ids", [])
+            item.setdefault("state_semantics", "open_or_tilted" if kind in {"window", "tilt"} else "")
     if result["controller"]:
         result["controller"]["id"] = _id(result["controller"].get("id"))
     return result
@@ -122,7 +171,42 @@ def validate_management(value: Mapping[str, Any] | None) -> list[str]:
                 errors.append(f"missing_entity:{kind}:{item['id']}")
             if any(zone_id not in zone_ids for zone_id in item.get("zone_ids", [])):
                 errors.append(f"unknown_zone_reference:{kind}:{item['id']}")
+            if kind == "temperature" and item.get("strategy", "primary_fallback") not in {"primary_fallback", "first_available", "mean_valid"}:
+                errors.append(f"invalid_temperature_strategy:{item['id']}")
+    outdoor = data.get("outdoor_temperature", {})
+    if outdoor and not str(outdoor.get("entity_id", "")).startswith("sensor."):
+        errors.append("invalid_outdoor_temperature_entity")
     return sorted(set(errors))
+
+
+def discover_areas(hass: Any) -> list[dict[str, Any]]:
+    """Read Home Assistant's public Area/Entity registries for room suggestions."""
+    try:
+        from homeassistant.helpers import area_registry, entity_registry
+
+        areas = area_registry.async_get(hass).async_list_areas()
+        entities = entity_registry.async_get(hass).entities
+    except (AttributeError, ImportError):
+        return []
+    result = []
+    for area in sorted(areas, key=lambda item: item.name.lower()):
+        entity_ids = sorted(entity.entity_id for entity in entities.values() if entity.area_id == area.id)
+        result.append({"area_id": area.id, "name": area.name, "entity_ids": entity_ids})
+    return result
+
+
+def area_suggestions(hass: Any) -> list[dict[str, Any]]:
+    """Add read-only domain suggestions to discovered areas."""
+    result = []
+    for area in discover_areas(hass):
+        area = dict(area)
+        area["suggestions"] = {
+            "thermostat_entities": [entity for entity in area["entity_ids"] if entity.startswith("climate.")],
+            "temperature_entities": [entity for entity in area["entity_ids"] if entity.startswith("sensor.")],
+            "window_entities": [entity for entity in area["entity_ids"] if entity.startswith(("binary_sensor.", "sensor.")) and "fenster" in entity.lower()],
+        }
+        result.append(area)
+    return result
 
 
 def upsert_item(data: dict[str, Any], collection: str, item: Mapping[str, Any]) -> dict[str, Any]:

@@ -4,6 +4,8 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/frontend/fixtures/harness.html");
   await expect(page.getByTestId("status")).toContainText("compatibility");
   await expect(page.getByTestId("observed")).toContainText("unbekannt");
+  await expect(page.getByText("Räume & Klimazonen", { exact: true })).toBeVisible();
+  await expect(page.locator("details[open]")).toHaveCount(0);
 });
 
 test("renders all days and edits a window through the visible card", async ({ page }, testInfo) => {
@@ -24,7 +26,7 @@ test("copies a day and exposes special modes without writing them", async ({ pag
   await monday.getByRole("button", { name: "Tag kopieren" }).click();
   await expect(page.locator("section[data-day=tuesday] input[data-part=start]")).toHaveCount(1);
   await expect(page.locator(".special[data-special=chimney_sweep]")).toBeDisabled();
-  await expect(page.locator(".hint")).toContainText("Kompatibilitätsmodus");
+  await expect(page.locator(".hint").last()).toContainText("Kompatibilität");
 });
 
 test("shows a rendered error and remains usable", async ({ page }) => {
@@ -35,10 +37,11 @@ test("shows a rendered error and remains usable", async ({ page }) => {
 });
 
 test("manages a zone and selects a native person through the rendered card", async ({ page }) => {
+  await page.getByText("Räume & Klimazonen", { exact: true }).click();
   await page.getByLabel("Name der Zone").fill("Wohnbereich");
   await page.getByLabel("Thermostate").fill("climate.wohnzimmer");
   await page.getByRole("button", { name: "Zone hinzufügen" }).click();
   await expect(page.locator(".management-list").first()).toContainText("Wohnbereich");
-  await page.locator("details").nth(1).click();
+  await page.getByText("Personen & Anwesenheit", { exact: true }).click();
   await page.getByRole("button", { name: "berücksichtigen" }).click();
 });
