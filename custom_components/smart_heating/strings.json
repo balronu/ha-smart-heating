@@ -16,6 +16,11 @@
           "presence_entities": "Anwesenheits-Entities"
         }
       },
+      "confirm": {
+        "title": "Zuordnungen bestätigen",
+        "description": "Erkannte Zuordnungen: {selected}. Mehrdeutig: {ambiguous}. Nicht erkannt: {missing}. Prüfe die Übersicht; Smart Heating bleibt im sicheren Kompatibilitätsmodus.",
+        "data": {"confirm": "Zuordnungen übernehmen"}
+      },
       "schedule": {
         "title": "Wochenplan",
         "description": "Zeitplan als Wochenobjekt konfigurieren. Overlaps werden abgelehnt.",

@@ -18,6 +18,7 @@ ROLE_DOMAINS = {
     "night_setpoint": ("input_number", "number"),
     "presence_entities": ("person", "device_tracker", "input_boolean"),
     "window_entities": ("binary_sensor", "sensor"),
+    "outdoor_temperature": ("sensor",),
     "special_modes": ("input_boolean",),
 }
 
@@ -29,6 +30,7 @@ ROLE_TOKENS = {
     "night_setpoint": (("absenk", 7), ("night", 4), ("nacht", 4)),
     "presence_entities": (("zuhause", 4), ("home", 3), ("anwesen", 3)),
     "window_entities": (("fenster", 7), ("window", 5), ("kontakt", 2)),
+    "outdoor_temperature": (("außen", 7), ("aussen", 7), ("outdoor", 6), ("outside", 5)),
 }
 
 SPECIAL_TOKENS = {

@@ -48,13 +48,45 @@ class SmartHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    def __init__(self) -> None:
+        self._pending_input: dict[str, Any] | None = None
+        self._pending_discovery: dict[str, Any] | None = None
+
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
         discovery = discover_entities(self.hass)
         if user_input is not None:
             user_input = apply_discovery_defaults(user_input, discovery)
-            await self.async_set_unique_id(f"{user_input[CONF_NAME].strip().lower()}-{user_input[CONF_TIMEZONE]}")
-            self._abort_if_unique_id_configured()
-            return self.async_create_entry(title=user_input[CONF_NAME].strip(), data={**user_input, CONF_SCHEDULE: DEFAULT_SCHEDULE, CONF_SUMMER_MODE: SUMMER_COMPATIBILITY, CONF_OPERATION_MODE: MODE_COMPATIBILITY, CONF_CHIMNEY_TEMPERATURE: 25.0, CONF_FROST_TEMPERATURE: 5.0, "discovery": discovery, "simulation": True})
+            self._pending_input = user_input
+            self._pending_discovery = discovery
+            return await self.async_step_confirm()
+        return await self._show_user_form(discovery)
+
+    async def async_step_confirm(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
+        """Show all automatic associations before creating the entry."""
+        if user_input is None:
+            discovery = self._pending_discovery or discover_entities(self.hass)
+            selected = discovery.get("selected", {})
+            special = selected.get("special_modes", {})
+            summary = "; ".join(f"{key}: {value}" for key, value in {**selected, **special}.items() if value) or "keine eindeutige Zuordnung"
+            return self.async_show_form(
+                step_id="confirm",
+                data_schema=vol.Schema({vol.Required("confirm", default=True): bool}),
+                description_placeholders={
+                    "selected": summary,
+                    "ambiguous": ", ".join(discovery.get("ambiguous", [])) or "keine",
+                    "missing": ", ".join(discovery.get("missing", [])) or "keine",
+                },
+            )
+        if not user_input.get("confirm", True):
+            return await self.async_step_user()
+        values = self._pending_input or {}
+        discovery = self._pending_discovery or discover_entities(self.hass)
+        await self.async_set_unique_id(f"{values[CONF_NAME].strip().lower()}-{values[CONF_TIMEZONE]}")
+        self._abort_if_unique_id_configured()
+        return self.async_create_entry(title=values[CONF_NAME].strip(), data={**values, CONF_SCHEDULE: DEFAULT_SCHEDULE, CONF_SUMMER_MODE: SUMMER_COMPATIBILITY, CONF_OPERATION_MODE: MODE_COMPATIBILITY, CONF_CHIMNEY_TEMPERATURE: 25.0, CONF_FROST_TEMPERATURE: 5.0, "discovery": discovery, "simulation": True})
+
+    async def _show_user_form(self, discovery: dict[str, Any]) -> config_entries.FlowResult:
+        """Render the first step with discovered values as editable defaults."""
         defaults = apply_discovery_defaults({CONF_NAME: DEFAULT_NAME, CONF_TIMEZONE: DEFAULT_TIMEZONE}, discovery)
         schema_values: dict[Any, Any] = {
             vol.Required(CONF_NAME, default=defaults[CONF_NAME]): str,

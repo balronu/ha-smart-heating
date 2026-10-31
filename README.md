@@ -1,4 +1,4 @@
-# Smart Heating (Beta 5)
+# Smart Heating (Beta 6)
 
 **Smart Heating** ist eine HACS-kompatible Home-Assistant-Integration für
 Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
@@ -114,7 +114,7 @@ Teil der Beta-2-Entwicklung.
 
 ## Status
 
-Version: `0.1.0-beta.5`
+Version: `0.1.0-beta.6`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 

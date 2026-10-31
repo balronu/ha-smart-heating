@@ -64,6 +64,8 @@ class RuntimeTests(unittest.TestCase):
                             "presence_entities": ["person.michael"],
                         },
                     )
+                    self.assertEqual(flow["type"], "form")
+                    flow = await hass.config_entries.flow.async_configure(flow["flow_id"], {"confirm": True})
                     entry = flow["result"]
                     self.assertEqual(entry.domain, "smart_heating")
                     await hass.async_block_till_done()
@@ -99,6 +101,14 @@ class RuntimeTests(unittest.TestCase):
                     await hass.async_block_till_done()
                     self.assertEqual(entry.state.value, "loaded")
                     self.assertEqual(entry.options["schedule"]["sunday"][0]["end"], "21:00:00")
+                    self.assertTrue(await hass.config_entries.async_remove(entry.entry_id))
+                    await hass.async_block_till_done()
+                    readd = await hass.config_entries.flow.async_init("smart_heating", context={"source": "user"})
+                    readd = await hass.config_entries.flow.async_configure(readd["flow_id"], {"name": "Runtime Re-add", "timezone": "Europe/Berlin"})
+                    self.assertEqual(readd["type"], "form")
+                    readd = await hass.config_entries.flow.async_configure(readd["flow_id"], {"confirm": True})
+                    self.assertEqual(readd["result"].state.value, "loaded")
+                    entry = readd["result"]
                     from custom_components.smart_heating.control import async_apply_decision
                     from custom_components.smart_heating.models import HeatingDecision
 
