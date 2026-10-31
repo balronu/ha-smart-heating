@@ -1,4 +1,4 @@
-const VERSION = "0.1.0-beta.13";
+const VERSION = "0.1.0-beta.14";
 class SmartHeatingBackendPanel extends HTMLElement {
   set hass(value) {
     this._hass = value;

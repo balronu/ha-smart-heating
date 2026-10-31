@@ -197,7 +197,17 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
 
     def _schema(self) -> vol.Schema:
         schema: dict[Any, Any] = {
-            vol.Required(CONF_SCHEDULE, default=self._entry.options.get(CONF_SCHEDULE, self._entry.data.get(CONF_SCHEDULE, DEFAULT_SCHEDULE))): dict,
+            # A raw ``dict`` validator cannot be serialized by Home Assistant's
+            # config-flow HTTP API (HA 2026.10+), which turns opening the
+            # options flow into a 500 response.  ObjectSelector preserves the
+            # arbitrary persisted schedule shape while providing a native,
+            # serializable form contract.
+            vol.Required(
+                CONF_SCHEDULE,
+                default=self._entry.options.get(
+                    CONF_SCHEDULE, self._entry.data.get(CONF_SCHEDULE, DEFAULT_SCHEDULE)
+                ),
+            ): selector.ObjectSelector(),
             vol.Optional(CONF_SUMMER_MODE, default=self._entry.options.get(CONF_SUMMER_MODE, self._entry.data.get(CONF_SUMMER_MODE, SUMMER_COMPATIBILITY))): vol.In([SUMMER_COMPATIBILITY, SUMMER_HVAC_OFF]),
             vol.Optional(CONF_OPERATION_MODE, default=self._entry.options.get(CONF_OPERATION_MODE, self._entry.data.get(CONF_OPERATION_MODE, MODE_COMPATIBILITY))): vol.In([MODE_COMPATIBILITY, MODE_FULL]),
             vol.Optional(CONF_CHIMNEY_TEMPERATURE, default=self._entry.options.get(CONF_CHIMNEY_TEMPERATURE, self._entry.data.get(CONF_CHIMNEY_TEMPERATURE, 25.0))): vol.All(vol.Coerce(float), vol.Range(min=5, max=35)),
