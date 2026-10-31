@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.0-beta.11 – Beta 11
+
+### Deutsch
+
+- Die passive Lovelace-Verwaltung kennzeichnet sich sichtbar als Backend-Verwaltung und bleibt über die bestehende Smart-Heating-Karte erreichbar.
+- Die Versionsanzeige wird aus der zentralen Backend-Version gespeist; das veraltete Beta-9-Badge wurde entfernt.
+- Status-WebSocket, Karte, Dokumentation und UI-Fixture verwenden dieselbe Beta-11-Version.
+- Persistenz-, Versions- und Backend-Zugriffsverträge in den isolierten Tests erweitert.
+
+### English
+
+- The passive Lovelace management surface is explicitly labelled as backend management and remains reachable through the existing Smart Heating card.
+- The displayed version is supplied by the central backend version; the stale Beta 9 badge was removed.
+- The status WebSocket, card, documentation, and UI fixture use the same Beta 11 version.
+- Extended isolated persistence, version, and backend-access contracts.
+
 ## 0.1.0-beta.10 – Beta 10
 
 ### Deutsch

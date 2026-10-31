@@ -4,6 +4,8 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/frontend/fixtures/harness.html");
   await expect(page.getByTestId("status")).toContainText("compatibility");
   await expect(page.getByTestId("observed")).toContainText("unbekannt");
+  await expect(page.getByTestId("version")).toContainText("0.1.0-beta.11");
+  await expect(page.getByTestId("backend-management")).toContainText("Backend-Verwaltung");
   await expect(page.getByText("Räume & Klimazonen", { exact: true })).toBeVisible();
   await expect(page.locator("details[open]")).toHaveCount(0);
 });

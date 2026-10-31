@@ -1,16 +1,16 @@
-# Smart Heating (Beta 10)
+# Smart Heating (Beta 11)
 
 **Smart Heating** is a HACS-compatible Home Assistant integration for weekly
 schedules, status, simulation, and a compact Lovelace card.
 
-> **Beta 9 safety boundary:** The integration calculates the full heating
+> **Beta 11 safety boundary:** The integration calculates the full heating
 > decision passively. It does not actuate
 > climate entities, existing helpers, schedulers, or special modes. Productive
 > migration is not included.
 
-## Beta 9 backend management and climate zones
+## Beta 11 backend management and climate zones
 
-Beta 9 adds a versioned passive backend model for people, climate zones,
+Beta 11 adds a versioned passive backend model for people, climate zones,
 thermostats, window/tilt contacts, room temperature sensors, outdoor
 temperature, and one central controller. Changes are persisted through Config
 Entry options and the supported WebSocket API; Home Assistant entities are
@@ -59,7 +59,7 @@ narrow touch monitor:
 
 ## Installation and setup
 
-Beta 10 is published as a GitHub pre-release. Pre-releases must be enabled
+Beta 11 is published as a GitHub pre-release. Pre-releases must be enabled
 explicitly in HACS. Then install **Smart Heating** through **HACS → Integrations**.
 If Home Assistant requires a restart, treat it as a separately approved step.
 
@@ -79,6 +79,9 @@ entry_id: YOUR_CONFIG_ENTRY_ID
 
 The card edits only the Smart Heating entry's own schedule and never writes
 existing heating entities.
+
+The card is this beta's visible passive backend entry point; it is not a
+hidden developer path and does not change productive heating entities.
 
 The Options Flow can persist explicit associations for the primary climate,
 Tado fallback, schedule status, heating permission, setpoints, outdoor
@@ -101,7 +104,7 @@ available:
 - Sunday–Thursday setback starts at 21:00
 - Friday–Saturday setback starts at 22:00
 
-Beta 9 does not import these values automatically and never writes
+Beta 11 does not import these values automatically and never writes
 `input_boolean.heizung`. The transaction adapter accepts writes only through
 an isolated test transport; production activation remains locked.
 
@@ -118,7 +121,7 @@ fixture. Productive VM 104 installation is explicitly outside this beta. The
 compatibility mode is passive; full mode remains locked until a separately
 verified single-writer proof exists.
 
-Version: `0.1.0-beta.10`
+Version: `0.1.0-beta.11`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 

@@ -1,6 +1,6 @@
 """Smart Heating integration.
 
-The Beta 9 compatibility mode owns its internal state and schedule without
+The Beta 11 compatibility mode owns its internal state and schedule without
 external helpers or Simple Scheduler, but remains deliberately passive toward
 climate, controller, helper, scheduler, and special-mode writes.
 """
@@ -236,7 +236,7 @@ async def _ws_get_status(hass: HomeAssistant, connection: websocket_api.ActiveCo
     management = normalize_management(config.get("management"))
     status["presence"] = person_presence(hass, management["persons"])
     status["zones"] = zone_status(hass, management["zones"])
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "schedule": load_schedule(config).as_dict(), "status": status, "options": {"name": entry.title, "timezone": config.get("timezone"), "operation_mode": config.get("operation_mode", "compatibility"), "discovery": config.get("discovery", {}), "special_modes": config.get("special_modes", {}), "control_plane": analyze_control_plane(hass, config), "management": management, "areas": area_suggestions(hass), "persons_discovered": discover_persons(hass)}})
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "schedule": load_schedule(config).as_dict(), "status": status, "options": {"name": entry.title, "timezone": config.get("timezone"), "operation_mode": config.get("operation_mode", "compatibility"), "discovery": config.get("discovery", {}), "special_modes": config.get("special_modes", {}), "control_plane": analyze_control_plane(hass, config), "management": management, "areas": area_suggestions(hass), "persons_discovered": discover_persons(hass)}})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/plan/set", vol.Required("entry_id"): cv.string, vol.Required("schedule"): dict})
