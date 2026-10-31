@@ -1,4 +1,4 @@
-# Smart Heating (Beta 11)
+# Smart Heating (Beta 12)
 
 **Smart Heating** ist eine HACS-kompatible Home-Assistant-Integration für
 Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
@@ -9,9 +9,9 @@ Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 > Sondermodus. Eine Migration in eine produktive Heizungssteuerung ist nicht
 > enthalten.
 
-## Beta-11-Backend-Verwaltung und Klimazonen
+## Beta-12-Backend-Verwaltung und Klimazonen
 
-Beta 11 ergänzt eine versionierte, passive Backend-Verwaltung für Personen,
+Beta 12 ergänzt eine eigenständige, passive Backend-Verwaltung für Personen,
 Klimazonen, Thermostate, Fenster-/Kippkontakte, Raumtemperaturfühler,
 Außentemperatur und einen zentralen Controller. Änderungen werden über
 Config-Entry-Optionen beziehungsweise die unterstützte WebSocket-API
@@ -52,17 +52,22 @@ GitHub-Banner. Sie greifen Haus, Thermometer, Wärme, Blau und Orange der
 Designvorlage auf. Die Grafiken sind Projekt-Assets; eine offizielle
 Marketplace- oder HACS-Branding-Aufnahme wird hier nicht behauptet.
 
-## Oberfläche
+## Oberflächen
 
-Die gerenderte Karte wurde in den UI-Fixtures auf Desktop, iPhone und engem
-Touchmonitor geprüft:
+Die normale Lovelace-Karte enthält ausschließlich Heizstatus, Sondermodi und
+Wochenzeitplan. Die technische Verwaltung ist davon getrennt und wird als
+eigenständiges Home-Assistant-Seitenmenü **Smart Heating** geöffnet. Sie enthält
+die sieben geschlossenen Bereiche Räume & Klimazonen, Fenster & Kippsensoren,
+Personen & Anwesenheit, Außentemperatur, Heizungscontroller, Sondermodi &
+Sicherheit sowie Diagnose & Migration. Die gerenderten Oberflächen wurden in
+den UI-Fixtures auf Desktop, iPhone, iPad und engem Touchmonitor geprüft:
 
 ![Smart Heating Desktop](docs/screenshots/smart-heating-card-desktop.png)
 ![Smart Heating iPhone](docs/screenshots/smart-heating-card-iphone.png)
 
 ## Installation
 
-Beta 11 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
+Beta 12 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
 aktiviert werden. Danach über **HACS → Integrationen → Smart Heating**
 installieren. Ein erforderlicher Home-Assistant-Neustart ist separat zu
 prüfen und darf erst nach Freigabe durchgeführt werden.
@@ -77,12 +82,10 @@ Testinstanz installiert werden.
    Heating**.
 2. Nur Name und Zeitzone festlegen. Legacy-Helper erscheinen nicht im initialen Flow.
 3. Erkannte Vorschläge auf der Bestätigungsseite prüfen und ausdrücklich bestätigen.
-4. Die vorhandene Karte öffnen. Sie enthält sieben standardmäßig geschlossene
-   Bereiche: Räume & Klimazonen, Fenster & Kippsensoren, Personen & Anwesenheit,
-   Außentemperatur, Heizungscontroller, Sondermodi & Sicherheit sowie Diagnose
-   & Migration. Räume und Zonen sind zusätzlich einzeln aufklappbar.
-   Die Karte ist der sichtbare, passive Backend-Zugang dieser Beta; sie ist
-   kein versteckter Entwicklerpfad und verändert keine produktiven Heizungs-Entities.
+4. Im Seitenmenü **Smart Heating** die technische Verwaltung öffnen. Alle sieben
+   Bereiche sind zunächst geschlossen und unabhängig aufklappbar; Räume und
+   Zonen sind zusätzlich einzeln aufklappbar. Die Lovelace-Karte bleibt davon
+   getrennt und enthält keine technische Geräteverwaltung.
 5. Die Karte mit `entry_id` der Config Entry in ein Testdashboard aufnehmen:
 
 ```yaml
@@ -93,7 +96,7 @@ entry_id: YOUR_CONFIG_ENTRY_ID
 Die Karte bearbeitet ausschließlich den Zeitplan dieser Smart-Heating-Entry.
 Sie schreibt keine bestehenden Heizungs-Entities.
 
-### Beta-11-Installationsassistent
+### Beta-12-Installationsassistent
 
 Die Migrations-Preview zeigt erkannte Entities und Konflikte. Der
 Kompatibilitätsmodus ist der sichere Standard: Smart Heating beobachtet den
@@ -126,7 +129,7 @@ ein unterstützter Export vorliegt:
 - Sonntag–Donnerstag Absenkung 21:00
 - Freitag–Samstag Absenkung 22:00
 
-Beta 11 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
+Beta 12 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
 nicht. Die Migrations-Preview zeigt nur einen Konflikt-/Prüfstatus. Der
 ausführbare Adapter akzeptiert Schreibzugriffe ausschließlich über einen
 isolierten Test-Transport; die Produktiv-Sperre verweigert die Aktivierung,
@@ -166,7 +169,7 @@ bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
-Version: `0.1.0-beta.11`
+Version: `0.1.0-beta.12`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 

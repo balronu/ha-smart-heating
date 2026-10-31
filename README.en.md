@@ -1,16 +1,16 @@
-# Smart Heating (Beta 11)
+# Smart Heating (Beta 12)
 
 **Smart Heating** is a HACS-compatible Home Assistant integration for weekly
 schedules, status, simulation, and a compact Lovelace card.
 
-> **Beta 11 safety boundary:** The integration calculates the full heating
+> **Beta 12 safety boundary:** The integration calculates the full heating
 > decision passively. It does not actuate
 > climate entities, existing helpers, schedulers, or special modes. Productive
 > migration is not included.
 
-## Beta 11 backend management and climate zones
+## Beta 12 backend management and climate zones
 
-Beta 11 adds a versioned passive backend model for people, climate zones,
+Beta 12 adds a separate passive backend panel for people, climate zones,
 thermostats, window/tilt contacts, room temperature sensors, outdoor
 temperature, and one central controller. Changes are persisted through Config
 Entry options and the supported WebSocket API; Home Assistant entities are
@@ -49,26 +49,29 @@ They retain the reference design's house, thermometer, heat, blue, and orange
 motifs. These are project assets; no official marketplace or HACS branding
 acceptance is claimed here.
 
-## UI screenshots
+## UI surfaces and screenshots
 
-The rendered card was checked in the UI fixtures on desktop, iPhone, and a
-narrow touch monitor:
+The normal Lovelace card contains heating status, modes, and weekly schedules
+only. Technical administration is separate in the Home Assistant sidebar panel
+**Smart Heating**, with seven independently expandable sections, nested room
+entries, and no backend forms in the heating card. The rendered surfaces were
+checked in UI fixtures on desktop, iPhone, iPad, and a narrow touch monitor:
 
 ![Smart Heating Desktop](docs/screenshots/smart-heating-card-desktop.png)
 ![Smart Heating iPhone](docs/screenshots/smart-heating-card-iphone.png)
 
 ## Installation and setup
 
-Beta 11 is published as a GitHub pre-release. Pre-releases must be enabled
+Beta 12 is a GitHub pre-release. Pre-releases must be enabled
 explicitly in HACS. Then install **Smart Heating** through **HACS → Integrations**.
 If Home Assistant requires a restart, treat it as a separately approved step.
 
 Set only a name and time zone first; legacy helpers are not part of the initial
-flow. Review and explicitly confirm discovery suggestions. Then open the card:
-it contains seven sections closed by default: Rooms & climate zones, Windows &
-tilt sensors, People & presence, Outdoor temperature, Heating controller,
-Special modes & safety, and Diagnostics & migration. Rooms and zones are also
-independently expandable.
+flow. Review and explicitly confirm discovery suggestions. Then open the
+**Smart Heating** sidebar panel. It contains seven sections closed by default:
+Rooms & climate zones, Windows & tilt sensors, People & presence, Outdoor
+temperature, Heating controller, Special modes & safety, and Diagnostics &
+migration. Rooms and zones are also independently expandable.
 
 Add the card to a test dashboard with the config-entry ID:
 
@@ -80,8 +83,8 @@ entry_id: YOUR_CONFIG_ENTRY_ID
 The card edits only the Smart Heating entry's own schedule and never writes
 existing heating entities.
 
-The card is this beta's visible passive backend entry point; it is not a
-hidden developer path and does not change productive heating entities.
+The sidebar panel is the supported passive backend entry point. The Lovelace
+card is intentionally separate and does not contain technical administration.
 
 The Options Flow can persist explicit associations for the primary climate,
 Tado fallback, schedule status, heating permission, setpoints, outdoor
@@ -104,7 +107,7 @@ available:
 - Sunday–Thursday setback starts at 21:00
 - Friday–Saturday setback starts at 22:00
 
-Beta 11 does not import these values automatically and never writes
+Beta 12 does not import these values automatically and never writes
 `input_boolean.heizung`. The transaction adapter accepts writes only through
 an isolated test transport; production activation remains locked.
 
@@ -121,7 +124,7 @@ fixture. Productive VM 104 installation is explicitly outside this beta. The
 compatibility mode is passive; full mode remains locked until a separately
 verified single-writer proof exists.
 
-Version: `0.1.0-beta.11`
+Version: `0.1.0-beta.12`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 

@@ -40,6 +40,7 @@ from .storage import effective_config, load_schedule, normalized_options
 _LOGGER = logging.getLogger(__name__)
 _WS_REGISTERED = f"{DOMAIN}_ws_registered"
 _STATIC_REGISTERED = f"{DOMAIN}_static_registered"
+_PANEL_REGISTERED = f"{DOMAIN}_panel_registered"
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -193,6 +194,25 @@ async def _register_frontend(hass: HomeAssistant) -> None:
         if inspect.isawaitable(result):
             await result
         frontend.add_extra_js_url(hass, f"/smart_heating/smart-heating-card.js?v={VERSION}")
+        if not hass.data.get(_PANEL_REGISTERED):
+            frontend.async_register_built_in_panel(
+                hass,
+                component_name="custom",
+                sidebar_title="Smart Heating",
+                sidebar_icon="mdi:radiator",
+                frontend_url_path=DOMAIN,
+                config={
+                    "_panel_custom": {
+                        "name": "smart-heating-backend-panel",
+                        "embed_iframe": False,
+                        "trust_external": False,
+                        "module_url": f"/smart_heating/backend-panel.js?v={VERSION}",
+                    }
+                },
+                require_admin=True,
+                update=True,
+            )
+            hass.data[_PANEL_REGISTERED] = True
         hass.data[_STATIC_REGISTERED] = True
     except (AttributeError, ImportError):
         _LOGGER.debug("Frontend registration is unavailable in this fixture", exc_info=True)
@@ -303,7 +323,7 @@ async def _admin_mutation(hass: HomeAssistant, connection: websocket_api.ActiveC
 @websocket_api.async_response
 async def _ws_admin_get(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "management": management, "areas": area_suggestions(hass), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "validation": validate_management(management)})
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "management": management, "areas": area_suggestions(hass), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "validation": validate_management(management)})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/person/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
