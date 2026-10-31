@@ -29,6 +29,8 @@ _LOGGER = logging.getLogger(__name__)
 _WS_REGISTERED = f"{DOMAIN}_ws_registered"
 _STATIC_REGISTERED = f"{DOMAIN}_static_registered"
 
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
 
 class SmartHeatingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Compute passive status from config-entry data and current HA states."""
@@ -154,4 +156,3 @@ async def _ws_simulate(hass: HomeAssistant, connection: websocket_api.ActiveConn
 async def _ws_migration_preview(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, _ = _entry_from_connection(hass, msg["entry_id"])
     connection.send_result(msg["id"], {"entry_id": entry.entry_id, "mode": "preview_only", "automatic_import": False, "source": "supported_entity_and_config_reads_only", "conflicts": [], "message": "No existing automation or scheduler is changed by Beta 1. Import requires an explicit reviewed proposal."})
-
