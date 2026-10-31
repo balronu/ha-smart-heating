@@ -1,0 +1,31 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Smart Heating einrichten",
+        "description": "Beta 1 berechnet und zeigt Zeitplanstatus passiv an. Es werden keine bestehenden Heizungs-Entities geschaltet.",
+        "data": {
+          "name": "Name",
+          "timezone": "Zeitzone",
+          "climate_entity": "Optionales Climate-Entity",
+          "heating_boolean": "Optionaler bestehender Zeitstatus-Helper",
+          "heating_permission": "Optionaler Heizfreigabe-Helper"
+        }
+      },
+      "schedule": {
+        "title": "Wochenplan",
+        "description": "Zeitplan als Wochenobjekt konfigurieren. Overlaps werden abgelehnt.",
+        "data": {"schedule": "Wochenplan"}
+      }
+    },
+    "error": {"invalid_schedule": "Ungültiger oder überlappender Zeitplan."}
+  },
+  "entity": {
+    "binary_sensor": {"schedule_active": {"name": "Zeitplan aktiv"}},
+    "sensor": {
+      "next_switch": {"name": "Nächste Umschaltung"},
+      "mode": {"name": "Berechneter Heizmodus"}
+    }
+  }
+}
+

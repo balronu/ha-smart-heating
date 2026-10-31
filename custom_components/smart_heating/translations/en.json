@@ -1,0 +1,5 @@
+{
+  "config": {"step": {"user": {"title": "Set up Smart Heating", "description": "Beta 1 passively calculates and displays schedule status. Existing heating entities are never actuated.", "data": {"name": "Name", "timezone": "Time zone", "climate_entity": "Optional climate entity", "heating_boolean": "Optional existing schedule helper", "heating_permission": "Optional heating permission helper"}}, "schedule": {"title": "Weekly schedule", "description": "Configure the weekly schedule. Overlaps are rejected.", "data": {"schedule": "Weekly schedule"}}}, "error": {"invalid_schedule": "Invalid or overlapping schedule."}},
+  "entity": {"binary_sensor": {"schedule_active": {"name": "Schedule active"}}, "sensor": {"next_switch": {"name": "Next switch"}, "mode": {"name": "Calculated heating mode"}}}
+}
+
