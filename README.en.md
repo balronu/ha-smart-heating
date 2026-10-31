@@ -1,9 +1,9 @@
-# Smart Heating (Beta 4)
+# Smart Heating (Beta 6)
 
 **Smart Heating** is a HACS-compatible Home Assistant integration for weekly
 schedules, status, simulation, and a compact Lovelace card.
 
-> **Beta 4 safety boundary:** The integration calculates the full heating
+> **Beta 6 safety boundary:** The integration calculates the full heating
 > decision passively. It does not actuate
 > climate entities, existing helpers, schedulers, or special modes. Productive
 > migration is not included.
@@ -28,10 +28,9 @@ schedules, status, simulation, and a compact Lovelace card.
 
 ## Installation and setup
 
-Beta 4 is a development release and will only be published as a GitHub
-pre-release after the CI gate passes. Pre-releases must be enabled explicitly
-in HACS. Then install **Smart Heating** through **HACS → Integrations** and
-restart Home Assistant.
+Beta 6 is published as a GitHub pre-release. Pre-releases must be enabled
+explicitly in HACS. Then install **Smart Heating** through **HACS → Integrations**.
+If Home Assistant requires a restart, treat it as a separately approved step.
 
 Add the card to a test dashboard with the config-entry ID:
 
@@ -55,7 +54,7 @@ available:
 - Sunday–Thursday setback starts at 21:00
 - Friday–Saturday setback starts at 22:00
 
-Beta 4 does not import these values automatically and never writes
+Beta 6 does not import these values automatically and never writes
 `input_boolean.heizung`. The transaction adapter accepts writes only through
 an isolated test transport; production activation remains locked.
 
@@ -68,7 +67,9 @@ git diff --check
 ```
 
 The HA adapter is tested in CI with an isolated Home Assistant 2026.10.4
-fixture. Productive VM 104 installation is explicitly outside this beta.
+fixture. Productive VM 104 installation is explicitly outside this beta. The
+compatibility mode is passive; full mode remains locked until a separately
+verified single-writer proof exists.
 
 Version: `0.1.0-beta.6`
 Release type: development release / HACS pre-release  
