@@ -1,9 +1,9 @@
-# Smart Heating (Beta 1)
+# Smart Heating (Beta 2)
 
 **Smart Heating** is a HACS-compatible Home Assistant integration for weekly
 schedules, status, simulation, and a compact Lovelace card.
 
-> **Beta 1 safety boundary:** The integration is passive. It does not actuate
+> **Beta 2 safety boundary:** The integration is passive. It does not actuate
 > climate entities, existing helpers, schedulers, or special modes. Productive
 > migration is not included.
 
@@ -17,10 +17,13 @@ schedules, status, simulation, and a compact Lovelace card.
 - read-only diagnostics and migration preview
 - compact responsive Lovelace card with validated plan editing
 - German and English translations
+- conservative automatic entity discovery with visible ambiguity reporting
+- read-only migration assistant with fixture, conflicts, and manual proposal path
+- isolated Home Assistant lifecycle fixture for flows, entities, and reload
 
 ## Installation and setup
 
-Beta 1 is a development release and will only be published as a GitHub
+Beta 2 is a development release and will only be published as a GitHub
 pre-release after the CI gate passes. Pre-releases must be enabled explicitly
 in HACS. Then install **Smart Heating** through **HACS → Integrations** and
 restart Home Assistant.
@@ -47,7 +50,7 @@ available:
 - Sunday–Thursday setback starts at 21:00
 - Friday–Saturday setback starts at 22:00
 
-Beta 1 does not import these values automatically and never writes
+Beta 2 does not import these values automatically and never writes
 `input_boolean.heizung`.
 
 ## Development
@@ -58,13 +61,12 @@ python -m compileall -q custom_components tests
 git diff --check
 ```
 
-The full HA adapter test requires a matching Home Assistant fixture. Productive
-VM 104 installation is explicitly outside this beta.
+The HA adapter is tested in CI with an isolated Home Assistant 2026.10.4
+fixture. Productive VM 104 installation is explicitly outside this beta.
 
-Version: `0.1.0-beta.1`  
+Version: `0.1.0-beta.2`
 Release type: development release / HACS pre-release  
 Productive migration: not included
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for architecture and safety
 details.
-

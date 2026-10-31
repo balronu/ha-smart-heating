@@ -10,4 +10,8 @@ class FrontendContractTests(unittest.TestCase):
         self.assertIn('type: "smart-heating-card"', source)
         self.assertIn('smart_heating/plan/get', source)
         self.assertIn('smart_heating/plan/set', source)
-
+        self.assertIn('static getConfigElement()', source)
+        self.assertIn('static getStubConfig()', source)
+        self.assertIn('smart-heating-card-editor', source)
+        self.assertIn('actual_mode', source)
+        self.assertIn('SMART_HEATING_CARD_VERSION = "0.1.0-beta.2"', source)

@@ -23,7 +23,8 @@ def calculate_status(
         "next_switch": next_switch.isoformat() if next_switch else None,
         "next_state": next_state,
         "mode": mode,
+        "actual_mode": mode,
+        "mode_source": "passive_estimate",
         "reason": reason,
         "simulated": True,
     }
-

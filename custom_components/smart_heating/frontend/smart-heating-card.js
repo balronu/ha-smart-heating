@@ -1,5 +1,14 @@
-/* Smart Heating Beta 1: passive schedule editor for the integration's own store. */
+/* Smart Heating Beta 2: passive schedule editor for the integration's own store. */
+const SMART_HEATING_CARD_VERSION = "0.1.0-beta.2";
 class SmartHeatingCard extends HTMLElement {
+  static getConfigElement() {
+    return document.createElement("smart-heating-card-editor");
+  }
+
+  static getStubConfig() {
+    return { entry_id: "" };
+  }
+
   setConfig(config) {
     if (!config || !config.entry_id) throw new Error("Smart Heating needs entry_id");
     this._config = config;
@@ -36,7 +45,7 @@ class SmartHeatingCard extends HTMLElement {
     const status = this._data?.status || {};
     const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
     const labels = { monday: "Montag", tuesday: "Dienstag", wednesday: "Mittwoch", thursday: "Donnerstag", friday: "Freitag", saturday: "Samstag", sunday: "Sonntag" };
-    this.innerHTML = `<ha-card><div class="wrap"><header><strong>${this._config.title || "Smart Heating"}</strong><span class="badge">${status.mode || "—"}</span></header>${this._error ? `<p class="error">${this._error}</p>` : ""}<p class="status">Zeitplan: <b>${status.schedule_active ? "aktiv" : "inaktiv"}</b> · Nächste Umschaltung: ${status.next_switch || "—"}</p><div class="days">${days.map(day => this._day(day, labels[day], schedule[day] || [])).join("")}</div><p class="hint">Zeitplanstatus ist nicht gleich tatsächlicher Heizbetrieb. Freigabe, Fenster, Anwesenheit und Sondermodi bleiben außerhalb dieser Karte.</p></div></ha-card>`;
+    this.innerHTML = `<ha-card><div class="wrap"><header><strong>${this._config.title || "Smart Heating"}</strong><span class="badge">Plan: ${status.mode || "—"}</span></header>${this._error ? `<p class="error" role="alert">${this._error}</p>` : ""}<p class="status">Zeitplan: <b>${status.schedule_active ? "aktiv" : "inaktiv"}</b> · Tatsächlicher Modus: <b>${status.actual_mode || "—"}</b> · Nächste Umschaltung: ${status.next_switch || "—"}</p><div class="days">${days.map(day => this._day(day, labels[day], schedule[day] || [])).join("")}</div><p class="hint">Zeitplanstatus ist nicht gleich tatsächlicher Heizbetrieb. Freigabe, Fenster, Anwesenheit und Sondermodi können den Betrieb übersteuern.</p></div></ha-card>`;
     this._style();
     this.querySelectorAll("button[data-add]").forEach(button => button.addEventListener("click", () => this._add(button.dataset.add)));
     this.querySelectorAll("button[data-remove]").forEach(button => button.addEventListener("click", () => this._remove(button.dataset.remove, Number(button.dataset.index))));
@@ -87,7 +96,25 @@ class SmartHeatingCard extends HTMLElement {
   }
 }
 
+class SmartHeatingCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = { ...config };
+    this._render();
+  }
+
+  _render() {
+    this.innerHTML = `<div style="display:grid;gap:8px"><label>Smart Heating Config Entry ID<input data-entry value="${this._config?.entry_id || ""}" /></label><label>Titel (optional)<input data-title value="${this._config?.title || ""}" /></label></div>`;
+    this.querySelectorAll("input").forEach(input => input.addEventListener("change", () => {
+      const config = { ...this._config, entry_id: this.querySelector("[data-entry]").value.trim() };
+      const title = this.querySelector("[data-title]").value.trim();
+      if (title) config.title = title; else delete config.title;
+      this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
+    }));
+  }
+}
+
+if (!customElements.get("smart-heating-card-editor")) customElements.define("smart-heating-card-editor", SmartHeatingCardEditor);
+
 if (!customElements.get("smart-heating-card")) customElements.define("smart-heating-card", SmartHeatingCard);
 window.customCards = window.customCards || [];
-if (!window.customCards.some(card => card.type === "smart-heating-card")) window.customCards.push({ type: "smart-heating-card", name: "Smart Heating", description: "Weekly Smart Heating schedule and status" });
-
+if (!window.customCards.some(card => card.type === "smart-heating-card")) window.customCards.push({ type: "smart-heating-card", name: "Smart Heating", description: "Weekly Smart Heating schedule and status", preview: true });

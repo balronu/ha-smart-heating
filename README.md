@@ -1,9 +1,9 @@
-# Smart Heating (Beta 1)
+# Smart Heating (Beta 2)
 
 **Smart Heating** ist eine HACS-kompatible Home-Assistant-Integration für
 Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 
-> **Beta-1-Sicherheitsgrenze:** Die Integration arbeitet passiv. Sie schaltet
+> **Beta-2-Sicherheitsgrenze:** Die Integration arbeitet passiv. Sie schaltet
 > keine Climate-Entity, keinen bestehenden Helper, keinen Scheduler und keinen
 > Sondermodus. Eine Migration in eine produktive Heizungssteuerung ist nicht
 > enthalten.
@@ -18,10 +18,13 @@ Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 - read-only Diagnose und Migration-Preview
 - kompakte responsive Lovelace-Karte mit eigener, validierter Planverwaltung
 - deutsche und englische Übersetzungen
+- vorsichtige automatische Entity-Erkennung mit sichtbaren Mehrdeutigkeiten
+- read-only Migrationsassistent mit Fixture, Konflikten und manuellem Vorschlag
+- isolierter Home-Assistant-Lifecycle-Test für Flow, Entities und Neustart
 
 ## Installation
 
-Beta 1 ist ein Entwicklungsrelease und wird erst nach erfolgreichem CI-Gate
+Beta 2 ist ein Entwicklungsrelease und wird erst nach erfolgreichem CI-Gate
 als GitHub-Prerelease veröffentlicht. In HACS muss die Vorabversion explizit
 aktiviert werden. Danach über **HACS → Integrationen → Smart Heating**
 installieren und Home Assistant neu starten.
@@ -58,7 +61,7 @@ ein unterstützter Export vorliegt:
 - Sonntag–Donnerstag Absenkung 21:00
 - Freitag–Samstag Absenkung 22:00
 
-Beta 1 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
+Beta 2 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
 nicht. Die Migrations-Preview zeigt nur einen Konflikt-/Prüfstatus.
 
 ## Entwicklung
@@ -69,16 +72,15 @@ python -m compileall -q custom_components tests
 git diff --check
 ```
 
-Die HA-abhängigen Adapter benötigen für den vollständigen Integrationslauf eine
-passende Home-Assistant-Testumgebung. Eine Installation in produktiver VM 104
-ist kein Teil der Beta-1-Entwicklung.
+Die HA-abhängigen Adapter werden in CI mit Home Assistant 2026.10.4 in einer
+isolierten Fixture getestet. Eine Installation in produktiver VM 104 ist kein
+Teil der Beta-2-Entwicklung.
 
 ## Status
 
-Version: `0.1.0-beta.1`  
+Version: `0.1.0-beta.2`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: nicht enthalten  
 
 Weitere Architektur- und Sicherheitsdetails stehen in
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-

@@ -82,7 +82,7 @@ class WeeklySchedule:
                 )
             for candidate, state in sorted(candidates):
                 if candidate > local and state != active:
-                    return candidate.astimezone(instant.tzinfo), state
+                    return candidate, state
         return None, None
 
 
@@ -115,4 +115,3 @@ def decision_for_state(*, schedule_active: bool, overrides: Mapping[str, bool] |
     if overrides.get("summer") and not any(overrides.get(key) for key in ("party", "return_home")):
         return "summer", "Summer mode"
     return "comfort", "Schedule active"
-

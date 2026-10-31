@@ -1,8 +1,8 @@
-# Smart Heating Beta 1 – Architecture
+# Smart Heating Beta 2 – Architecture
 
 ## Scope
 
-Beta 1 owns a persistent weekly schedule and exposes read-only calculated
+Beta 2 owns a persistent weekly schedule and exposes read-only calculated
 status plus a validated editor for that schedule. It does not replace,
 disable, or bridge the existing heating automation. The first production
 integration of an existing boolean or climate target is deliberately deferred.
@@ -41,8 +41,26 @@ The integration exposes its own namespaced commands:
 - `smart_heating/migration/preview`
 
 `plan/set` validates the complete plan before persisting it. The migration
-command is explicitly preview-only and reports that automatic import is not
-enabled. The card does not rely on private HA storage commands.
+command is explicitly preview-only. It returns conservative discovery
+candidates, ambiguity and missing-role conflicts, the known reference fixture,
+and a validated manual proposal without writing the ConfigEntry. The card does
+not rely on private HA storage commands.
+
+## Discovery contract
+
+Discovery reads the public state machine only. It scores friendly names, entity
+IDs, domains, and device classes. A scalar role is selected only when it has a
+unique best candidate; ties are surfaced for explicit confirmation. Presence
+and window roles remain multi-select. Discovery results are diagnostic context,
+not permission to actuate an entity.
+
+## Runtime test boundary
+
+The repository contains a pinned Home Assistant 2026.10.4 fixture covering the
+real Config Flow, Options Flow, platform entity setup, invalid schedule
+handling, unload/reload, and option persistence. The fixture copies only the
+candidate integration into a temporary config directory and creates synthetic
+states. No network, productive entity, automation, or thermostat is used.
 
 ## Migration safety
 
@@ -51,4 +69,3 @@ must show a before/after diff, detect duplicate writers and ambiguous entities,
 and create a rollback record before any activation. Until that phase is
 explicitly approved, the old Simple Scheduler and all VM 104 entities remain
 untouched.
-
