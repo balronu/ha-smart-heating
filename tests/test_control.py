@@ -116,3 +116,10 @@ class ControlTests(unittest.TestCase):
         self.assertEqual(result.status, "applied_unverified_demand")
         self.assertFalse(result.heat_demand_verified)
         self.assertEqual(result.heat_demand_status, "not_exposed_by_device")
+
+    def test_target_temperature_readback_failure_rolls_back(self):
+        hass = Hass([State("climate.esszimmer", "off", {"temperature": 17})])
+        hass.services.fail_readback = True
+        result = asyncio.run(async_apply_decision(hass, {"operation_mode": "full", "climate_entity": "climate.esszimmer"}, self.decision, activation_confirmed=True, legacy_writer_disabled=True, isolated_test=True))
+        self.assertEqual(result.status, "rolled_back")
+        self.assertTrue(result.rolled_back)

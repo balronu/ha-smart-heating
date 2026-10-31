@@ -88,6 +88,10 @@ async def async_apply_decision(
         observed = hass.states.get(entity_id)
         if not observed or (decision.target_hvac_mode and observed.state != decision.target_hvac_mode):
             raise RuntimeError("Climate read-back did not match the requested HVAC mode")
+        if decision.target_temperature is not None and decision.target_hvac_mode != "off":
+            observed_temp = observed.attributes.get("temperature")
+            if observed_temp is None or abs(float(observed_temp) - float(decision.target_temperature)) > 0.1:
+                raise RuntimeError("Climate read-back did not match the requested target temperature")
         hvac_action = str(observed.attributes.get("hvac_action", "")).lower()
         demand_verified = decision.target_hvac_mode != "heat" or hvac_action in {"heating", "heat"}
         demand_status = "verified" if demand_verified else "not_exposed_by_device"

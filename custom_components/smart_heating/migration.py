@@ -37,6 +37,31 @@ def _conflict(code: str, severity: str, message: str) -> dict[str, str]:
     return {"code": code, "severity": severity, "message": message}
 
 
+def build_installation_plan(discovery: Mapping[str, Any], control_plane: Mapping[str, Any]) -> dict[str, Any]:
+    """Return an explicit, UI-safe first-install decision."""
+    ambiguous = list(discovery.get("ambiguous", []))
+    selected = discovery.get("selected", {})
+    missing = list(discovery.get("missing", []))
+    required = ("climate_entity", "heating_permission", "comfort_setpoint", "night_setpoint")
+    missing_required = [role for role in required if not selected.get(role)]
+    errors = sorted(set(ambiguous + missing_required))
+    return {
+        "default_mode": "compatibility",
+        "compatibility_ready": not errors,
+        "compatibility_effect": "observe schedule and leave the existing thermostat writer untouched",
+        "full_mode_ready": False,
+        "full_mode_blockers": [
+            "legacy automation writer cannot be disabled or proven through this read-only plan",
+            "Simple Scheduler has no supported public export in this installation",
+        ],
+        "selected_roles": selected,
+        "missing_optional_roles": missing,
+        "ambiguous_roles": ambiguous,
+        "manual_action": "review the proposal and confirm unresolved roles in the UI; no YAML is required",
+        "control_plane": control_plane,
+    }
+
+
 def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Build a proposal from public state only; no writes or services."""
     discovery = discover_entities(hass)
@@ -60,6 +85,7 @@ def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] 
         conflicts.append(_conflict("missing_entities", "warning", "Some optional heating roles were not discovered."))
     if selected.get("heating_boolean"):
         conflicts.append(_conflict("existing_writer", "error", "The existing heating helper may have writers outside this integration; single-writer safety cannot be proven through supported read-only APIs."))
+    installation = build_installation_plan(discovery, control_plane)
     return {
         "entry_id": entry.entry_id,
         "mode": "preview_only",
@@ -69,6 +95,7 @@ def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] 
         "proposed_schedule": schedule,
         "discovery": discovery,
         "control_plane": control_plane,
+        "installation": installation,
         "conflicts": conflicts,
         "activation_allowed": False,
         "rollback": {"prepared": False, "activation_required": True, "description": "Production activation is locked until the old writer is explicitly and safely replaced."},

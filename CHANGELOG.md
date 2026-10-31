@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.1.0-beta.5 – Beta 5
+
+### Deutsch
+
+- Installationsplan mit klarer Trennung zwischen Kompatibilitätsmodus und
+  gesperrtem Vollmodus ergänzt.
+- Zieltemperatur-Read-back im isolierten Climate-Pfad ergänzt; Abweichungen
+  lösen Snapshot-Rollback aus.
+- Produktive Read-only-Prüfung dokumentiert: zentrale Automation schreibt über
+  `climate.esszimmer` mit Tado-Fallback; Simple-Scheduler-Export bleibt über
+  unterstützte Schnittstellen nicht verfügbar.
+- Schornsteinfeger-Priorität und fehlender Brennernachweis bleiben sichtbar.
+
+### English
+
+- Added an explicit installation plan separating compatibility mode from the
+  locked full mode.
+- Added target-temperature read-back to the isolated climate path; mismatches
+  trigger snapshot rollback.
+- Documented the productive read-only result: the central automation writes to
+  `climate.esszimmer` with a Tado fallback; Simple Scheduler export is not
+  available through supported interfaces.
+- Kept chimney-sweep priority and the lack of burner proof explicit.
+
 ## 0.1.0-beta.4 – Beta 4
 
 ### Deutsch

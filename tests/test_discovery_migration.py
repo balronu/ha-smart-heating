@@ -82,6 +82,8 @@ class DiscoveryMigrationTests(unittest.TestCase):
         self.assertIsNone(result["proposed_schedule"])
         self.assertTrue(any(item["code"] == "scheduler_export_unavailable" for item in result["conflicts"]))
         self.assertEqual(result["rollback"]["prepared"], False)
+        self.assertFalse(result["installation"]["full_mode_ready"])
+        self.assertIn("manual_action", result["installation"])
 
     def test_manual_schedule_is_only_a_validated_proposal(self):
         hass = FakeHass([])
@@ -109,3 +111,14 @@ class DiscoveryMigrationTests(unittest.TestCase):
         self.assertEqual(transaction.execute_isolated(transaction.transaction_id), result)
         self.assertEqual(transaction.state, MigrationState.VERIFIED)
         self.assertTrue(transaction.idempotency_key)
+
+    def test_installation_plan_keeps_compatibility_separate_from_full_mode(self):
+        hass = FakeHass([
+            FakeState("climate.esszimmer", "Esszimmer Heizung"),
+            FakeState("input_boolean.heizung_freigabe", "Heizungsfreigabe"),
+            FakeState("input_number.heiztemperatur", "Heiztemperatur"),
+            FakeState("input_number.absenktemperatur", "Absenktemperatur"),
+        ])
+        result = preview_migration(hass, FakeEntry(), {"monday": [{"start": "05:30", "end": "06:00"}]})
+        self.assertTrue(result["installation"]["compatibility_ready"])
+        self.assertFalse(result["installation"]["full_mode_ready"])
