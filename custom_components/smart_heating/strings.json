@@ -3,22 +3,15 @@
     "step": {
       "user": {
         "title": "Smart Heating einrichten",
-        "description": "Beta 9 erkennt passende Entities vorsichtig, erlaubt explizite Zuordnungen im Options Flow und verwaltet passive Personen und Klimazonen. Produktive Aktivierung bleibt gesperrt.",
+        "description": "Nur Name und Zeitzone sind für den Start nötig. Smart Heating bleibt passiv; Zuordnungen und Backend-Bereiche werden anschließend geprüft.",
         "data": {
           "name": "Name",
-          "timezone": "Zeitzone",
-          "climate_entity": "Optionales Climate-Entity",
-          "heating_boolean": "Optionaler bestehender Zeitstatus-Helper",
-          "heating_permission": "Optionaler Heizfreigabe-Helper",
-          "comfort_setpoint": "Optionaler Komforttemperatur-Helper",
-          "night_setpoint": "Optionaler Absenktemperatur-Helper",
-          "window_entities": "Fenster-Entities",
-          "presence_entities": "Anwesenheits-Entities"
+          "timezone": "Zeitzone"
         }
       },
       "confirm": {
         "title": "Zuordnungen bestätigen",
-        "description": "Erkannte Zuordnungen: {selected}. Mehrdeutig: {ambiguous}. Nicht erkannt: {missing}. Prüfe die Übersicht; Smart Heating bleibt im sicheren Kompatibilitätsmodus.",
+        "description": "Vorschläge: {selected}. Mehrdeutig: {ambiguous}. Nicht erkannt: {missing}. Nichts wird ohne deine Bestätigung gespeichert; Smart Heating bleibt passiv.",
         "data": {"confirm": "Zuordnungen übernehmen"}
       },
       "schedule": {
@@ -27,7 +20,7 @@
         "data": {"schedule": "Wochenplan", "summer_mode": "Sommermodus-Planung", "operation_mode": "Betriebsart", "chimney_temperature": "Schornsteinfeger-Solltemperatur", "frost_temperature": "Frostschutz-Solltemperatur", "climate_entity": "Primäres Climate-Entity", "tado_fallback": "Tado-Fallback", "heating_boolean": "Zeitstatus-Helper", "heating_permission": "Heizfreigabe", "comfort_setpoint": "Komforttemperatur", "night_setpoint": "Absenktemperatur", "outdoor_temperature": "Außentemperatur", "window_entities": "Fenster-Entities", "presence_entities": "Anwesenheits-Entities", "party_entity": "Party", "visit_entity": "Besuch", "return_home_entity": "Heimweg", "chimney_sweep_entity": "Schornsteinfeger", "summer_entity": "Sommermodus"}
       }
     },
-    "error": {"invalid_schedule": "Ungültiger oder überlappender Zeitplan."}
+    "error": {"invalid_schedule": "Ungültiger oder überlappender Zeitplan.", "confirmation_required": "Bitte prüfe die Vorschläge und bestätige sie ausdrücklich."}
   },
   "entity": {
     "binary_sensor": {"schedule_active": {"name": "Zeitplan aktiv"}},

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.0-beta.10 – Beta 10
+
+### Deutsch
+
+- Ersteinrichtung auf Name und Zeitzone reduziert; Legacy-Helper bleiben aus dem initialen Flow heraus.
+- Erkannte Zuordnungen werden erst nach ausdrücklicher Bestätigung gespeichert.
+- Fenstererkennung auf geeignete Öffnungs-Binary-Sensoren und native `person.*`-Entities beschränkt.
+- Backend-Bereiche und Raumdetails bleiben standardmäßig geschlossen und zeigen verständliche Labels statt technischer IDs.
+- Options-, Runtime- und gerenderte Playwright-Tests für Desktop, iPhone, iPad und Touchmonitor erweitert.
+
+### English
+
+- Reduced first-run setup to name and time zone; legacy helpers no longer dominate the initial flow.
+- Detected associations are stored only after explicit confirmation.
+- Restricted window discovery to suitable opening binary sensors and presence discovery to native `person.*` entities.
+- Backend sections and room details remain closed by default and show readable labels instead of technical IDs.
+- Extended Options, runtime, and rendered Playwright tests for desktop, iPhone, iPad, and touch monitor.
+
 ## 0.1.0-beta.9 – Beta 9
 
 ### Deutsch

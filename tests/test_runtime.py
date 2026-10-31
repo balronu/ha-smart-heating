@@ -55,17 +55,14 @@ class RuntimeTests(unittest.TestCase):
                         {
                             "name": "Runtime Test",
                             "timezone": "Europe/Berlin",
-                            "climate_entity": "climate.esszimmer",
-                            "heating_boolean": "input_boolean.heizung",
-                            "heating_permission": "input_boolean.heizung_freigabe",
-                            "comfort_setpoint": "input_number.heiztemperatur",
-                            "night_setpoint": "input_number.absenktemperatur",
-                            "window_entities": ["binary_sensor.fenster"],
-                            "presence_entities": ["person.michael"],
                         },
                     )
                     self.assertEqual(flow["type"], "form")
-                    flow = await hass.config_entries.flow.async_configure(flow["flow_id"], {"confirm": True})
+                    self.assertEqual(set(flow["data_schema"].schema), {"confirm"})
+                    rejected = await hass.config_entries.flow.async_configure(flow["flow_id"], {"confirm": False})
+                    self.assertEqual(rejected["type"], "form")
+                    self.assertEqual(rejected["errors"]["base"], "confirmation_required")
+                    flow = await hass.config_entries.flow.async_configure(rejected["flow_id"], {"confirm": True})
                     entry = flow["result"]
                     self.assertEqual(entry.domain, "smart_heating")
                     await hass.async_block_till_done()

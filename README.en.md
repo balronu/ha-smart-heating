@@ -1,4 +1,4 @@
-# Smart Heating (Beta 9)
+# Smart Heating (Beta 10)
 
 **Smart Heating** is a HACS-compatible Home Assistant integration for weekly
 schedules, status, simulation, and a compact Lovelace card.
@@ -59,9 +59,16 @@ narrow touch monitor:
 
 ## Installation and setup
 
-Beta 9 is published as a GitHub pre-release. Pre-releases must be enabled
+Beta 10 is published as a GitHub pre-release. Pre-releases must be enabled
 explicitly in HACS. Then install **Smart Heating** through **HACS → Integrations**.
 If Home Assistant requires a restart, treat it as a separately approved step.
+
+Set only a name and time zone first; legacy helpers are not part of the initial
+flow. Review and explicitly confirm discovery suggestions. Then open the card:
+it contains seven sections closed by default: Rooms & climate zones, Windows &
+tilt sensors, People & presence, Outdoor temperature, Heating controller,
+Special modes & safety, and Diagnostics & migration. Rooms and zones are also
+independently expandable.
 
 Add the card to a test dashboard with the config-entry ID:
 
@@ -75,9 +82,12 @@ existing heating entities.
 
 The Options Flow can persist explicit associations for the primary climate,
 Tado fallback, schedule status, heating permission, setpoints, outdoor
-temperature, windows, presence, and special modes. Discovery suggestions are
-preselected while ambiguous candidates remain available for review. Unknown
-window states are never presented as closed.
+temperature, windows, presence, and special modes. Suggestions are stored only
+after explicit confirmation while ambiguous candidates remain open. Window
+choices are limited to suitable `binary_sensor` entities with an opening device
+class. Presence choices use native `person.*` only; trackers, battery,
+temperature, diagnostic, and vehicle entities are excluded. Unknown window
+states are never presented as closed.
 
 ## Reference migration
 
@@ -108,7 +118,7 @@ fixture. Productive VM 104 installation is explicitly outside this beta. The
 compatibility mode is passive; full mode remains locked until a separately
 verified single-writer proof exists.
 
-Version: `0.1.0-beta.9`
+Version: `0.1.0-beta.10`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 

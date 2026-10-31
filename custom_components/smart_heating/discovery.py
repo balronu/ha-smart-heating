@@ -16,7 +16,8 @@ ROLE_DOMAINS = {
     "heating_permission": ("input_boolean",),
     "comfort_setpoint": ("input_number", "number"),
     "night_setpoint": ("input_number", "number"),
-    "presence_entities": ("person", "device_tracker", "input_boolean"),
+    # Smart Heating consumes HA's native person integration only.
+    "presence_entities": ("person",),
     "window_entities": ("binary_sensor", "sensor"),
     "outdoor_temperature": ("sensor",),
     "special_modes": ("input_boolean",),
@@ -72,11 +73,30 @@ def _score(state: Any, role: str) -> int:
     return score
 
 
+_WINDOW_DEVICE_CLASSES = {"window", "door", "opening"}
+_WINDOW_STATES = {
+    "on", "off", "open", "opened", "closed", "close", "tilt", "tilted",
+    "gekippt", "gekipp", "offen", "geschlossen", "true", "false",
+}
+
+
+def _is_window_candidate(state: Any) -> bool:
+    """Accept only entities that can represent an opening state."""
+    attrs = getattr(state, "attributes", {}) or {}
+    if str(attrs.get("device_class", "")).lower() not in _WINDOW_DEVICE_CLASSES:
+        return False
+    state_value = str(getattr(state, "state", "")).lower()
+    options = {str(value).lower() for value in attrs.get("options", []) or []}
+    return state_value in _WINDOW_STATES or bool(options & _WINDOW_STATES)
+
+
 def _role_candidates(hass: Any, role: str) -> list[dict[str, Any]]:
     candidates = []
     for state in _states(hass, ROLE_DOMAINS[role]):
+        if role == "window_entities" and not _is_window_candidate(state):
+            continue
         score = _score(state, role)
-        if score <= 0:
+        if score <= 0 and role != "presence_entities":
             continue
         candidates.append({
             "entity_id": state.entity_id,
