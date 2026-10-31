@@ -14,7 +14,7 @@ class FrontendContractTests(unittest.TestCase):
         self.assertIn('static getStubConfig()', source)
         self.assertIn('smart-heating-card-editor', source)
         self.assertIn('actual_mode', source)
-        self.assertIn('SMART_HEATING_CARD_VERSION = "0.1.0-beta.14"', source)
+        self.assertIn('SMART_HEATING_CARD_VERSION = "0.1.0-beta.15"', source)
         self.assertIn("this._data?.version || SMART_HEATING_CARD_VERSION", source)
         self.assertNotIn("Beta 9", source)
         self.assertIn("target_temperature", source)

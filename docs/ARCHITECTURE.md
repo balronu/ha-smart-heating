@@ -1,6 +1,6 @@
 # Smart Heating – Architecture
 
-## Beta 14 integration boundary
+## Beta 15 integration boundary
 
 Smart Heating is a regular `hub`-type Config-Entry integration, not a Home
 Assistant Helper integration. Its own status entities are native entities
@@ -19,7 +19,7 @@ no registry or Config Entry mutation.
 
 ## Phase 18B productive boundary (2026-10-31)
 
-The repository Beta 14 artifact is not automatically installed on productive
+The repository Beta 15 artifact is not automatically installed on productive
 VM 104. The live instance has two loaded `smart_heating` Config Entries. The
 entry named `Smart Heating VM 104`
 (`01M68R60BY4VA2NA7PYG2DX5YS`) is the recommended primary because the default
@@ -33,7 +33,7 @@ restart, service call, entity removal, Config Entry removal, or automation
 change. The evidence and API completeness limits are recorded in the Phase 17
 read-only report.
 
-Beta 14 fixes the Home Assistant 2026.10 config-flow HTTP 500 caused by
+Beta 15 fixes the Home Assistant 2026.10 config-flow HTTP 500 caused by
 serializing the weekly schedule as a raw Python `dict`; the options schema now
 uses a native serializable Object Selector. This remains a UI/schema fix and
 does not alter heating control ownership.
@@ -123,3 +123,17 @@ must show a before/after diff, detect duplicate writers and ambiguous entities,
 and create a rollback record before any activation. Until that phase is
 explicitly approved, the old Simple Scheduler and all VM 104 entities remain
 untouched.
+
+## Beta 15 window-contact inventory
+
+Automatic contact discovery is deliberately narrower than generic entity
+discovery: only `binary_sensor` entities with `window`, `door`, or `opening`
+device classes enter the contact inventory. Battery, temperature, signal,
+diagnostic, aggregate, and other `sensor` entities are excluded even when
+their names contain window-related words. Existing stored assignments remain
+visible as review records when they are no longer eligible.
+
+The panel reads the entity/device/Area registries and groups contacts by HA
+Area without modifying those registries. An explicitly saved Smart Heating
+area override is internal Config Entry data, not a Home Assistant Area change.
+Saving is explicit; no contact deletion or disabling operation is exposed.

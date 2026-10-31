@@ -12,6 +12,10 @@ SCHEMA_VERSION = 2
 COLLECTION_KEYS = ("persons", "zones", "sensors")
 SENSOR_TYPES = ("window", "tilt", "temperature", "thermostat")
 OPERATING_MODES = ("automatic", "manual_heat", "manual_setback")
+WINDOW_DEVICE_CLASSES = {"window", "door", "opening"}
+WINDOW_OPEN_STATES = {"on", "open", "opened", "offen", "true"}
+WINDOW_TILT_STATES = {"tilt", "tilted", "gekippt", "gekipp", "gekippte"}
+WINDOW_CLOSED_STATES = {"off", "closed", "close", "geschlossen", "false"}
 
 
 def discover_persons(hass: Any) -> list[dict[str, Any]]:
@@ -200,13 +204,147 @@ def area_suggestions(hass: Any) -> list[dict[str, Any]]:
     result = []
     for area in discover_areas(hass):
         area = dict(area)
+        contacts = [item for item in discover_window_contacts(hass) if item.get("area_id") == area["area_id"]]
         area["suggestions"] = {
             "thermostat_entities": [entity for entity in area["entity_ids"] if entity.startswith("climate.")],
             "temperature_entities": [entity for entity in area["entity_ids"] if entity.startswith("sensor.")],
-            "window_entities": [entity for entity in area["entity_ids"] if entity.startswith(("binary_sensor.", "sensor.")) and "fenster" in entity.lower()],
+            "window_entities": [item["entity_id"] for item in contacts],
         }
+        area["window_contacts"] = contacts
+        area["window_contact_count"] = len(contacts)
         result.append(area)
     return result
+
+
+def _window_status(state: Any) -> str:
+    value = str(getattr(state, "state", "missing") if state else "missing").lower()
+    if value in WINDOW_OPEN_STATES:
+        return "open"
+    if value in WINDOW_TILT_STATES:
+        return "tilted"
+    if value in WINDOW_CLOSED_STATES:
+        return "closed"
+    return "unknown"
+
+
+def is_eligible_window_entity(entity_id: str, device_class: str) -> bool:
+    """Return whether an entity is safe to offer as an automatic contact."""
+    return entity_id.startswith("binary_sensor.") and str(device_class).lower() in WINDOW_DEVICE_CLASSES
+
+
+def discover_window_contacts(hass: Any, configured_entities: list[str] | tuple[str, ...] = ()) -> list[dict[str, Any]]:
+    """Discover opening contacts and return a non-destructive inventory.
+
+    Registry entries and live states are only read. Missing/unavailable and
+    duplicate-looking contacts are explicit review flags; this function never
+    changes an entity, registry entry, or Config Entry.
+    """
+    try:
+        from homeassistant.helpers import area_registry, entity_registry
+
+        areas = {item.id: item.name for item in area_registry.async_get(hass).async_list_areas()}
+        registry = entity_registry.async_get(hass).entities
+    except (AttributeError, ImportError):
+        areas, registry = {}, {}
+
+    candidates: list[dict[str, Any]] = []
+    for item in registry.values():
+        entity_id = getattr(item, "entity_id", "")
+        domain = entity_id.split(".", 1)[0] if "." in entity_id else ""
+        # Only binary sensors represent an on/off opening state safely. A
+        # sensor with a window-like name can be a battery, diagnostic, or
+        # aggregate sensor and must never enter the automatic contact list.
+        if domain != "binary_sensor":
+            continue
+        state = hass.states.get(entity_id)
+        attrs = getattr(state, "attributes", {}) if state else {}
+        device_class = str(attrs.get("device_class") or getattr(item, "device_class", "") or "").lower()
+        name = getattr(item, "name", None) or getattr(item, "original_name", None) or getattr(state, "name", None) or entity_id
+        label = f"{name} {entity_id}".lower()
+        if not is_eligible_window_entity(entity_id, device_class):
+            continue
+        area_id = getattr(item, "area_id", None)
+        candidates.append({
+            "entity_id": entity_id,
+            "name": name,
+            "area_id": area_id,
+            "area_name": areas.get(area_id, "Kein Raum zugeordnet"),
+            "device_class": device_class or "unbekannt",
+            "state": str(getattr(state, "state", "missing")) if state else "missing",
+            "status": _window_status(state),
+            "available": bool(state) and str(getattr(state, "state", "")) not in {"unknown", "unavailable"},
+            "configured": entity_id in set(configured_entities),
+        })
+
+    duplicate_keys: dict[tuple[str, str | None], list[dict[str, Any]]] = {}
+    for item in candidates:
+        key = (" ".join(str(item["name"]).lower().split()), item["area_id"])
+        duplicate_keys.setdefault(key, []).append(item)
+    for item in candidates:
+        key = (" ".join(str(item["name"]).lower().split()), item["area_id"])
+        item["review_flags"] = []
+        if len(duplicate_keys[key]) > 1:
+            item["review_flags"].append("duplicate_name")
+        if not item["available"]:
+            item["review_flags"].append("stale_or_unavailable")
+        item["review_required"] = bool(item["review_flags"])
+    return sorted(candidates, key=lambda item: (str(item["area_name"]).lower(), str(item["name"]).lower(), item["entity_id"]))
+
+
+def window_contact_summary(hass: Any, management: Mapping[str, Any]) -> dict[str, Any]:
+    """Return room/group counts for the panel without changing assignments."""
+    configured_items = [
+        item
+        for kind in ("window", "tilt")
+        for item in management.get("sensors", {}).get(kind, [])
+        if isinstance(item, Mapping) and item.get("entity_id")
+    ]
+    configured_ids = [item["entity_id"] for item in configured_items]
+    contacts = discover_window_contacts(hass, configured_ids)
+    by_entity = {item["entity_id"]: item for item in configured_items}
+    discovered_ids = {item["entity_id"] for item in contacts}
+    for contact in contacts:
+        configured_item = by_entity.get(contact["entity_id"])
+        if configured_item:
+            contact["id"] = configured_item.get("id")
+            contact["zone_ids"] = list(configured_item.get("zone_ids", []))
+            contact["configured_type"] = configured_item.get("type")
+            contact["state_semantics"] = configured_item.get("state_semantics", "open_or_tilted")
+            # This is an internal override only; the HA Area Registry is
+            # never modified by Smart Heating.
+            if configured_item.get("area_id"):
+                contact["assigned_area_id"] = configured_item["area_id"]
+                contact["assigned_area_name"] = configured_item.get("area_name", configured_item["area_id"])
+    for configured_item in configured_items:
+        if configured_item["entity_id"] in discovered_ids:
+            continue
+        contacts.append({
+            "id": configured_item.get("id"),
+            "entity_id": configured_item["entity_id"],
+            "name": configured_item["entity_id"],
+            "area_id": configured_item.get("area_id"),
+            "area_name": configured_item.get("area_name", "Manuell zugeordnet" if configured_item.get("area_id") else "Kein Raum zugeordnet"),
+            "device_class": "nicht ermittelt",
+            "state": "missing",
+            "status": "unknown",
+            "available": False,
+            "configured": True,
+            "zone_ids": list(configured_item.get("zone_ids", [])),
+            "configured_type": configured_item.get("type"),
+            "state_semantics": configured_item.get("state_semantics", "open_or_tilted"),
+            "review_flags": ["configured_but_not_eligible"],
+            "review_required": True,
+        })
+    groups: dict[str, dict[str, Any]] = {}
+    for contact in contacts:
+        key = contact.get("assigned_area_id") or contact.get("area_id") or "__unassigned__"
+        area_name = contact.get("assigned_area_name") or contact.get("area_name")
+        group = groups.setdefault(key, {"area_id": key if key != "__unassigned__" else None, "area_name": area_name, "count": 0, "open": 0, "tilted": 0, "unknown": 0, "review": 0, "contacts": []})
+        group["count"] += 1
+        group[contact["status"]] = group.get(contact["status"], 0) + 1
+        group["review"] += int(contact["review_required"])
+        group["contacts"].append(contact)
+    return {"total": len(contacts), "configured": sum(item["configured"] for item in contacts), "review": sum(item["review_required"] for item in contacts), "groups": list(groups.values()), "contacts": contacts}
 
 
 def upsert_item(data: dict[str, Any], collection: str, item: Mapping[str, Any]) -> dict[str, Any]:

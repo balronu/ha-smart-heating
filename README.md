@@ -1,4 +1,4 @@
-# Smart Heating (Beta 14)
+# Smart Heating (Beta 15)
 
 **Smart Heating** ist eine HACS-kompatible Home-Assistant-Integration für
 Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
@@ -9,14 +9,14 @@ Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 > Sondermodus. Eine Migration in eine produktive Heizungssteuerung ist nicht
 > enthalten.
 
-> **Phase-18B-Sicherheitsgrenze (31.10.2026):** Beta 14 ist ausschließlich im
+> **Phase-19-Sicherheitsgrenze (31.10.2026):** Beta 15 ist ausschließlich im
 > Entwicklungsrepository veröffentlicht und wird nicht automatisch auf VM 104
 > installiert. Die produktive Instanz wurde nur lesend untersucht; beide
 > vorhandenen Config Entries bleiben unverändert.
 
 ## Beta-12-Backend-Verwaltung und Klimazonen
 
-Beta 13 führt die eigenständige, passive Backend-Verwaltung für Personen,
+Beta 15 führt die eigenständige, passive Backend-Verwaltung für Personen,
 Klimazonen, Thermostate, Fenster-/Kippkontakte, Raumtemperaturfühler,
 Außentemperatur und einen zentralen Controller. Änderungen werden über
 Config-Entry-Optionen beziehungsweise die unterstützte WebSocket-API
@@ -70,9 +70,16 @@ den UI-Fixtures auf Desktop, iPhone, iPad und engem Touchmonitor geprüft:
 ![Smart Heating Desktop](docs/screenshots/smart-heating-card-desktop.png)
 ![Smart Heating iPhone](docs/screenshots/smart-heating-card-iphone.png)
 
+Das Panel gruppiert Fensterkontakte nach HA-Räumen und bietet Suche sowie
+Statusfilter. Automatisch erkannt werden ausschließlich `binary_sensor`-
+Entities mit `window`, `door` oder `opening`; Batterie-, Diagnose-,
+Temperatur- und andere Neben-Entities werden ausgeschlossen. Bestehende
+ungeeignete Zuordnungen bleiben erhalten und werden nur zur manuellen Prüfung
+markiert.
+
 ## Installation
 
-Beta 13 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
+Beta 15 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
 aktiviert werden. Danach über **HACS → Integrationen → Smart Heating**
 installieren. Ein erforderlicher Home-Assistant-Neustart ist separat zu
 prüfen und darf erst nach Freigabe durchgeführt werden.
@@ -174,7 +181,7 @@ bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
-Version: `0.1.0-beta.14`
+Version: `0.1.0-beta.15`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 

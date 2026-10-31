@@ -14,7 +14,7 @@
       "schedule": {
         "title": "Weekly schedule",
         "description": "Configure the weekly schedule. Overlaps are rejected.",
-        "data": {"schedule": "Weekly schedule", "summer_mode": "Summer mode planning", "operation_mode": "Operation mode", "chimney_temperature": "Chimney sweep target temperature", "frost_temperature": "Frost protection target temperature"}
+        "data": {"schedule": "Weekly schedule", "summer_mode": "Summer mode planning", "operation_mode": "Operation mode", "chimney_temperature": "Chimney sweep target temperature", "frost_temperature": "Frost protection target temperature", "climate_entity": "Primary heating climate", "tado_fallback": "Tado fallback climate", "heating_boolean": "Heating schedule status", "heating_permission": "Heating permission", "comfort_setpoint": "Comfort temperature", "night_setpoint": "Setback temperature", "outdoor_temperature": "Outdoor temperature", "window_entities": "Window and door contacts", "presence_entities": "Presence people", "party_entity": "Party mode", "visit_entity": "Guest mode", "return_home_entity": "Return-home mode", "chimney_sweep_entity": "Chimney-sweep mode", "summer_entity": "Summer mode"}
       }
     },
     "error": {"invalid_schedule": "Invalid or overlapping schedule.", "confirmation_required": "Review the suggestions and explicitly confirm them."},
