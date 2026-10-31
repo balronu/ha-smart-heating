@@ -33,3 +33,12 @@ test("shows a rendered error and remains usable", async ({ page }) => {
   await expect(page.getByTestId("error")).toContainText("Ungültiger");
   await expect(page.locator("section[data-day=monday]")).toBeVisible();
 });
+
+test("manages a zone and selects a native person through the rendered card", async ({ page }) => {
+  await page.getByLabel("Name der Zone").fill("Wohnbereich");
+  await page.getByLabel("Thermostate").fill("climate.wohnzimmer");
+  await page.getByRole("button", { name: "Zone hinzufügen" }).click();
+  await expect(page.locator(".management-list").first()).toContainText("Wohnbereich");
+  await page.locator("details").nth(1).click();
+  await page.getByRole("button", { name: "berücksichtigen" }).click();
+});

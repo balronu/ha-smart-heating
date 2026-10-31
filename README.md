@@ -1,13 +1,24 @@
-# Smart Heating (Beta 7)
+# Smart Heating (Beta 8)
 
 **Smart Heating** ist eine HACS-kompatible Home-Assistant-Integration für
 Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 
-> **Beta-7-Sicherheitsgrenze:** Die Integration berechnet die vollständige
+> **Beta-8-Sicherheitsgrenze:** Die Integration berechnet die vollständige
 > Heizungsentscheidung passiv. Sie schaltet
 > keine Climate-Entity, keinen bestehenden Helper, keinen Scheduler und keinen
 > Sondermodus. Eine Migration in eine produktive Heizungssteuerung ist nicht
 > enthalten.
+
+## Beta-8-Verwaltung und Klimazonen
+
+Beta 8 ergänzt eine versionierte, passive Backend-Verwaltung für Personen,
+Klimazonen, Thermostate, Fenster-/Kippkontakte, Raumtemperaturfühler,
+Außentemperatur und einen zentralen Controller. Änderungen werden über
+Config-Entry-Optionen beziehungsweise die unterstützte WebSocket-API
+gespeichert; Home-Assistant-Entities werden niemals angelegt oder gelöscht.
+Personen stammen ausschließlich aus `person.*`. Unbekannte Anwesenheit wird
+nicht als Abwesenheit interpretiert. Ein Thermostat darf nicht zwei aktiven
+Zonen zugeordnet sein.
 
 ## Funktionen
 
@@ -32,7 +43,7 @@ Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 
 ## Installation
 
-Beta 7 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
+Beta 8 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
 aktiviert werden. Danach über **HACS → Integrationen → Smart Heating**
 installieren. Ein erforderlicher Home-Assistant-Neustart ist separat zu
 prüfen und darf erst nach Freigabe durchgeführt werden.
@@ -87,7 +98,7 @@ ein unterstützter Export vorliegt:
 - Sonntag–Donnerstag Absenkung 21:00
 - Freitag–Samstag Absenkung 22:00
 
-Beta 7 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
+Beta 8 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
 nicht. Die Migrations-Preview zeigt nur einen Konflikt-/Prüfstatus. Der
 ausführbare Adapter akzeptiert Schreibzugriffe ausschließlich über einen
 isolierten Test-Transport; die Produktiv-Sperre verweigert die Aktivierung,
@@ -123,7 +134,7 @@ bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
-Version: `0.1.0-beta.7`
+Version: `0.1.0-beta.8`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 

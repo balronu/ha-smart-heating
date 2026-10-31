@@ -25,6 +25,14 @@ from .engine import calculate_status
 from .models import ScheduleValidationError, WeeklySchedule
 from .migration import preview_migration
 from .control import analyze_control_plane
+from .management import (
+    discover_persons,
+    normalize_management,
+    person_presence,
+    remove_item,
+    upsert_item,
+    validate_management,
+)
 from .storage import effective_config, load_schedule, normalized_options
 
 _LOGGER = logging.getLogger(__name__)
@@ -56,6 +64,14 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
     """Read explicitly configured state context; never issue a service call."""
     config = effective_config(entry)
     result: dict[str, bool] = {}
+    management = normalize_management(config.get("management"))
+    presence = person_presence(hass, management["persons"])
+    if presence["home"]:
+        result["someone_home"] = True
+    if presence["away"]:
+        result["away"] = True
+    if presence["unknown"]:
+        result["presence_unknown"] = True
     for key, entity_id in config.get("special_modes", {}).items():
         if isinstance(entity_id, str) and entity_id:
             result[key] = hass.states.is_state(entity_id, "on")
@@ -112,6 +128,15 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         websocket_api.async_register_command(hass, _ws_set_schedule)
         websocket_api.async_register_command(hass, _ws_simulate)
         websocket_api.async_register_command(hass, _ws_migration_preview)
+        websocket_api.async_register_command(hass, _ws_admin_get)
+        websocket_api.async_register_command(hass, _ws_admin_person_set)
+        websocket_api.async_register_command(hass, _ws_admin_person_delete)
+        websocket_api.async_register_command(hass, _ws_admin_zone_set)
+        websocket_api.async_register_command(hass, _ws_admin_zone_delete)
+        websocket_api.async_register_command(hass, _ws_admin_sensor_set)
+        websocket_api.async_register_command(hass, _ws_admin_sensor_delete)
+        websocket_api.async_register_command(hass, _ws_admin_controller_set)
+        websocket_api.async_register_command(hass, _ws_admin_validate)
         hass.data[_WS_REGISTERED] = True
     return True
 
@@ -190,7 +215,9 @@ async def _ws_get_status(hass: HomeAssistant, connection: websocket_api.ActiveCo
     config = effective_config(entry)
     status = dict(coordinator.data or {})
     status["observed"] = _observed_status(hass, config)
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "schedule": load_schedule(config).as_dict(), "status": status, "options": {"name": entry.title, "timezone": config.get("timezone"), "operation_mode": config.get("operation_mode", "compatibility"), "discovery": config.get("discovery", {}), "special_modes": config.get("special_modes", {}), "control_plane": analyze_control_plane(hass, config)}})
+    management = normalize_management(config.get("management"))
+    status["presence"] = person_presence(hass, management["persons"])
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "schedule": load_schedule(config).as_dict(), "status": status, "options": {"name": entry.title, "timezone": config.get("timezone"), "operation_mode": config.get("operation_mode", "compatibility"), "discovery": config.get("discovery", {}), "special_modes": config.get("special_modes", {}), "control_plane": analyze_control_plane(hass, config), "management": management, "persons_discovered": discover_persons(hass)}})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/plan/set", vol.Required("entry_id"): cv.string, vol.Required("schedule"): dict})
@@ -222,3 +249,96 @@ async def _ws_simulate(hass: HomeAssistant, connection: websocket_api.ActiveConn
 async def _ws_migration_preview(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, _ = _entry_from_connection(hass, msg["entry_id"])
     connection.send_result(msg["id"], preview_migration(hass, entry, msg.get("manual_schedule")))
+
+
+def _admin_entry(hass: HomeAssistant, entry_id: str) -> tuple[ConfigEntry, dict[str, Any]]:
+    entry, _ = _entry_from_connection(hass, entry_id)
+    return entry, normalize_management(effective_config(entry).get("management"))
+
+
+def _admin_save(hass: HomeAssistant, entry: ConfigEntry, management: dict[str, Any]) -> None:
+    errors = validate_management(management)
+    if errors:
+        raise ValueError(";".join(errors))
+    options = dict(entry.options)
+    options["management"] = management
+    hass.config_entries.async_update_entry(entry, options=options)
+
+
+async def _admin_mutation(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any], collection: str, delete: bool = False) -> None:
+    entry, management = _admin_entry(hass, msg["entry_id"])
+    try:
+        if delete:
+            remove_item(management, collection, msg["item_id"])
+        else:
+            upsert_item(management, collection, msg["item"])
+        _admin_save(hass, entry, management)
+        await _async_entry_updated(hass, entry)
+    except ValueError as err:
+        connection.send_error(msg["id"], "invalid_configuration", str(err))
+        return
+    connection.send_result(msg["id"], {"management": management, "validation": validate_management(management)})
+
+
+@websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/get", vol.Required("entry_id"): cv.string})
+@websocket_api.async_response
+async def _ws_admin_get(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    entry, management = _admin_entry(hass, msg["entry_id"])
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "management": management, "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "validation": validate_management(management)})
+
+
+@websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/person/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.async_response
+async def _ws_admin_person_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    await _admin_mutation(hass, connection, msg, "persons")
+
+
+@websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/person/delete", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
+@websocket_api.async_response
+async def _ws_admin_person_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    await _admin_mutation(hass, connection, msg, "persons", True)
+
+
+@websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/zone/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.async_response
+async def _ws_admin_zone_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    await _admin_mutation(hass, connection, msg, "zones")
+
+
+@websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/zone/delete", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
+@websocket_api.async_response
+async def _ws_admin_zone_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    await _admin_mutation(hass, connection, msg, "zones", True)
+
+
+@websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/sensor/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.async_response
+async def _ws_admin_sensor_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    await _admin_mutation(hass, connection, msg, "sensors")
+
+
+@websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/sensor/delete", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
+@websocket_api.async_response
+async def _ws_admin_sensor_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    await _admin_mutation(hass, connection, msg, "sensors", True)
+
+
+@websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/controller/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.async_response
+async def _ws_admin_controller_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    entry, management = _admin_entry(hass, msg["entry_id"])
+    management["controller"] = dict(msg["item"])
+    try:
+        _admin_save(hass, entry, management)
+        await _async_entry_updated(hass, entry)
+    except ValueError as err:
+        connection.send_error(msg["id"], "invalid_configuration", str(err))
+        return
+    connection.send_result(msg["id"], {"management": management, "validation": []})
+
+
+@websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/validate", vol.Required("entry_id"): cv.string})
+@websocket_api.async_response
+async def _ws_admin_validate(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    _, management = _admin_entry(hass, msg["entry_id"])
+    connection.send_result(msg["id"], {"valid": not validate_management(management), "validation": validate_management(management)})

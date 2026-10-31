@@ -79,6 +79,12 @@ class RuntimeTests(unittest.TestCase):
                         "smart_heating/plan/set",
                         "smart_heating/simulate",
                         "smart_heating/migration/preview",
+                        "smart_heating/admin/get",
+                        "smart_heating/admin/person/set",
+                        "smart_heating/admin/zone/set",
+                        "smart_heating/admin/sensor/set",
+                        "smart_heating/admin/controller/set",
+                        "smart_heating/admin/validate",
                     }.issubset(websocket_commands))
 
                     options = await hass.config_entries.options.async_init(entry.entry_id)
