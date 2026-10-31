@@ -44,6 +44,17 @@ def _entity_selector(domains: list[str], multiple: bool = False) -> selector.Ent
     return selector.EntitySelector(selector.EntitySelectorConfig(domain=domains, multiple=multiple))
 
 
+def _window_selector(multiple: bool = True) -> selector.EntitySelector:
+    """Limit the UI to opening-capable binary sensors."""
+    return selector.EntitySelector(
+        selector.EntitySelectorConfig(
+            domain="binary_sensor",
+            device_class=["window", "door", "opening"],
+            multiple=multiple,
+        )
+    )
+
+
 class SmartHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Create one passive Smart Heating configuration entry."""
 
@@ -71,15 +82,28 @@ class SmartHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             summary = "; ".join(f"{key}: {value}" for key, value in {**selected, **special}.items() if value) or "keine eindeutige Zuordnung"
             return self.async_show_form(
                 step_id="confirm",
-                data_schema=vol.Schema({vol.Required("confirm", default=True): bool}),
+                data_schema=vol.Schema({vol.Required("confirm", default=False): bool}),
                 description_placeholders={
                     "selected": summary,
                     "ambiguous": ", ".join(discovery.get("ambiguous", [])) or "keine",
                     "missing": ", ".join(discovery.get("missing", [])) or "keine",
                 },
             )
-        if not user_input.get("confirm", True):
-            return await self.async_step_user()
+        if not user_input.get("confirm", False):
+            discovery = self._pending_discovery or discover_entities(self.hass)
+            selected = discovery.get("selected", {})
+            special = selected.get("special_modes", {})
+            summary = "; ".join(f"{key}: {value}" for key, value in {**selected, **special}.items() if value) or "keine eindeutige Zuordnung"
+            return self.async_show_form(
+                step_id="confirm",
+                data_schema=vol.Schema({vol.Required("confirm", default=False): bool}),
+                errors={"base": "confirmation_required"},
+                description_placeholders={
+                    "selected": summary,
+                    "ambiguous": ", ".join(discovery.get("ambiguous", [])) or "keine",
+                    "missing": ", ".join(discovery.get("missing", [])) or "keine",
+                },
+            )
         values = self._pending_input or {}
         discovery = self._pending_discovery or discover_entities(self.hass)
         await self.async_set_unique_id(f"{values[CONF_NAME].strip().lower()}-{values[CONF_TIMEZONE]}")
@@ -101,47 +125,21 @@ class SmartHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_create_entry(title=values[CONF_NAME].strip(), data={**values, CONF_SCHEDULE: DEFAULT_SCHEDULE, CONF_SUMMER_MODE: SUMMER_COMPATIBILITY, CONF_OPERATION_MODE: MODE_COMPATIBILITY, CONF_CHIMNEY_TEMPERATURE: 25.0, CONF_FROST_TEMPERATURE: 5.0, "discovery": discovery, "simulation": True})
 
     async def _show_user_form(self, discovery: dict[str, Any]) -> config_entries.FlowResult:
-        """Render the first step with discovered values as editable defaults."""
-        defaults = apply_discovery_defaults({CONF_NAME: DEFAULT_NAME, CONF_TIMEZONE: DEFAULT_TIMEZONE}, discovery)
+        """Render only the two required setup values.
+
+        Entity mappings are reviewed on the confirmation page and maintained
+        later in the backend/options UI. Legacy helpers must not dominate the
+        first-run experience.
+        """
+        defaults = {CONF_NAME: DEFAULT_NAME, CONF_TIMEZONE: DEFAULT_TIMEZONE}
         schema_values: dict[Any, Any] = {
             vol.Required(CONF_NAME, default=defaults[CONF_NAME]): str,
             vol.Required(CONF_TIMEZONE, default=defaults[CONF_TIMEZONE]): str,
         }
-        for key, domains in (
-            (CONF_CLIMATE_ENTITY, ["climate"]),
-            (CONF_TADO_FALLBACK, ["climate"]),
-            (CONF_HEATING_BOOLEAN, ["input_boolean"]),
-            (CONF_HEATING_PERMISSION, ["input_boolean"]),
-            (CONF_COMFORT_SETPOINT, ["input_number", "number"]),
-            (CONF_NIGHT_SETPOINT, ["input_number", "number"]),
-            (CONF_OUTDOOR_TEMPERATURE, ["sensor"]),
-        ):
-            selector_value = _entity_selector(domains)
-            if defaults.get(key):
-                schema_values[vol.Optional(key, default=defaults[key])] = selector_value
-            else:
-                schema_values[vol.Optional(key)] = selector_value
-        for key, domains in (
-            (CONF_WINDOW_ENTITIES, ["binary_sensor", "sensor"]),
-            (CONF_PRESENCE_ENTITIES, ["person", "device_tracker", "input_boolean"]),
-        ):
-            schema_values[vol.Optional(key, default=defaults.get(key, []))] = _entity_selector(domains, multiple=True)
-        special_defaults = defaults.get(CONF_SPECIAL_MODES, {}) or {}
-        for field, mode in (
-            ("party_entity", "party"),
-            ("visit_entity", "visit"),
-            ("return_home_entity", "return_home"),
-            ("chimney_sweep_entity", "chimney_sweep"),
-            ("summer_entity", "summer"),
-        ):
-            if special_defaults.get(mode):
-                schema_values[vol.Optional(field, default=special_defaults[mode])] = _entity_selector(["input_boolean"])
-            else:
-                schema_values[vol.Optional(field)] = _entity_selector(["input_boolean"])
         schema = vol.Schema(
             schema_values
         )
-        return self.async_show_form(step_id="user", data_schema=schema, description_placeholders={"mode": "passive", "ambiguous": ", ".join(discovery.get("ambiguous", [])) or "none"})
+        return self.async_show_form(step_id="user", data_schema=schema, description_placeholders={"mode": "passive"})
 
     def _discover_defaults(self) -> dict[str, Any]:
         """Return a read-only discovery report for diagnostics and tests."""
@@ -218,12 +216,10 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
                 schema[vol.Optional(key, default=default)] = _entity_selector(domains)
             else:
                 schema[vol.Optional(key)] = _entity_selector(domains)
-        for key, domains in (
-            (CONF_WINDOW_ENTITIES, ["binary_sensor", "sensor"]),
-            (CONF_PRESENCE_ENTITIES, ["person", "device_tracker", "input_boolean"]),
-        ):
-            default = current.get(key) or discovery.get("roles", {}).get(key, {}).get("selected", [])
-            schema[vol.Optional(key, default=default)] = _entity_selector(domains, multiple=True)
+        default = current.get(CONF_WINDOW_ENTITIES) or discovery.get("roles", {}).get(CONF_WINDOW_ENTITIES, {}).get("selected", [])
+        schema[vol.Optional(CONF_WINDOW_ENTITIES, default=default)] = _window_selector()
+        default = current.get(CONF_PRESENCE_ENTITIES) or discovery.get("roles", {}).get(CONF_PRESENCE_ENTITIES, {}).get("selected", [])
+        schema[vol.Optional(CONF_PRESENCE_ENTITIES, default=default)] = _entity_selector(["person"], multiple=True)
         special_modes = current.get(CONF_SPECIAL_MODES, {}) or discovered.get(CONF_SPECIAL_MODES, {}) or {}
         for field, mode in (
             ("party_entity", "party"),

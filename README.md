@@ -1,4 +1,4 @@
-# Smart Heating (Beta 9)
+# Smart Heating (Beta 10)
 
 **Smart Heating** ist eine HACS-kompatible Home-Assistant-Integration für
 Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
@@ -75,9 +75,13 @@ Testinstanz installiert werden.
 
 1. **Einstellungen → Geräte & Dienste → Integration hinzufügen → Smart
    Heating**.
-2. Name und Zeitzone festlegen.
-3. Optional vorhandene Climate-/Helper-Entities ausdrücklich zuordnen.
-4. Die Karte mit `entry_id` der Config Entry in ein Testdashboard aufnehmen:
+2. Nur Name und Zeitzone festlegen. Legacy-Helper erscheinen nicht im initialen Flow.
+3. Erkannte Vorschläge auf der Bestätigungsseite prüfen und ausdrücklich bestätigen.
+4. Die vorhandene Karte öffnen. Sie enthält sieben standardmäßig geschlossene
+   Bereiche: Räume & Klimazonen, Fenster & Kippsensoren, Personen & Anwesenheit,
+   Außentemperatur, Heizungscontroller, Sondermodi & Sicherheit sowie Diagnose
+   & Migration. Räume und Zonen sind zusätzlich einzeln aufklappbar.
+5. Die Karte mit `entry_id` der Config Entry in ein Testdashboard aufnehmen:
 
 ```yaml
 type: custom:smart-heating-card
@@ -87,7 +91,7 @@ entry_id: YOUR_CONFIG_ENTRY_ID
 Die Karte bearbeitet ausschließlich den Zeitplan dieser Smart-Heating-Entry.
 Sie schreibt keine bestehenden Heizungs-Entities.
 
-### Beta-9-Installationsassistent
+### Beta-10-Installationsassistent
 
 Die Migrations-Preview zeigt erkannte Entities und Konflikte. Der
 Kompatibilitätsmodus ist der sichere Standard: Smart Heating beobachtet den
@@ -101,9 +105,12 @@ Ein Sollwert oder `hvac_action` beweist jedoch keinen Brennerstart.
 
 Der Options Flow kann die eindeutigen Zuordnungen der Bestandsanlage nachträglich
 speichern: Primär-Climate, Tado-Fallback, Zeitstatus, Heizfreigabe, Sollwerte,
-Außentemperatur, Fenster, Anwesenheit und Sondermodi. Automatische Vorschläge
-werden vorausgewählt; Mehrdeutigkeiten bleiben zur manuellen Prüfung offen.
-Unbekannte Fensterzustände werden nicht als geschlossen bewertet.
+Außentemperatur, Fenster, Anwesenheit und Sondermodi. Vorschläge werden erst
+nach ausdrücklicher Bestätigung gespeichert; Mehrdeutigkeiten bleiben offen.
+Fenster werden auf geeignete `binary_sensor`-Entities mit Öffnungs-Device-Class
+beschränkt. Personen stammen ausschließlich aus `person.*`; Tracker, Batterie-,
+Temperatur-, Diagnose- und Fahrzeug-Entities werden ausgeschlossen. Unbekannte
+Fensterzustände werden nicht als geschlossen bewertet.
 
 ## Referenzmigration
 
@@ -157,7 +164,7 @@ bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
-Version: `0.1.0-beta.9`
+Version: `0.1.0-beta.10`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 

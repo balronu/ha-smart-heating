@@ -66,6 +66,9 @@ class DiscoveryMigrationTests(unittest.TestCase):
             FakeState("input_number.absenktemperatur", "Absenktemperatur"),
             FakeState("sensor.outdoor", "Outdoor Temperature"),
             FakeState("binary_sensor.fenster", "Fenster Esszimmer", attributes={"device_class": "window"}),
+            FakeState("binary_sensor.batterie", "Fenster Batterie", state="on", attributes={"device_class": "battery"}),
+            FakeState("sensor.fenster_temperatur", "Fenster Temperatur", state="20", attributes={"device_class": "temperature"}),
+            FakeState("device_tracker.michael", "Michael Tracker", state="home"),
             FakeState("person.michael", "Michael"),
             FakeState("input_boolean.party", "Party"),
         ])
@@ -74,6 +77,7 @@ class DiscoveryMigrationTests(unittest.TestCase):
         self.assertEqual(result["selected"]["heating_permission"], "input_boolean.heizung_freigabe")
         self.assertEqual(result["selected"]["outdoor_temperature"], "sensor.outdoor")
         self.assertEqual(result["roles"]["window_entities"]["selected"], ["binary_sensor.fenster"])
+        self.assertEqual(result["roles"]["presence_entities"]["selected"], ["person.michael"])
         self.assertEqual(result["selected"]["special_modes"]["party"], "input_boolean.party")
 
     def test_preview_never_imports_fixture_and_reports_conflicts(self):
