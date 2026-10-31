@@ -155,6 +155,8 @@ def evaluate_decision(
         return HeatingDecision("window_open", "Window open safety setback", frost_temperature, "heat", "reference_priority")
     if flags.get("window_tilted"):
         return HeatingDecision("window_tilted", "Tilted window setback", night_temperature, "heat", "reference_priority")
+    if flags.get("window_unknown"):
+        return HeatingDecision("window_unknown", "Window state unavailable; no safe preview", None, None, "safety_unknown")
     if flags.get("away") and not flags.get("visit") and not flags.get("return_home"):
         return HeatingDecision("away", "Nobody home", night_temperature, "heat", "reference_priority")
     if not schedule_active:

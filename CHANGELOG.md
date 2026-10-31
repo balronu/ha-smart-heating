@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.1.0-beta.7 – Beta 7
+
+### Deutsch
+
+- Options Flow um explizite, persistente Entity-Zuordnungen für Climate,
+  Tado-Fallback, Zeitstatus, Heizfreigabe, Sollwerte, Außentemperatur,
+  Fenster, Anwesenheit und Sondermodi erweitert.
+- Automatische Discovery-Defaults werden im Options Flow vorausgewählt;
+  Mehrdeutigkeiten bleiben sichtbar und werden nicht blind übernommen.
+- Unbekannte Fensterzustände werden in der passiven Vorschau als unbekannt
+  geführt und nicht als geschlossen interpretiert.
+- Dashboard zeigt beobachteten Climate-Status, Wärmeanforderungsstatus,
+  Fensterstatus und Außentemperatur getrennt von berechneten Vorschauwerten.
+- Beta-6-Konfigurationen bleiben rückwärtskompatibel; der Vollmodus und alle
+  produktiven Heizungsbefehle bleiben gesperrt.
+
+### English
+
+- Extended the Options Flow with persistent explicit associations for climate,
+  Tado fallback, schedule status, heating permission, setpoints, outdoor
+  temperature, windows, presence, and special modes.
+- Automatic discovery defaults are preselected in the Options Flow; ambiguous
+  candidates remain visible and are never guessed.
+- Unknown window states remain explicitly unknown in passive previews instead
+  of being treated as closed.
+- The dashboard separates observed climate status, heat-demand status, window
+  status, and outdoor temperature from calculated preview values.
+- Beta 6 configurations remain backward compatible; full mode and productive
+  heating commands remain locked.
+
 ## 0.1.0-beta.6 – Beta 6
 
 ### Deutsch

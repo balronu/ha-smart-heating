@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test";
 test.beforeEach(async ({ page }) => {
   await page.goto("/frontend/fixtures/harness.html");
   await expect(page.getByTestId("status")).toContainText("compatibility");
+  await expect(page.getByTestId("observed")).toContainText("unbekannt");
 });
 
 test("renders all days and edits a window through the visible card", async ({ page }, testInfo) => {

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "smart_heating"
-VERSION = "0.1.0-beta.6"
+VERSION = "0.1.0-beta.7"
 PLATFORMS = ["binary_sensor", "sensor"]
 
 CONF_NAME = "name"
@@ -14,6 +14,7 @@ CONF_HEATING_BOOLEAN = "heating_boolean"
 CONF_HEATING_PERMISSION = "heating_permission"
 CONF_COMFORT_SETPOINT = "comfort_setpoint"
 CONF_NIGHT_SETPOINT = "night_setpoint"
+CONF_OUTDOOR_TEMPERATURE = "outdoor_temperature"
 CONF_WINDOW_ENTITIES = "window_entities"
 CONF_PRESENCE_ENTITIES = "presence_entities"
 CONF_SPECIAL_MODES = "special_modes"

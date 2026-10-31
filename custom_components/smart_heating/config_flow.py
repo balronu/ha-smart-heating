@@ -19,6 +19,7 @@ from .const import (
     CONF_HEATING_BOOLEAN,
     CONF_HEATING_PERMISSION,
     CONF_NIGHT_SETPOINT,
+    CONF_OUTDOOR_TEMPERATURE,
     CONF_NAME,
     CONF_PRESENCE_ENTITIES,
     CONF_SCHEDULE,
@@ -83,6 +84,20 @@ class SmartHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         discovery = self._pending_discovery or discover_entities(self.hass)
         await self.async_set_unique_id(f"{values[CONF_NAME].strip().lower()}-{values[CONF_TIMEZONE]}")
         self._abort_if_unique_id_configured()
+        values = dict(values)
+        special_modes = dict(values.get(CONF_SPECIAL_MODES, {}) or {})
+        for field, mode in (
+            ("party_entity", "party"),
+            ("visit_entity", "visit"),
+            ("return_home_entity", "return_home"),
+            ("chimney_sweep_entity", "chimney_sweep"),
+            ("summer_entity", "summer"),
+        ):
+            entity_id = values.pop(field, None)
+            if entity_id:
+                special_modes[mode] = entity_id
+        if special_modes:
+            values[CONF_SPECIAL_MODES] = special_modes
         return self.async_create_entry(title=values[CONF_NAME].strip(), data={**values, CONF_SCHEDULE: DEFAULT_SCHEDULE, CONF_SUMMER_MODE: SUMMER_COMPATIBILITY, CONF_OPERATION_MODE: MODE_COMPATIBILITY, CONF_CHIMNEY_TEMPERATURE: 25.0, CONF_FROST_TEMPERATURE: 5.0, "discovery": discovery, "simulation": True})
 
     async def _show_user_form(self, discovery: dict[str, Any]) -> config_entries.FlowResult:
@@ -99,6 +114,7 @@ class SmartHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             (CONF_HEATING_PERMISSION, ["input_boolean"]),
             (CONF_COMFORT_SETPOINT, ["input_number", "number"]),
             (CONF_NIGHT_SETPOINT, ["input_number", "number"]),
+            (CONF_OUTDOOR_TEMPERATURE, ["sensor"]),
         ):
             selector_value = _entity_selector(domains)
             if defaults.get(key):
@@ -110,6 +126,18 @@ class SmartHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             (CONF_PRESENCE_ENTITIES, ["person", "device_tracker", "input_boolean"]),
         ):
             schema_values[vol.Optional(key, default=defaults.get(key, []))] = _entity_selector(domains, multiple=True)
+        special_defaults = defaults.get(CONF_SPECIAL_MODES, {}) or {}
+        for field, mode in (
+            ("party_entity", "party"),
+            ("visit_entity", "visit"),
+            ("return_home_entity", "return_home"),
+            ("chimney_sweep_entity", "chimney_sweep"),
+            ("summer_entity", "summer"),
+        ):
+            if special_defaults.get(mode):
+                schema_values[vol.Optional(field, default=special_defaults[mode])] = _entity_selector(["input_boolean"])
+            else:
+                schema_values[vol.Optional(field)] = _entity_selector(["input_boolean"])
         schema = vol.Schema(
             schema_values
         )
@@ -142,15 +170,70 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
                 return self.async_show_form(step_id="schedule", data_schema=self._schema(), errors={"base": "invalid_schedule"}, description_placeholders={"error": str(err)})
             options = dict(self._entry.options)
             options.update(user_input)
+            special_modes = dict(options.get(CONF_SPECIAL_MODES, self._entry.data.get(CONF_SPECIAL_MODES, {})) or {})
+            special_mode_field_seen = False
+            for field, mode in (
+                ("party_entity", "party"),
+                ("visit_entity", "visit"),
+                ("return_home_entity", "return_home"),
+                ("chimney_sweep_entity", "chimney_sweep"),
+                ("summer_entity", "summer"),
+            ):
+                if field in user_input:
+                    special_mode_field_seen = True
+                    entity_id = user_input.pop(field)
+                    options.pop(field, None)
+                    if entity_id:
+                        special_modes[mode] = entity_id
+                    else:
+                        special_modes.pop(mode, None)
+            if special_mode_field_seen:
+                options[CONF_SPECIAL_MODES] = special_modes
             options[CONF_SCHEDULE] = schedule.as_dict()
             return self.async_create_entry(title="", data=options)
         return self.async_show_form(step_id="schedule", data_schema=self._schema())
 
     def _schema(self) -> vol.Schema:
-        return vol.Schema({
+        schema: dict[Any, Any] = {
             vol.Required(CONF_SCHEDULE, default=self._entry.options.get(CONF_SCHEDULE, self._entry.data.get(CONF_SCHEDULE, DEFAULT_SCHEDULE))): dict,
             vol.Optional(CONF_SUMMER_MODE, default=self._entry.options.get(CONF_SUMMER_MODE, self._entry.data.get(CONF_SUMMER_MODE, SUMMER_COMPATIBILITY))): vol.In([SUMMER_COMPATIBILITY, SUMMER_HVAC_OFF]),
             vol.Optional(CONF_OPERATION_MODE, default=self._entry.options.get(CONF_OPERATION_MODE, self._entry.data.get(CONF_OPERATION_MODE, MODE_COMPATIBILITY))): vol.In([MODE_COMPATIBILITY, MODE_FULL]),
             vol.Optional(CONF_CHIMNEY_TEMPERATURE, default=self._entry.options.get(CONF_CHIMNEY_TEMPERATURE, self._entry.data.get(CONF_CHIMNEY_TEMPERATURE, 25.0))): vol.All(vol.Coerce(float), vol.Range(min=5, max=35)),
             vol.Optional(CONF_FROST_TEMPERATURE, default=self._entry.options.get(CONF_FROST_TEMPERATURE, self._entry.data.get(CONF_FROST_TEMPERATURE, 5.0))): vol.All(vol.Coerce(float), vol.Range(min=3, max=12)),
-        })
+        }
+        current = {**self._entry.data, **self._entry.options}
+        discovery = discover_entities(getattr(self, "hass", None)) if getattr(self, "hass", None) else {}
+        discovered = discovery.get("selected", {})
+        for key, domains in (
+            (CONF_CLIMATE_ENTITY, ["climate"]),
+            (CONF_TADO_FALLBACK, ["climate"]),
+            (CONF_HEATING_BOOLEAN, ["input_boolean"]),
+            (CONF_HEATING_PERMISSION, ["input_boolean"]),
+            (CONF_COMFORT_SETPOINT, ["input_number", "number"]),
+            (CONF_NIGHT_SETPOINT, ["input_number", "number"]),
+            (CONF_OUTDOOR_TEMPERATURE, ["sensor"]),
+        ):
+            default = current.get(key) or discovered.get(key)
+            if default:
+                schema[vol.Optional(key, default=default)] = _entity_selector(domains)
+            else:
+                schema[vol.Optional(key)] = _entity_selector(domains)
+        for key, domains in (
+            (CONF_WINDOW_ENTITIES, ["binary_sensor", "sensor"]),
+            (CONF_PRESENCE_ENTITIES, ["person", "device_tracker", "input_boolean"]),
+        ):
+            default = current.get(key) or discovery.get("roles", {}).get(key, {}).get("selected", [])
+            schema[vol.Optional(key, default=default)] = _entity_selector(domains, multiple=True)
+        special_modes = current.get(CONF_SPECIAL_MODES, {}) or discovered.get(CONF_SPECIAL_MODES, {}) or {}
+        for field, mode in (
+            ("party_entity", "party"),
+            ("visit_entity", "visit"),
+            ("return_home_entity", "return_home"),
+            ("chimney_sweep_entity", "chimney_sweep"),
+            ("summer_entity", "summer"),
+        ):
+            if special_modes.get(mode):
+                schema[vol.Optional(field, default=special_modes[mode])] = _entity_selector(["input_boolean"])
+            else:
+                schema[vol.Optional(field)] = _entity_selector(["input_boolean"])
+        return vol.Schema(schema)

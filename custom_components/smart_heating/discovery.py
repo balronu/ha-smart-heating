@@ -127,7 +127,7 @@ def apply_discovery_defaults(config: dict[str, Any], report: dict[str, Any]) -> 
     """Merge only unambiguous selections into config data."""
     result = dict(config)
     selected = report.get("selected", {})
-    for key in ("climate_entity", "heating_boolean", "heating_permission", "comfort_setpoint", "night_setpoint"):
+    for key in ("climate_entity", "heating_boolean", "heating_permission", "comfort_setpoint", "night_setpoint", "outdoor_temperature"):
         if selected.get(key):
             result[key] = selected[key]
     for key in ("presence_entities", "window_entities"):

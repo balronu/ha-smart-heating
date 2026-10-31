@@ -90,10 +90,24 @@ class RuntimeTests(unittest.TestCase):
                     self.assertEqual(invalid["errors"]["base"], "invalid_schedule")
                     valid = await hass.config_entries.options.async_configure(
                         invalid["flow_id"],
-                        {"schedule": {"monday": [{"start": "06:00", "end": "08:00"}], "sunday": [{"start": "07:00", "end": "21:00"}]}},
+                        {
+                            "schedule": {"monday": [{"start": "06:00", "end": "08:00"}], "sunday": [{"start": "07:00", "end": "21:00"}]},
+                            "climate_entity": "climate.esszimmer",
+                            "tado_fallback": "climate.esszimmer",
+                            "heating_boolean": "input_boolean.heizung",
+                            "heating_permission": "input_boolean.heizung_freigabe",
+                            "comfort_setpoint": "input_number.heiztemperatur",
+                            "night_setpoint": "input_number.absenktemperatur",
+                            "outdoor_temperature": "sensor.outdoor",
+                            "window_entities": ["binary_sensor.fenster"],
+                            "presence_entities": ["person.michael"],
+                            "party_entity": "input_boolean.party",
+                        },
                     )
                     self.assertEqual(valid["type"], "create_entry")
                     self.assertEqual(entry.options["schedule"]["monday"][0]["start"], "06:00:00")
+                    self.assertEqual(entry.options["climate_entity"], "climate.esszimmer")
+                    self.assertEqual(entry.options["special_modes"]["party"], "input_boolean.party")
 
                     self.assertTrue(await hass.config_entries.async_unload(entry.entry_id))
                     await hass.async_block_till_done()

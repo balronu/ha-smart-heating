@@ -43,6 +43,19 @@ class ScheduleTests(unittest.TestCase):
         self.assertTrue(result["simulated"])
         self.assertNotIn("service", result)
 
+    def test_unknown_window_is_not_treated_as_closed(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "20:00"}]})
+        result = calculate_status(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T07:00:00+01:00"),
+            timezone="Europe/Berlin",
+            overrides={"window_unknown": True},
+            context={"comfort_temperature": 22, "night_temperature": 17},
+        )
+        self.assertEqual(result["mode"], "window_unknown")
+        self.assertIsNone(result["target_temperature"])
+        self.assertIsNone(result["target_hvac_mode"])
+
     def test_dst_transition_uses_local_calendar(self):
         schedule = WeeklySchedule.from_mapping({"sunday": [{"start": "01:30", "end": "03:30"}]})
         self.assertTrue(schedule.active_at(datetime.fromisoformat("2026-03-29T01:45:00+01:00"), "Europe/Berlin"))
