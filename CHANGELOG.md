@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.0-beta.15 – Beta 15
+
+### Deutsch
+
+- Fensterkontakte werden ausschließlich aus geeigneten `binary_sensor`-Entities mit `window`, `door` oder `opening` als Device Class ermittelt; Batterie-, Temperatur-, Signal- und Diagnose-Entities werden nicht als Kontakte angeboten.
+- Kontakte werden nach Home-Assistant-Räumen angezeigt, durchsuchbar und filterbar. Bestehende ungeeignete oder nicht mehr verfügbare Zuordnungen bleiben erhalten und werden nur zur manuellen Prüfung markiert.
+- Raumüberschreibungen werden ausschließlich intern und erst über eine ausdrückliche Speicheraktion übernommen; HA-Areas, Geräte, Automationen, Scheduler, Tado und Fensterkontakte werden nicht verändert.
+- Options-Flow, Backend-Panel und Dokumentation verwenden verständliche deutsche und englische Bezeichnungen.
+
+### English
+
+- Window contacts are discovered only from suitable `binary_sensor` entities with `window`, `door`, or `opening` device classes; battery, temperature, signal, and diagnostic entities are not offered as contacts.
+- Contacts are shown by Home Assistant area with search and status/review filters. Existing unsuitable or unavailable mappings are preserved and only flagged for manual review.
+- Area overrides are internal-only and applied only after an explicit save; HA areas, devices, automations, schedulers, Tado, and window contacts remain unchanged.
+- The options flow, backend panel, and documentation use understandable German and English labels.
+
 ## 0.1.0-beta.14 – Beta 14
 
 ### Deutsch

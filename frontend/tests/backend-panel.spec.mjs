@@ -40,3 +40,14 @@ test("fails closed when more than one active entry exists", async ({ page }) => 
   await expect(page.locator("[role=alert]")).toContainText("Mehrere Smart-Heating-Konfigurationen");
   await expect(page.locator("[role=alert]")).toContainText("duplicate");
 });
+
+test("filters many window contacts without treating battery sensors as eligible", async ({ page }) => {
+  await page.locator("details[data-section=windows]").first().locator(":scope > summary").click();
+  await expect(page.locator("tr[data-window-row]")).toHaveCount(3);
+  await page.locator("[data-window-search]").fill("tür");
+  await expect(page.locator("tr[data-window-row]:not([hidden])")).toHaveCount(1);
+  await page.locator("[data-window-search]").fill("");
+  await page.locator("[data-window-filter]").selectOption("review");
+  await expect(page.locator("tr[data-window-row]:not([hidden])")).toHaveCount(1);
+  await expect(page.locator("tr[data-window-row]:not([hidden])")).toContainText("manuell prüfen");
+});

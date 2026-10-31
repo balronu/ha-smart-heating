@@ -1,6 +1,7 @@
 import sys
 import types
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 package = types.ModuleType("custom_components.smart_heating")
@@ -9,9 +10,11 @@ sys.modules.setdefault("custom_components.smart_heating", package)
 
 from custom_components.smart_heating.management import (  # noqa: E402
     default_management,
+    is_eligible_window_entity,
     person_presence,
     upsert_item,
     validate_management,
+    window_contact_summary,
 )
 from custom_components.smart_heating.models import evaluate_decision  # noqa: E402
 from custom_components.smart_heating.storage import load_schedule  # noqa: E402
@@ -72,3 +75,23 @@ class ManagementTests(unittest.TestCase):
         data["internal"]["operating_mode"] = "manual_heat"
         self.assertEqual(evaluate_decision(schedule_active=False, overrides={"manual_heat": True}, comfort_temperature=21).mode, "manual_heat")
         self.assertTrue(load_schedule({"schedule": {}, "management": data}).windows["monday"])
+
+    def test_only_binary_opening_sensors_are_eligible(self):
+        self.assertTrue(is_eligible_window_entity("binary_sensor.fenster_wohnzimmer", "window"))
+        self.assertTrue(is_eligible_window_entity("binary_sensor.tuer", "door"))
+        self.assertFalse(is_eligible_window_entity("sensor.fenster_wohnzimmer_battery", "window"))
+        self.assertFalse(is_eligible_window_entity("binary_sensor.fenster_temperatur", "temperature"))
+
+    def test_many_contacts_keep_room_and_review_metadata_without_deletion(self):
+        data = default_management()
+        upsert_item(data, "sensors", {"id": "old", "type": "window", "entity_id": "sensor.fenster_battery", "area_id": "wohnzimmer"})
+        contacts = [
+            {"entity_id": "binary_sensor.fenster_a", "name": "Fenster A", "area_id": "wohnzimmer", "area_name": "Wohnzimmer", "status": "closed", "available": True, "configured": False, "review_flags": [], "review_required": False},
+            {"entity_id": "binary_sensor.fenster_b", "name": "Fenster B", "area_id": "wohnzimmer", "area_name": "Wohnzimmer", "status": "open", "available": True, "configured": False, "review_flags": [], "review_required": False},
+        ]
+        with patch("custom_components.smart_heating.management.discover_window_contacts", return_value=contacts):
+            result = window_contact_summary(Hass({}), data)
+        self.assertEqual(result["total"], 3)
+        preserved = next(item for item in result["contacts"] if item["entity_id"] == "sensor.fenster_battery")
+        self.assertIn("configured_but_not_eligible", preserved["review_flags"])
+        self.assertEqual(result["groups"][0]["area_name"], "Wohnzimmer")
