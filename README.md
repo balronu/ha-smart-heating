@@ -3,7 +3,7 @@
 **Smart Heating** ist eine HACS-kompatible Home-Assistant-Integration für
 Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 
-> **Beta-5-Sicherheitsgrenze:** Die Integration berechnet die vollständige
+> **Beta-6-Sicherheitsgrenze:** Die Integration berechnet die vollständige
 > Heizungsentscheidung passiv. Sie schaltet
 > keine Climate-Entity, keinen bestehenden Helper, keinen Scheduler und keinen
 > Sondermodus. Eine Migration in eine produktive Heizungssteuerung ist nicht
@@ -30,10 +30,10 @@ Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 
 ## Installation
 
-Beta 5 ist ein Entwicklungsrelease und wird erst nach erfolgreichem CI-Gate
-als GitHub-Prerelease veröffentlicht. In HACS muss die Vorabversion explizit
+Beta 6 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
 aktiviert werden. Danach über **HACS → Integrationen → Smart Heating**
-installieren und Home Assistant neu starten.
+installieren. Ein erforderlicher Home-Assistant-Neustart ist separat zu
+prüfen und darf erst nach Freigabe durchgeführt werden.
 
 Alternativ kann das Repository als benutzerdefiniertes HACS-Repository
 (`Integration`) hinzugefügt werden. Die Integration darf zunächst nur in einer
@@ -55,7 +55,7 @@ entry_id: YOUR_CONFIG_ENTRY_ID
 Die Karte bearbeitet ausschließlich den Zeitplan dieser Smart-Heating-Entry.
 Sie schreibt keine bestehenden Heizungs-Entities.
 
-### Beta-5-Installationsassistent
+### Beta-6-Installationsassistent
 
 Die Migrations-Preview zeigt erkannte Entities und Konflikte. Der
 Kompatibilitätsmodus ist der sichere Standard: Smart Heating beobachtet den
@@ -79,7 +79,7 @@ ein unterstützter Export vorliegt:
 - Sonntag–Donnerstag Absenkung 21:00
 - Freitag–Samstag Absenkung 22:00
 
-Beta 4 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
+Beta 6 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
 nicht. Die Migrations-Preview zeigt nur einen Konflikt-/Prüfstatus. Der
 ausführbare Adapter akzeptiert Schreibzugriffe ausschließlich über einen
 isolierten Test-Transport; die Produktiv-Sperre verweigert die Aktivierung,
@@ -110,7 +110,8 @@ git diff --check
 
 Die HA-abhängigen Adapter werden in CI mit Home Assistant 2026.10.4 in einer
 isolierten Fixture getestet. Eine Installation in produktiver VM 104 ist kein
-Teil der Beta-2-Entwicklung.
+Teil der Beta-6-Entwicklung. Der Kompatibilitätsmodus ist passiv; der Vollmodus
+bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
