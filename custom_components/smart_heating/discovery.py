@@ -58,7 +58,7 @@ def _label(state: Any) -> str:
 
 def _score(state: Any, role: str) -> int:
     label = _label(state)
-    score = sum(weight for token, weight in ROLE_TOKENS.get(role, ()) if token in label)
+    score = sum(weight for keyword, weight in ROLE_TOKENS.get(role, ()) if keyword in label)
     attrs = getattr(state, "attributes", {}) or {}
     device_class = str(attrs.get("device_class", "")).lower()
     if role == "window_entities" and device_class in {"window", "door", "opening"}:
@@ -110,7 +110,7 @@ def discover_entities(hass: Any) -> dict[str, Any]:
         items = []
         for state in _states(hass, ("input_boolean",)):
             label = _label(state)
-            if any(token in label for token in tokens):
+            if any(keyword in label for keyword in tokens):
                 items.append({"entity_id": state.entity_id, "name": state.name, "state": state.state})
         special_candidates[mode] = items
         if len(items) == 1:
