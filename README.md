@@ -1,4 +1,4 @@
-# Smart Heating (Beta 15)
+# Smart Heating (Beta 16)
 
 **Smart Heating** ist eine HACS-kompatible Home-Assistant-Integration für
 Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
@@ -9,14 +9,14 @@ Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 > Sondermodus. Eine Migration in eine produktive Heizungssteuerung ist nicht
 > enthalten.
 
-> **Phase-19-Sicherheitsgrenze (31.10.2026):** Beta 15 ist ausschließlich im
+> **Phase-20-Sicherheitsgrenze (31.10.2026):** Beta 16 ist ausschließlich im
 > Entwicklungsrepository veröffentlicht und wird nicht automatisch auf VM 104
 > installiert. Die produktive Instanz wurde nur lesend untersucht; beide
 > vorhandenen Config Entries bleiben unverändert.
 
 ## Beta-12-Backend-Verwaltung und Klimazonen
 
-Beta 15 führt die eigenständige, passive Backend-Verwaltung für Personen,
+Beta 16 führt die eigenständige, passive Backend-Verwaltung für Personen,
 Klimazonen, Thermostate, Fenster-/Kippkontakte, Raumtemperaturfühler,
 Außentemperatur und einen zentralen Controller. Änderungen werden über
 Config-Entry-Optionen beziehungsweise die unterstützte WebSocket-API
@@ -48,6 +48,8 @@ werden nur gelesen und als Raumvorschläge verwendet.
 - unbekannte Fensterzustände werden in der Vorschau als unbekannt statt geschlossen gezeigt
 - eigener persistenter interner Betriebszustand mit nativen Switch-/Select-/Number-/Sensor-Entitäten
 - eigener passiver Wochenplaner; Simple Scheduler und manuell angelegte Helfer sind für Smart Heating nicht erforderlich
+- grafischer Wochenplan mit sieben Tagen, mehreren Zeitfenstern und optionalen Zieltemperaturen
+- nativer Options-Dialog mit verständlichen Betriebs-/Sicherheitsfeldern statt YAML-Objekteditor
 
 ## Branding
 
@@ -77,9 +79,14 @@ Temperatur- und andere Neben-Entities werden ausgeschlossen. Bestehende
 ungeeignete Zuordnungen bleiben erhalten und werden nur zur manuellen Prüfung
 markiert.
 
+Der native Options-Dialog enthält bewusst nur die vier sicheren Betriebs- und
+Sicherheitswerte. Der Wochenplan wird im Panel grafisch bearbeitet; dadurch
+bleiben bestehende Zeitfenster und optionale Zieltemperaturen beim Speichern
+anderer Optionen vollständig erhalten.
+
 ## Installation
 
-Beta 15 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
+Beta 16 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
 aktiviert werden. Danach über **HACS → Integrationen → Smart Heating**
 installieren. Ein erforderlicher Home-Assistant-Neustart ist separat zu
 prüfen und darf erst nach Freigabe durchgeführt werden.
@@ -181,7 +188,7 @@ bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
-Version: `0.1.0-beta.15`
+Version: `0.1.0-beta.16`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 

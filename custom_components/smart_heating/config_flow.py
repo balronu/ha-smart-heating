@@ -162,14 +162,10 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
         self._entry = config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
-        return await self.async_step_schedule(user_input)
+        return await self.async_step_settings(user_input)
 
-    async def async_step_schedule(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
+    async def async_step_settings(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
         if user_input is not None:
-            try:
-                schedule = WeeklySchedule.from_mapping(user_input[CONF_SCHEDULE])
-            except ScheduleValidationError as err:
-                return self.async_show_form(step_id="schedule", data_schema=self._schema(), errors={"base": "invalid_schedule"}, description_placeholders={"error": str(err)})
             options = dict(self._entry.options)
             options.update(user_input)
             special_modes = dict(options.get(CONF_SPECIAL_MODES, self._entry.data.get(CONF_SPECIAL_MODES, {})) or {})
@@ -191,59 +187,17 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
                         special_modes.pop(mode, None)
             if special_mode_field_seen:
                 options[CONF_SPECIAL_MODES] = special_modes
-            options[CONF_SCHEDULE] = schedule.as_dict()
+            options[CONF_SCHEDULE] = WeeklySchedule.from_mapping(
+                options.get(CONF_SCHEDULE, self._entry.data.get(CONF_SCHEDULE, DEFAULT_SCHEDULE))
+            ).as_dict()
             return self.async_create_entry(title="", data=options)
-        return self.async_show_form(step_id="schedule", data_schema=self._schema())
+        return self.async_show_form(step_id="settings", data_schema=self._schema())
 
     def _schema(self) -> vol.Schema:
         schema: dict[Any, Any] = {
-            # A raw ``dict`` validator cannot be serialized by Home Assistant's
-            # config-flow HTTP API (HA 2026.10+), which turns opening the
-            # options flow into a 500 response.  ObjectSelector preserves the
-            # arbitrary persisted schedule shape while providing a native,
-            # serializable form contract.
-            vol.Required(
-                CONF_SCHEDULE,
-                default=self._entry.options.get(
-                    CONF_SCHEDULE, self._entry.data.get(CONF_SCHEDULE, DEFAULT_SCHEDULE)
-                ),
-            ): selector.ObjectSelector(),
             vol.Optional(CONF_SUMMER_MODE, default=self._entry.options.get(CONF_SUMMER_MODE, self._entry.data.get(CONF_SUMMER_MODE, SUMMER_COMPATIBILITY))): vol.In([SUMMER_COMPATIBILITY, SUMMER_HVAC_OFF]),
             vol.Optional(CONF_OPERATION_MODE, default=self._entry.options.get(CONF_OPERATION_MODE, self._entry.data.get(CONF_OPERATION_MODE, MODE_COMPATIBILITY))): vol.In([MODE_COMPATIBILITY, MODE_FULL]),
             vol.Optional(CONF_CHIMNEY_TEMPERATURE, default=self._entry.options.get(CONF_CHIMNEY_TEMPERATURE, self._entry.data.get(CONF_CHIMNEY_TEMPERATURE, 25.0))): vol.All(vol.Coerce(float), vol.Range(min=5, max=35)),
             vol.Optional(CONF_FROST_TEMPERATURE, default=self._entry.options.get(CONF_FROST_TEMPERATURE, self._entry.data.get(CONF_FROST_TEMPERATURE, 5.0))): vol.All(vol.Coerce(float), vol.Range(min=3, max=12)),
         }
-        current = {**self._entry.data, **self._entry.options}
-        discovery = discover_entities(getattr(self, "hass", None)) if getattr(self, "hass", None) else {}
-        discovered = discovery.get("selected", {})
-        for key, domains in (
-            (CONF_CLIMATE_ENTITY, ["climate"]),
-            (CONF_TADO_FALLBACK, ["climate"]),
-            (CONF_HEATING_BOOLEAN, ["input_boolean"]),
-            (CONF_HEATING_PERMISSION, ["input_boolean"]),
-            (CONF_COMFORT_SETPOINT, ["input_number", "number"]),
-            (CONF_NIGHT_SETPOINT, ["input_number", "number"]),
-            (CONF_OUTDOOR_TEMPERATURE, ["sensor"]),
-        ):
-            default = current.get(key) or discovered.get(key)
-            if default:
-                schema[vol.Optional(key, default=default)] = _entity_selector(domains)
-            else:
-                schema[vol.Optional(key)] = _entity_selector(domains)
-        default = current.get(CONF_WINDOW_ENTITIES) or discovery.get("roles", {}).get(CONF_WINDOW_ENTITIES, {}).get("selected", [])
-        schema[vol.Optional(CONF_WINDOW_ENTITIES, default=default)] = _window_selector()
-        default = current.get(CONF_PRESENCE_ENTITIES) or discovery.get("roles", {}).get(CONF_PRESENCE_ENTITIES, {}).get("selected", [])
-        schema[vol.Optional(CONF_PRESENCE_ENTITIES, default=default)] = _entity_selector(["person"], multiple=True)
-        special_modes = current.get(CONF_SPECIAL_MODES, {}) or discovered.get(CONF_SPECIAL_MODES, {}) or {}
-        for field, mode in (
-            ("party_entity", "party"),
-            ("visit_entity", "visit"),
-            ("return_home_entity", "return_home"),
-            ("chimney_sweep_entity", "chimney_sweep"),
-            ("summer_entity", "summer"),
-        ):
-            if special_modes.get(mode):
-                schema[vol.Optional(field, default=special_modes[mode])] = _entity_selector(["input_boolean"])
-            else:
-                schema[vol.Optional(field)] = _entity_selector(["input_boolean"])
         return vol.Schema(schema)

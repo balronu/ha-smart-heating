@@ -20,6 +20,8 @@
     "error": {"invalid_schedule": "Invalid or overlapping schedule.", "confirmation_required": "Review the suggestions and explicitly confirm them."},
     "abort": {"already_configured": "Smart Heating is already configured. Open the existing entry under Settings → Devices & services."}
   },
+  "options": {"step": {"settings": {"title": "Smart Heating settings", "description": "Choose the operating mode and safety values. Edit the weekly schedule, window contacts, and room assignments in the clear Smart Heating sidebar; existing mappings are preserved.", "data": {"summer_mode": "Summer mode", "operation_mode": "Operating mode", "chimney_temperature": "Chimney-sweep target temperature", "frost_temperature": "Frost-protection target temperature"}, "data_description": {"summer_mode": "Compatibility calculates summer status passively. HVAC off remains locked until explicitly supported by the installation.", "operation_mode": "Compatibility observes only. Full mode remains locked for productive heating control.", "chimney_temperature": "Target used by the passive chimney-sweep preview.", "frost_temperature": "Passive preview target for an open window or unknown safety state."}}}},
+  "selector": {"summer_mode": {"options": {"compatibility": "Compatibility mode (passive)", "hvac_off": "HVAC off (locked without proof)"}}, "operation_mode": {"options": {"compatibility": "Compatibility mode (observe only)", "full": "Full mode (productive control locked)"}}},
   "entity": {
     "binary_sensor": {"schedule_active": {"name": "Schedule active"}},
     "sensor": {"next_switch": {"name": "Next switch"}, "mode": {"name": "Calculated heating mode"}}

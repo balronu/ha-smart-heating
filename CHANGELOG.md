@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.0-beta.16 – Beta 16
+
+### Deutsch
+
+- Ursache der unveränderten technischen Optionsmaske reproduziert: Beta 15 nutzte weiterhin den falschen `config.step`-Übersetzungspfad und einen `schedule`-ObjectSelector.
+- Native Options Flow auf vier verständliche Betriebs-/Sicherheitsfelder reduziert; vorhandene Optionen und Wochenpläne bleiben vollständig erhalten.
+- Deutsche und englische `options.step.settings`-Übersetzungen mit Hilfetexten ergänzt.
+- Grafischen Wochenplan im Smart-Heating-Seitenmenü ergänzt: sieben Wochentage, mehrere Zeitfenster, Start/Ende, optionale Zieltemperatur und explizites Speichern.
+- Keine produktiven Heizbefehle, Automationen, Scheduler-, Tado- oder Config-Entry-Löschungen.
+
+### English
+
+- Reproduced why the technical Options form had not changed: Beta 15 still used the wrong `config.step` translation path and a `schedule` ObjectSelector.
+- Reduced the native Options Flow to four understandable operating/safety fields while preserving all existing options and schedules.
+- Added German and English `options.step.settings` translations with explanatory help text.
+- Added a graphical weekly planner to the Smart Heating sidebar: seven weekdays, multiple windows, start/end times, optional target temperature, and explicit save.
+- No productive heating commands, automations, schedulers, Tado settings, or Config Entries were deleted.
+
 ## 0.1.0-beta.15 – Beta 15
 
 ### Deutsch

@@ -18,6 +18,10 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(len(schedule.windows["sunday"]), 2)
         self.assertTrue(schedule.active_at(datetime.fromisoformat("2026-11-02T07:00:00+01:00"), "Europe/Berlin"))
 
+    def test_optional_target_temperature_is_preserved(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "08:00", "target_temperature": 20.5}]})
+        self.assertEqual(schedule.as_dict()["monday"][0]["target_temperature"], 20.5)
+
     def test_overlap_rejected(self):
         with self.assertRaises(ScheduleValidationError):
             WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "08:00"}, {"start": "07:00", "end": "09:00"}]})

@@ -29,6 +29,7 @@ class HeatingDecision:
 class TimeWindow:
     start: time
     end: time
+    target_temperature: float | None = None
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "TimeWindow":
@@ -39,10 +40,23 @@ class TimeWindow:
             raise ScheduleValidationError("Each window needs valid start and end times") from err
         if start >= end:
             raise ScheduleValidationError("A window must start before it ends")
-        return cls(start=start, end=end)
+        target = value.get("target_temperature", value.get("target"))
+        if target in (None, ""):
+            target_temperature = None
+        else:
+            try:
+                target_temperature = float(target)
+            except (TypeError, ValueError) as err:
+                raise ScheduleValidationError("Target temperature must be numeric") from err
+            if not 3 <= target_temperature <= 35:
+                raise ScheduleValidationError("Target temperature must be between 3 and 35 °C")
+        return cls(start=start, end=end, target_temperature=target_temperature)
 
-    def as_dict(self) -> dict[str, str]:
-        return {"start": self.start.strftime("%H:%M:%S"), "end": self.end.strftime("%H:%M:%S")}
+    def as_dict(self) -> dict[str, Any]:
+        result = {"start": self.start.strftime("%H:%M:%S"), "end": self.end.strftime("%H:%M:%S")}
+        if self.target_temperature is not None:
+            result["target_temperature"] = self.target_temperature
+        return result
 
 
 @dataclass(frozen=True, slots=True)
