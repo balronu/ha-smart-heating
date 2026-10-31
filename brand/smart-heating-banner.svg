@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">Smart Heating</title><desc id="desc">Smart Heating branding banner</desc>
+  <defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#062f50"/><stop offset="1" stop-color="#0b1724"/></linearGradient></defs>
+  <rect width="1280" height="640" rx="48" fill="url(#b)"/><circle cx="1000" cy="120" r="280" fill="#1475bd" opacity=".16"/><circle cx="1140" cy="590" r="320" fill="#ff7026" opacity=".11"/>
+  <g transform="translate(82 102) scale(.82)"><rect width="512" height="512" rx="112" fill="#113149"/><path d="M70 238 256 78l186 160" fill="none" stroke="#40d7ff" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/><path d="M110 224v190h292V224M363 157v-44h42v80" fill="none" stroke="#f5fbff" stroke-width="26" stroke-linejoin="round"/><path d="M145 275h45v45h-45zm0 65h45v45h-45zm64-65h45v45h-45zm0 65h45v45h-45z" fill="#f5fbff"/><path d="M273 180v161a55 55 0 1 0 34 0V180a17 17 0 0 0-34 0Z" fill="#fff"/><path d="M286 187v169a29 29 0 1 0 8 0V187a8 8 0 0 0-8 0Z" fill="#ff7026"/><path d="M352 274c-18 27-18 47 0 67m31-83c-23 36-23 61 0 88m31-105c-28 45-28 76 0 109" fill="none" stroke="#ff8427" stroke-width="18" stroke-linecap="round"/><path d="M94 408c35-51 77-59 119-23-10 44-50 70-119 23Z" fill="#6dcc35"/></g>
+  <text x="590" y="300" fill="#f5fbff" font-family="Arial, sans-serif" font-size="92" font-weight="700">Smart <tspan fill="#ff7a28">Heating</tspan></text>
+  <text x="598" y="370" fill="#b9d4e6" font-family="Arial, sans-serif" font-size="22" letter-spacing="3">AUTOMATISCH · SICHER · TRANSPARENT</text>
+  <path d="M600 420h440" stroke="#ff7a28" stroke-width="8" stroke-linecap="round"/><text x="598" y="478" fill="#dcecf7" font-family="Arial, sans-serif" font-size="24">Home Assistant climate zones</text>
+</svg>

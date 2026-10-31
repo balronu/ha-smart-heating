@@ -1,24 +1,25 @@
-# Smart Heating (Beta 8)
+# Smart Heating (Beta 9)
 
 **Smart Heating** ist eine HACS-kompatible Home-Assistant-Integration für
 Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 
-> **Beta-8-Sicherheitsgrenze:** Die Integration berechnet die vollständige
+> **Beta-9-Sicherheitsgrenze:** Die Integration berechnet die vollständige
 > Heizungsentscheidung passiv. Sie schaltet
 > keine Climate-Entity, keinen bestehenden Helper, keinen Scheduler und keinen
 > Sondermodus. Eine Migration in eine produktive Heizungssteuerung ist nicht
 > enthalten.
 
-## Beta-8-Verwaltung und Klimazonen
+## Beta-9-Backend-Verwaltung und Klimazonen
 
-Beta 8 ergänzt eine versionierte, passive Backend-Verwaltung für Personen,
+Beta 9 ergänzt eine versionierte, passive Backend-Verwaltung für Personen,
 Klimazonen, Thermostate, Fenster-/Kippkontakte, Raumtemperaturfühler,
 Außentemperatur und einen zentralen Controller. Änderungen werden über
 Config-Entry-Optionen beziehungsweise die unterstützte WebSocket-API
 gespeichert; Home-Assistant-Entities werden niemals angelegt oder gelöscht.
 Personen stammen ausschließlich aus `person.*`. Unbekannte Anwesenheit wird
 nicht als Abwesenheit interpretiert. Ein Thermostat darf nicht zwei aktiven
-Zonen zugeordnet sein.
+Zonen zugeordnet sein. Die Backend-Menüs sind unabhängig aufklappbar; HA-Areas
+werden nur gelesen und als Raumvorschläge verwendet.
 
 ## Funktionen
 
@@ -40,10 +41,28 @@ Zonen zugeordnet sein.
 - isolierter Home-Assistant-Lifecycle-Test für Flow, Entities und Neustart
 - explizite Entity-Zuordnung im Options Flow mit persistenter Rückwärtskompatibilität
 - unbekannte Fensterzustände werden in der Vorschau als unbekannt statt geschlossen gezeigt
+- eigener persistenter interner Betriebszustand mit nativen Switch-/Select-/Number-/Sensor-Entitäten
+- eigener passiver Wochenplaner; Simple Scheduler und manuell angelegte Helfer sind für Smart Heating nicht erforderlich
+
+## Branding
+
+Die eigenständigen Branding-Dateien liegen unter [`brand/`](brand/):
+quadratische Marke ohne Schriftzug als SVG/PNG, transparente Variante und
+GitHub-Banner. Sie greifen Haus, Thermometer, Wärme, Blau und Orange der
+Designvorlage auf. Die Grafiken sind Projekt-Assets; eine offizielle
+Marketplace- oder HACS-Branding-Aufnahme wird hier nicht behauptet.
+
+## Oberfläche
+
+Die gerenderte Karte wurde in den UI-Fixtures auf Desktop, iPhone und engem
+Touchmonitor geprüft:
+
+![Smart Heating Desktop](docs/screenshots/smart-heating-card-desktop.png)
+![Smart Heating iPhone](docs/screenshots/smart-heating-card-iphone.png)
 
 ## Installation
 
-Beta 8 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
+Beta 9 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
 aktiviert werden. Danach über **HACS → Integrationen → Smart Heating**
 installieren. Ein erforderlicher Home-Assistant-Neustart ist separat zu
 prüfen und darf erst nach Freigabe durchgeführt werden.
@@ -68,7 +87,7 @@ entry_id: YOUR_CONFIG_ENTRY_ID
 Die Karte bearbeitet ausschließlich den Zeitplan dieser Smart-Heating-Entry.
 Sie schreibt keine bestehenden Heizungs-Entities.
 
-### Beta-7-Installationsassistent
+### Beta-9-Installationsassistent
 
 Die Migrations-Preview zeigt erkannte Entities und Konflikte. Der
 Kompatibilitätsmodus ist der sichere Standard: Smart Heating beobachtet den
@@ -98,7 +117,7 @@ ein unterstützter Export vorliegt:
 - Sonntag–Donnerstag Absenkung 21:00
 - Freitag–Samstag Absenkung 22:00
 
-Beta 8 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
+Beta 9 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
 nicht. Die Migrations-Preview zeigt nur einen Konflikt-/Prüfstatus. Der
 ausführbare Adapter akzeptiert Schreibzugriffe ausschließlich über einen
 isolierten Test-Transport; die Produktiv-Sperre verweigert die Aktivierung,
@@ -110,7 +129,11 @@ Die Referenzreihenfolge ist unverändert: Schornsteinfeger → fehlende
 Heizfreigabe → Fenster offen → Fenster gekippt → Abwesenheit → Nacht/Party →
 Sommermodus ohne Komfortoverride → Komfort. Die Karte trennt Zeitplanstatus,
 berechneten Heizmodus und tatsächliche Produktivsteuerung. Die Beta führt keine
-Climate- oder Helper-Services aus.
+Climate- oder Helper-Services aus. Smart Heating verwaltet seinen eigenen
+Zustand und Wochenplan persistent in der Config Entry und stellt dafür native
+HA-Entitäten bereit; Simple Scheduler und manuell angelegte Helper sind daher
+für den Integrationsbetrieb nicht erforderlich. Im Kompatibilitätsmodus bleibt
+die Heizungs- und Controller-Steuerung gesperrt.
 
 **Schornsteinfeger hat absolute Priorität:** Auch bei 40 °C Außentemperatur,
 Sommermodus, ausgeschalteter Heizfreigabe, Nacht, Abwesenheit und offenen
@@ -129,12 +152,12 @@ git diff --check
 
 Die HA-abhängigen Adapter werden in CI mit Home Assistant 2026.10.4 in einer
 isolierten Fixture getestet. Eine Installation in produktiver VM 104 ist kein
-Teil der Beta-7-Entwicklung. Der Kompatibilitätsmodus ist passiv; der Vollmodus
+Teil der Beta-9-Entwicklung. Der Kompatibilitätsmodus ist passiv; der Vollmodus
 bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
-Version: `0.1.0-beta.8`
+Version: `0.1.0-beta.9`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 

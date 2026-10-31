@@ -149,6 +149,12 @@ def evaluate_decision(
     flags = overrides or {}
     if flags.get("chimney_sweep"):
         return HeatingDecision("chimney_sweep", "Schornsteinfeger has highest priority", chimney_temperature, "heat", "reference_priority")
+    if flags.get("internal_enabled") is False:
+        return HeatingDecision("disabled", "Smart Heating is disabled", None, "off", "internal_state")
+    if flags.get("manual_heat"):
+        return HeatingDecision("manual_heat", "Manual heating mode", comfort_temperature, "heat", "internal_state")
+    if flags.get("manual_setback"):
+        return HeatingDecision("manual_setback", "Manual setback mode", night_temperature, "heat", "internal_state")
     if flags.get("heating_permission") is False:
         return HeatingDecision("disabled", "Heating permission is off", None, "off", "reference_priority")
     if flags.get("window_open"):

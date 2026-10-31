@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.1.0-beta.9 – Beta 9
+
+### Deutsch
+
+- Aufklappbare Backend-Menüs für Räume/Zonen, Sensoren, Personen, Außentemperatur, Controller, Sicherheit und Diagnose ergänzt.
+- HA-Areas read-only erkannt und als Raum-/Gerätevorschläge angezeigt.
+- Zonen können mehrere Areas umfassen; Raumdetails bleiben unabhängig aufklappbar.
+- Temperaturstrategien, Außentemperaturquelle und zonenbezogene Statusdiagnose ergänzt.
+- Native Personenverwaltung bleibt ausschließlich auf `person.*` beschränkt.
+- Eigenständige persistente Betriebszustände, native Steuer-/Statusentitäten
+  und ein passiver interner Wochenplaner ergänzt; externe Helper und Simple
+  Scheduler sind für den Integrationsbetrieb nicht erforderlich.
+- Projekt-Branding mit quadratischer Marke, transparenter Variante und
+  GitHub-Banner als SVG/PNG ergänzt.
+
+### English
+
+- Added independent collapsible backend menus for rooms/zones, sensors, people, outdoor temperature, controller, safety, and diagnostics.
+- Added read-only HA Area discovery with room/device suggestions.
+- Zones can contain multiple Areas; room details remain independently expandable.
+- Added temperature strategies, outdoor-source configuration, and per-zone status diagnostics.
+- Native people management remains restricted to `person.*`.
+- Added persistent internal operating state, native control/status entities,
+  and a passive internal weekly scheduler; external helpers and Simple
+  Scheduler are not required by the integration.
+- Added project branding with square, transparent, and GitHub-banner SVG/PNG
+  assets.
+
 ## 0.1.0-beta.8 – Beta 8
 
 ### Deutsch

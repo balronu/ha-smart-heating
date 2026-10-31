@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Smart Heating einrichten",
-        "description": "Beta 8 erkennt passende Entities vorsichtig, erlaubt explizite Zuordnungen im Options Flow und verwaltet passive Personen und Klimazonen. Produktive Aktivierung bleibt gesperrt.",
+        "description": "Beta 9 erkennt passende Entities vorsichtig, erlaubt explizite Zuordnungen im Options Flow und verwaltet passive Personen und Klimazonen. Produktive Aktivierung bleibt gesperrt.",
         "data": {
           "name": "Name",
           "timezone": "Zeitzone",
