@@ -1,12 +1,22 @@
-# Smart Heating (Beta 7)
+# Smart Heating (Beta 8)
 
 **Smart Heating** is a HACS-compatible Home Assistant integration for weekly
 schedules, status, simulation, and a compact Lovelace card.
 
-> **Beta 7 safety boundary:** The integration calculates the full heating
+> **Beta 8 safety boundary:** The integration calculates the full heating
 > decision passively. It does not actuate
 > climate entities, existing helpers, schedulers, or special modes. Productive
 > migration is not included.
+
+## Beta 8 management and climate zones
+
+Beta 8 adds a versioned passive backend model for people, climate zones,
+thermostats, window/tilt contacts, room temperature sensors, outdoor
+temperature, and one central controller. Changes are persisted through Config
+Entry options and the supported WebSocket API; Home Assistant entities are
+never created or deleted. People are sourced only from `person.*`. Unknown
+presence is not treated as away, and a thermostat cannot belong to two active
+zones.
 
 ## Features
 
@@ -30,7 +40,7 @@ schedules, status, simulation, and a compact Lovelace card.
 
 ## Installation and setup
 
-Beta 7 is published as a GitHub pre-release. Pre-releases must be enabled
+Beta 8 is published as a GitHub pre-release. Pre-releases must be enabled
 explicitly in HACS. Then install **Smart Heating** through **HACS → Integrations**.
 If Home Assistant requires a restart, treat it as a separately approved step.
 
@@ -62,7 +72,7 @@ available:
 - Sunday–Thursday setback starts at 21:00
 - Friday–Saturday setback starts at 22:00
 
-Beta 7 does not import these values automatically and never writes
+Beta 8 does not import these values automatically and never writes
 `input_boolean.heizung`. The transaction adapter accepts writes only through
 an isolated test transport; production activation remains locked.
 
@@ -79,7 +89,7 @@ fixture. Productive VM 104 installation is explicitly outside this beta. The
 compatibility mode is passive; full mode remains locked until a separately
 verified single-writer proof exists.
 
-Version: `0.1.0-beta.7`
+Version: `0.1.0-beta.8`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 

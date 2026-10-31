@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.0-beta.8 – Beta 8
+
+### Deutsch
+
+- Versioniertes passives Backend für Personen, Klimazonen, Sensorlisten und zentralen Controller ergänzt.
+- Native `person.*`-Erkennung und Anwesenheitsaggregation mit sicherer Behandlung von `unknown`/`unavailable` ergänzt.
+- WebSocket-Verwaltung für Hinzufügen, Ändern, Entfernen, Validierung und Diagnose ergänzt.
+- Konflikte durch doppelte aktive Thermostat-Zuordnung werden blockiert.
+- Lovelace-Karte um kompakte Zonen- und Personenverwaltung erweitert.
+
+### English
+
+- Added a versioned passive backend for people, climate zones, sensor lists, and one central controller.
+- Added native `person.*` discovery and presence aggregation with safe unknown/unavailable handling.
+- Added WebSocket management for add, edit, remove, validation, and diagnostics.
+- Duplicate active thermostat ownership across zones is rejected.
+- Extended the Lovelace card with compact zone and native-person management.
+
 ## 0.1.0-beta.7 – Beta 7
 
 ### Deutsch

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "smart_heating"
-VERSION = "0.1.0-beta.7"
+VERSION = "0.1.0-beta.8"
 PLATFORMS = ["binary_sensor", "sensor"]
 
 CONF_NAME = "name"
