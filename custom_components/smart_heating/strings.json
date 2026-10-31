@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Smart Heating einrichten",
-        "description": "Beta 4 erkennt passende Entities vorsichtig und trennt Kompatibilitäts- und Vollmodus. Produktive Aktivierung bleibt gesperrt.",
+        "description": "Beta 7 erkennt passende Entities vorsichtig, erlaubt explizite Zuordnungen im Options Flow und trennt Kompatibilitäts- und Vollmodus. Produktive Aktivierung bleibt gesperrt.",
         "data": {
           "name": "Name",
           "timezone": "Zeitzone",
@@ -23,8 +23,8 @@
       },
       "schedule": {
         "title": "Wochenplan",
-        "description": "Zeitplan als Wochenobjekt konfigurieren. Overlaps werden abgelehnt.",
-        "data": {"schedule": "Wochenplan", "summer_mode": "Sommermodus-Planung", "operation_mode": "Betriebsart", "chimney_temperature": "Schornsteinfeger-Solltemperatur", "frost_temperature": "Frostschutz-Solltemperatur"}
+        "description": "Zeitplan und explizite Entity-Zuordnungen konfigurieren. Überlappungen werden abgelehnt. Kompatibilitätsmodus bleibt voreingestellt.",
+        "data": {"schedule": "Wochenplan", "summer_mode": "Sommermodus-Planung", "operation_mode": "Betriebsart", "chimney_temperature": "Schornsteinfeger-Solltemperatur", "frost_temperature": "Frostschutz-Solltemperatur", "climate_entity": "Primäres Climate-Entity", "tado_fallback": "Tado-Fallback", "heating_boolean": "Zeitstatus-Helper", "heating_permission": "Heizfreigabe", "comfort_setpoint": "Komforttemperatur", "night_setpoint": "Absenktemperatur", "outdoor_temperature": "Außentemperatur", "window_entities": "Fenster-Entities", "presence_entities": "Anwesenheits-Entities", "party_entity": "Party", "visit_entity": "Besuch", "return_home_entity": "Heimweg", "chimney_sweep_entity": "Schornsteinfeger", "summer_entity": "Sommermodus"}
       }
     },
     "error": {"invalid_schedule": "Ungültiger oder überlappender Zeitplan."}

@@ -64,6 +64,7 @@ class DiscoveryMigrationTests(unittest.TestCase):
             FakeState("input_boolean.heizung_freigabe", "Heizungsfreigabe"),
             FakeState("input_number.heiztemperatur", "Heiztemperatur"),
             FakeState("input_number.absenktemperatur", "Absenktemperatur"),
+            FakeState("sensor.outdoor", "Outdoor Temperature"),
             FakeState("binary_sensor.fenster", "Fenster Esszimmer", attributes={"device_class": "window"}),
             FakeState("person.michael", "Michael"),
             FakeState("input_boolean.party", "Party"),
@@ -71,6 +72,7 @@ class DiscoveryMigrationTests(unittest.TestCase):
         result = discover_entities(hass)
         self.assertEqual(result["selected"]["climate_entity"], "climate.esszimmer")
         self.assertEqual(result["selected"]["heating_permission"], "input_boolean.heizung_freigabe")
+        self.assertEqual(result["selected"]["outdoor_temperature"], "sensor.outdoor")
         self.assertEqual(result["roles"]["window_entities"]["selected"], ["binary_sensor.fenster"])
         self.assertEqual(result["selected"]["special_modes"]["party"], "input_boolean.party")
 

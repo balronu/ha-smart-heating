@@ -1,9 +1,9 @@
-# Smart Heating (Beta 6)
+# Smart Heating (Beta 7)
 
 **Smart Heating** ist eine HACS-kompatible Home-Assistant-Integration für
 Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 
-> **Beta-6-Sicherheitsgrenze:** Die Integration berechnet die vollständige
+> **Beta-7-Sicherheitsgrenze:** Die Integration berechnet die vollständige
 > Heizungsentscheidung passiv. Sie schaltet
 > keine Climate-Entity, keinen bestehenden Helper, keinen Scheduler und keinen
 > Sondermodus. Eine Migration in eine produktive Heizungssteuerung ist nicht
@@ -27,10 +27,12 @@ Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 - isolierter Climate-Servicepfad mit Primär-/Tado-Fallback, Read-back und Rollback
 - Kompatibilitäts-Sommermodus sowie ausdrücklich gesperrter HVAC-Off-Planung
 - isolierter Home-Assistant-Lifecycle-Test für Flow, Entities und Neustart
+- explizite Entity-Zuordnung im Options Flow mit persistenter Rückwärtskompatibilität
+- unbekannte Fensterzustände werden in der Vorschau als unbekannt statt geschlossen gezeigt
 
 ## Installation
 
-Beta 6 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
+Beta 7 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
 aktiviert werden. Danach über **HACS → Integrationen → Smart Heating**
 installieren. Ein erforderlicher Home-Assistant-Neustart ist separat zu
 prüfen und darf erst nach Freigabe durchgeführt werden.
@@ -55,7 +57,7 @@ entry_id: YOUR_CONFIG_ENTRY_ID
 Die Karte bearbeitet ausschließlich den Zeitplan dieser Smart-Heating-Entry.
 Sie schreibt keine bestehenden Heizungs-Entities.
 
-### Beta-6-Installationsassistent
+### Beta-7-Installationsassistent
 
 Die Migrations-Preview zeigt erkannte Entities und Konflikte. Der
 Kompatibilitätsmodus ist der sichere Standard: Smart Heating beobachtet den
@@ -66,6 +68,12 @@ einzelner Schreiber in einer ausdrücklich isolierten Umgebung nachgewiesen ist.
 
 Der Schornsteinfeger-Modus hat in der Entscheidungsansicht absolute Priorität.
 Ein Sollwert oder `hvac_action` beweist jedoch keinen Brennerstart.
+
+Der Options Flow kann die eindeutigen Zuordnungen der Bestandsanlage nachträglich
+speichern: Primär-Climate, Tado-Fallback, Zeitstatus, Heizfreigabe, Sollwerte,
+Außentemperatur, Fenster, Anwesenheit und Sondermodi. Automatische Vorschläge
+werden vorausgewählt; Mehrdeutigkeiten bleiben zur manuellen Prüfung offen.
+Unbekannte Fensterzustände werden nicht als geschlossen bewertet.
 
 ## Referenzmigration
 
@@ -79,7 +87,7 @@ ein unterstützter Export vorliegt:
 - Sonntag–Donnerstag Absenkung 21:00
 - Freitag–Samstag Absenkung 22:00
 
-Beta 6 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
+Beta 7 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
 nicht. Die Migrations-Preview zeigt nur einen Konflikt-/Prüfstatus. Der
 ausführbare Adapter akzeptiert Schreibzugriffe ausschließlich über einen
 isolierten Test-Transport; die Produktiv-Sperre verweigert die Aktivierung,
@@ -110,12 +118,12 @@ git diff --check
 
 Die HA-abhängigen Adapter werden in CI mit Home Assistant 2026.10.4 in einer
 isolierten Fixture getestet. Eine Installation in produktiver VM 104 ist kein
-Teil der Beta-6-Entwicklung. Der Kompatibilitätsmodus ist passiv; der Vollmodus
+Teil der Beta-7-Entwicklung. Der Kompatibilitätsmodus ist passiv; der Vollmodus
 bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
-Version: `0.1.0-beta.6`
+Version: `0.1.0-beta.7`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 

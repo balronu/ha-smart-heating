@@ -20,7 +20,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import DOMAIN, PLATFORMS, SIGNAL_ENTRY_UPDATED, VERSION
+from .const import CONF_CLIMATE_ENTITY, CONF_OUTDOOR_TEMPERATURE, CONF_TADO_FALLBACK, DOMAIN, PLATFORMS, SIGNAL_ENTRY_UPDATED, VERSION
 from .engine import calculate_status
 from .models import ScheduleValidationError, WeeklySchedule
 from .migration import preview_migration
@@ -59,12 +59,17 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
     for key, entity_id in config.get("special_modes", {}).items():
         if isinstance(entity_id, str) and entity_id:
             result[key] = hass.states.is_state(entity_id, "on")
+    window_unknown = False
     for entity_id in config.get("window_entities", []):
         state = hass.states.get(entity_id)
-        if state and str(state.state).lower() in {"on", "open", "opened", "true"}:
+        if state and str(state.state).lower() in {"on", "open", "opened", "offen", "true"}:
             result["window_open"] = True
-        elif state and str(state.state).lower() in {"tilt", "tilted", "gekipp", "gekippte"}:
+        elif state and str(state.state).lower() in {"tilt", "tilted", "gekippt", "gekipp", "gekippte"}:
             result["window_tilted"] = True
+        elif not state or str(state.state).lower() in {"unknown", "unbekannt", "unavailable", "nicht verfügbar", "none", ""}:
+            window_unknown = True
+    if window_unknown and not result.get("window_open") and not result.get("window_tilted"):
+        result["window_unknown"] = True
     for entity_id in config.get("presence_entities", []):
         state = hass.states.get(entity_id)
         if state and str(state.state).lower() in {"home", "on", "present", "zuhause"}:
@@ -157,12 +162,35 @@ def _entry_from_connection(hass: HomeAssistant, entry_id: str) -> tuple[ConfigEn
     raise vol.Invalid("Unknown Smart Heating config entry")
 
 
+def _observed_status(hass: HomeAssistant, config: dict[str, Any]) -> dict[str, Any]:
+    """Expose current public states for the passive card without writing."""
+    def state_of(entity_id: Any) -> dict[str, Any] | None:
+        if not isinstance(entity_id, str) or not entity_id:
+            return None
+        state = hass.states.get(entity_id)
+        if not state:
+            return {"entity_id": entity_id, "state": "missing"}
+        return {"entity_id": entity_id, "state": str(state.state), "hvac_action": state.attributes.get("hvac_action"), "temperature": state.attributes.get("temperature"), "current_temperature": state.attributes.get("current_temperature")}
+
+    windows = [state_of(entity_id) for entity_id in config.get("window_entities", [])]
+    windows = [item for item in windows if item is not None]
+    unknown_window = any(item["state"].lower() in {"unknown", "unbekannt", "unavailable", "nicht verfügbar", "missing", "none", ""} for item in windows)
+    climate = state_of(config.get(CONF_CLIMATE_ENTITY))
+    if not climate or climate.get("state") in {"unknown", "unavailable", "missing"}:
+        climate = state_of(config.get(CONF_TADO_FALLBACK)) or climate
+    outdoor = state_of(config.get(CONF_OUTDOOR_TEMPERATURE))
+    window_status = "unknown" if unknown_window else ("open_or_tilted" if windows and any(item["state"].lower() in {"on", "open", "opened", "offen", "true", "tilt", "tilted", "gekippt", "gekipp", "gekippte"} for item in windows) else "closed_or_clear" if windows else "unknown")
+    return {"climate": climate, "outdoor_temperature": outdoor, "windows": windows, "window_status": window_status, "heat_demand_status": (climate or {}).get("hvac_action") or "unknown"}
+
+
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/plan/get", vol.Required("entry_id"): cv.string})
 @websocket_api.async_response
 async def _ws_get_status(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, coordinator = _entry_from_connection(hass, msg["entry_id"])
     config = effective_config(entry)
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "schedule": load_schedule(config).as_dict(), "status": coordinator.data or {}, "options": {"name": entry.title, "timezone": config.get("timezone"), "operation_mode": config.get("operation_mode", "compatibility"), "discovery": config.get("discovery", {}), "special_modes": config.get("special_modes", {}), "control_plane": analyze_control_plane(hass, config)}})
+    status = dict(coordinator.data or {})
+    status["observed"] = _observed_status(hass, config)
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "schedule": load_schedule(config).as_dict(), "status": status, "options": {"name": entry.title, "timezone": config.get("timezone"), "operation_mode": config.get("operation_mode", "compatibility"), "discovery": config.get("discovery", {}), "special_modes": config.get("special_modes", {}), "control_plane": analyze_control_plane(hass, config)}})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/plan/set", vol.Required("entry_id"): cv.string, vol.Required("schedule"): dict})
