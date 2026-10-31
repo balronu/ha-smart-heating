@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.1.0-beta.12 – Beta 12
+
+### Deutsch
+
+- Technische Backend-Verwaltung aus der Heizungs-Lovelace-Karte entfernt und als separates Smart-Heating-Seitenmenü registriert.
+- Sieben unabhängig aufklappbare Verwaltungsbereiche mit verschachtelten Raum-/Zoneneinträgen ergänzt.
+- Öffnungszustände bleiben bei Backend-Datenaktualisierungen erhalten; Karte und Panel nutzen zentrale Versionsdaten.
+- Responsive Rendering-Tests für Karte und Panel auf Desktop, iPhone, iPad und Touchmonitor ergänzt.
+
+### English
+
+- Removed technical backend administration from the heating Lovelace card and registered a separate Smart Heating sidebar panel.
+- Added seven independently expandable administration sections with nested room/zone entries.
+- Preserved expansion state across backend updates; card and panel use centralized version data.
+- Added responsive rendered tests for the card and panel on desktop, iPhone, iPad, and touch monitor.
+
+## 0.1.0-beta.11 – Beta 11
+
+### Deutsch
+
+- Die passive Lovelace-Verwaltung kennzeichnet sich sichtbar als Backend-Verwaltung und bleibt über die bestehende Smart-Heating-Karte erreichbar.
+- Die Versionsanzeige wird aus der zentralen Backend-Version gespeist; das veraltete Beta-9-Badge wurde entfernt.
+- Status-WebSocket, Karte, Dokumentation und UI-Fixture verwenden dieselbe Beta-11-Version.
+- Persistenz-, Versions- und Backend-Zugriffsverträge in den isolierten Tests erweitert.
+
+### English
+
+- The passive Lovelace management surface is explicitly labelled as backend management and remains reachable through the existing Smart Heating card.
+- The displayed version is supplied by the central backend version; the stale Beta 9 badge was removed.
+- The status WebSocket, card, documentation, and UI fixture use the same Beta 11 version.
+- Extended isolated persistence, version, and backend-access contracts.
+
 ## 0.1.0-beta.10 – Beta 10
 
 ### Deutsch
