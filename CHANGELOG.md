@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.1.0-beta.6 – Beta 6
+
+### Deutsch
+
+- Reproduzierbarer Playwright-Harness mit gerenderter Karte für Desktop,
+  iPhone-Viewport, iPad und schmalen Touchmonitor ergänzt.
+- Zeitfelder, Hinzufügen, Löschen, Kopieren, Fehleranzeige und Dark-Mode-
+  Viewports als echte UI-Interaktionen getestet; Screenshots werden als CI-
+  Artefakte hochgeladen.
+- Config Flow zeigt erkannte Zuordnungen vor der Übernahme in einer separaten
+  Bestätigungsseite.
+- Außentemperatur und relevante Entity-Rollen in der Erkennung ergänzt.
+- Kompatibilitätsmodus bleibt passiv; Sondermodi werden sichtbar, aber nicht
+  aus der Karte heraus geschaltet.
+
+### English
+
+- Added a reproducible Playwright harness rendering the card on desktop,
+  iPhone viewport, iPad, and a narrow touch monitor.
+- Real UI interactions cover time fields, add/remove/copy, validation errors,
+  and dark-mode viewports; screenshots upload as CI artifacts.
+- Config Flow now presents discovered associations on a separate confirmation
+  page before entry creation.
+- Added outdoor-temperature and relevant entity roles to discovery.
+- Compatibility mode remains passive; special modes are visible but not
+  actuated from the card.
+
 ## 0.1.0-beta.5 – Beta 5
 
 ### Deutsch

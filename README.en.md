@@ -70,7 +70,7 @@ git diff --check
 The HA adapter is tested in CI with an isolated Home Assistant 2026.10.4
 fixture. Productive VM 104 installation is explicitly outside this beta.
 
-Version: `0.1.0-beta.5`
+Version: `0.1.0-beta.6`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 
