@@ -1,9 +1,10 @@
-# Smart Heating (Beta 2)
+# Smart Heating (Beta 3)
 
 **Smart Heating** ist eine HACS-kompatible Home-Assistant-Integration für
 Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 
-> **Beta-2-Sicherheitsgrenze:** Die Integration arbeitet passiv. Sie schaltet
+> **Beta-3-Sicherheitsgrenze:** Die Integration berechnet die vollständige
+> Heizungsentscheidung passiv. Sie schaltet
 > keine Climate-Entity, keinen bestehenden Helper, keinen Scheduler und keinen
 > Sondermodus. Eine Migration in eine produktive Heizungssteuerung ist nicht
 > enthalten.
@@ -19,7 +20,10 @@ Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 - kompakte responsive Lovelace-Karte mit eigener, validierter Planverwaltung
 - deutsche und englische Übersetzungen
 - vorsichtige automatische Entity-Erkennung mit sichtbaren Mehrdeutigkeiten
-- read-only Migrationsassistent mit Fixture, Konflikten und manuellem Vorschlag
+- Migrationsplan mit Single-Writer-Sperre, Bestätigungstoken, Snapshot,
+  Read-back und isoliertem Rollback-Adapter
+- erklärbare Entscheidung mit aktivem Modus, Grund, Zieltemperatur und HVAC-Ziel
+- Kompatibilitäts-Sommermodus sowie ausdrücklich gesperrter HVAC-Off-Planung
 - isolierter Home-Assistant-Lifecycle-Test für Flow, Entities und Neustart
 
 ## Installation
@@ -61,8 +65,19 @@ ein unterstützter Export vorliegt:
 - Sonntag–Donnerstag Absenkung 21:00
 - Freitag–Samstag Absenkung 22:00
 
-Beta 2 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
-nicht. Die Migrations-Preview zeigt nur einen Konflikt-/Prüfstatus.
+Beta 3 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
+nicht. Die Migrations-Preview zeigt nur einen Konflikt-/Prüfstatus. Der
+ausführbare Adapter akzeptiert Schreibzugriffe ausschließlich über einen
+isolierten Test-Transport; die Produktiv-Sperre verweigert die Aktivierung,
+solange der alte Schreiber nicht nachweisbar abgelöst ist.
+
+## Entscheidungslogik
+
+Die Referenzreihenfolge ist unverändert: Schornsteinfeger → fehlende
+Heizfreigabe → Fenster offen → Fenster gekippt → Abwesenheit → Nacht/Party →
+Sommermodus ohne Komfortoverride → Komfort. Die Karte trennt Zeitplanstatus,
+berechneten Heizmodus und tatsächliche Produktivsteuerung. Die Beta führt keine
+Climate- oder Helper-Services aus.
 
 ## Entwicklung
 
@@ -78,9 +93,9 @@ Teil der Beta-2-Entwicklung.
 
 ## Status
 
-Version: `0.1.0-beta.2`
+Version: `0.1.0-beta.3`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
-Produktive Migration: nicht enthalten  
+Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 
 Weitere Architektur- und Sicherheitsdetails stehen in
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).

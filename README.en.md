@@ -1,9 +1,10 @@
-# Smart Heating (Beta 2)
+# Smart Heating (Beta 3)
 
 **Smart Heating** is a HACS-compatible Home Assistant integration for weekly
 schedules, status, simulation, and a compact Lovelace card.
 
-> **Beta 2 safety boundary:** The integration is passive. It does not actuate
+> **Beta 3 safety boundary:** The integration calculates the full heating
+> decision passively. It does not actuate
 > climate entities, existing helpers, schedulers, or special modes. Productive
 > migration is not included.
 
@@ -18,7 +19,9 @@ schedules, status, simulation, and a compact Lovelace card.
 - compact responsive Lovelace card with validated plan editing
 - German and English translations
 - conservative automatic entity discovery with visible ambiguity reporting
-- read-only migration assistant with fixture, conflicts, and manual proposal path
+- migration plan with single-writer lock, confirmation token, snapshot,
+  read-back, and isolated rollback adapter
+- explainable decision with active mode, reason, target, and HVAC target
 - isolated Home Assistant lifecycle fixture for flows, entities, and reload
 
 ## Installation and setup
@@ -50,8 +53,9 @@ available:
 - Sunday–Thursday setback starts at 21:00
 - Friday–Saturday setback starts at 22:00
 
-Beta 2 does not import these values automatically and never writes
-`input_boolean.heizung`.
+Beta 3 does not import these values automatically and never writes
+`input_boolean.heizung`. The transaction adapter accepts writes only through
+an isolated test transport; production activation remains locked.
 
 ## Development
 
@@ -64,9 +68,9 @@ git diff --check
 The HA adapter is tested in CI with an isolated Home Assistant 2026.10.4
 fixture. Productive VM 104 installation is explicitly outside this beta.
 
-Version: `0.1.0-beta.2`
+Version: `0.1.0-beta.3`
 Release type: development release / HACS pre-release  
-Productive migration: not included
+Productive migration: locked; isolated adapter tests only
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for architecture and safety
 details.

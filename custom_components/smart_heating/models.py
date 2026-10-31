@@ -15,6 +15,17 @@ class ScheduleValidationError(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
+class HeatingDecision:
+    """A explainable decision; it never performs a Home Assistant action."""
+
+    mode: str
+    reason: str
+    target_temperature: float | None
+    target_hvac_mode: str | None
+    source: str
+
+
+@dataclass(frozen=True, slots=True)
 class TimeWindow:
     start: time
     end: time
@@ -115,3 +126,63 @@ def decision_for_state(*, schedule_active: bool, overrides: Mapping[str, bool] |
     if overrides.get("summer") and not any(overrides.get(key) for key in ("party", "return_home")):
         return "summer", "Summer mode"
     return "comfort", "Schedule active"
+
+
+def evaluate_decision(
+    *,
+    schedule_active: bool,
+    overrides: Mapping[str, bool] | None = None,
+    comfort_temperature: float | None = None,
+    night_temperature: float | None = None,
+    chimney_temperature: float | None = 25.0,
+    summer_mode: str = "compatibility",
+    frost_temperature: float = 5.0,
+    hvac_supports_off: bool = True,
+) -> HeatingDecision:
+    """Evaluate the documented Phase-1 order with explicit output targets.
+
+    ``summer_mode`` is intentionally a pure planner option.  The integration
+    never sends the resulting HVAC command without a separately armed control
+    adapter.  Unknown entity state is represented by the caller and is not
+    silently converted into a safe command.
+    """
+    flags = overrides or {}
+    if flags.get("chimney_sweep"):
+        return HeatingDecision("chimney_sweep", "Schornsteinfeger has highest priority", chimney_temperature, "heat", "reference_priority")
+    if flags.get("heating_permission") is False:
+        return HeatingDecision("disabled", "Heating permission is off", None, "off", "reference_priority")
+    if flags.get("window_open"):
+        return HeatingDecision("window_open", "Window open safety setback", frost_temperature, "heat", "reference_priority")
+    if flags.get("window_tilted"):
+        return HeatingDecision("window_tilted", "Tilted window setback", night_temperature, "heat", "reference_priority")
+    if flags.get("away") and not flags.get("visit") and not flags.get("return_home"):
+        return HeatingDecision("away", "Nobody home", night_temperature, "heat", "reference_priority")
+    if not schedule_active:
+        if flags.get("party"):
+            return HeatingDecision("party", "Schedule inactive; Party keeps comfort temperature", comfort_temperature, "heat", "reference_priority")
+        return HeatingDecision("night", "Schedule inactive", night_temperature, "heat", "reference_priority")
+    if flags.get("summer") and not flags.get("party") and not flags.get("return_home"):
+        hvac = "off" if summer_mode == "hvac_off" and hvac_supports_off else "heat"
+        return HeatingDecision("summer", "Summer mode", night_temperature, hvac, "reference_priority")
+    return HeatingDecision("comfort", "Schedule active", comfort_temperature, "heat", "reference_priority")
+
+
+def reset_actions(*, arrived: bool = False, schedule_on: bool = False, permission_on: bool = False) -> tuple[str, ...]:
+    """Return reset helper names from the documented reset automation."""
+    result: list[str] = []
+    if arrived:
+        result.extend(("return_home", "visit"))
+    if schedule_on or permission_on:
+        result.extend(("party", "visit"))
+    return tuple(dict.fromkeys(result))
+
+
+def summer_hysteresis_state(*, outdoor_temperature: float | None, currently_active: bool, enable_at: float = 18.5, disable_at: float = 17.0) -> bool:
+    """Apply the documented hysteresis without changing an HA helper."""
+    if outdoor_temperature is None:
+        return currently_active
+    if outdoor_temperature >= enable_at:
+        return True
+    if outdoor_temperature <= disable_at:
+        return False
+    return currently_active

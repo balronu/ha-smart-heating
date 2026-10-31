@@ -8,7 +8,7 @@ _package.__path__ = [str(Path(__file__).parents[1] / "custom_components" / "smar
 sys.modules.setdefault("custom_components.smart_heating", _package)
 
 from custom_components.smart_heating.discovery import discover_entities
-from custom_components.smart_heating.migration import preview_migration
+from custom_components.smart_heating.migration import MigrationState, MigrationTransaction, preview_migration
 
 
 class FakeState:
@@ -34,6 +34,26 @@ class FakeHass:
 
 class FakeEntry:
     entry_id = "entry-1"
+
+
+class FakeTransport:
+    def __init__(self, readback_ok=True):
+        self.current = {"schedule": {"old": True}}
+        self.readback_ok = readback_ok
+        self.restored = None
+
+    def snapshot(self):
+        return dict(self.current)
+
+    def activate(self, schedule):
+        self.current = {"schedule": schedule}
+
+    def readback(self):
+        return self.current if self.readback_ok else {"schedule": {"wrong": True}}
+
+    def restore(self, snapshot):
+        self.restored = snapshot
+        self.current = dict(snapshot)
 
 
 class DiscoveryMigrationTests(unittest.TestCase):
@@ -69,3 +89,23 @@ class DiscoveryMigrationTests(unittest.TestCase):
         self.assertEqual(result["source"], "manual_ui_proposal")
         self.assertEqual(result["proposed_schedule"]["monday"][0]["start"], "05:30:00")
         self.assertEqual(result["rollback"]["prepared"], False)
+
+    def test_transaction_requires_explicit_confirmation_and_rolls_back_on_readback_failure(self):
+        plan = {"proposed_schedule": {"monday": [{"start": "05:30:00", "end": "06:00:00"}]}, "activation_allowed": True}
+        transport = FakeTransport(readback_ok=False)
+        transaction = MigrationTransaction(plan, transport)
+        with self.assertRaises(PermissionError):
+            transaction.execute_isolated("wrong")
+        with self.assertRaises(RuntimeError):
+            transaction.execute_isolated(transaction.transaction_id)
+        self.assertEqual(transaction.state, MigrationState.ROLLED_BACK)
+        self.assertEqual(transport.current, {"schedule": {"old": True}})
+
+    def test_successful_transaction_is_idempotent(self):
+        schedule = {"monday": [{"start": "05:30:00", "end": "06:00:00"}]}
+        transport = FakeTransport(readback_ok=True)
+        transaction = MigrationTransaction({"proposed_schedule": schedule, "activation_allowed": True}, transport)
+        result = transaction.execute_isolated(transaction.transaction_id)
+        self.assertEqual(transaction.execute_isolated(transaction.transaction_id), result)
+        self.assertEqual(transaction.state, MigrationState.VERIFIED)
+        self.assertTrue(transaction.idempotency_key)

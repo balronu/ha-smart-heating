@@ -47,6 +47,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             now=datetime.now().astimezone(),
             timezone=config.get("timezone", "Europe/Berlin"),
             overrides=_read_overrides(self.hass, self.entry),
+            context=_read_context(self.hass, self.entry),
         )
 
 
@@ -71,6 +72,28 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
     if isinstance(permission, str) and permission:
         result["heating_permission"] = hass.states.is_state(permission, "on")
     return result
+
+
+def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
+    """Read numeric targets and capabilities without calling a service."""
+    config = effective_config(entry)
+    context: dict[str, Any] = {
+        "summer_mode": config.get("summer_mode", "compatibility"),
+        "frost_temperature": float(config.get("frost_temperature", 5.0)),
+        "chimney_temperature": float(config.get("chimney_temperature", 25.0)),
+    }
+    for key, config_key in (("comfort_temperature", "comfort_setpoint"), ("night_temperature", "night_setpoint")):
+        entity_id = config.get(config_key)
+        state = hass.states.get(entity_id) if isinstance(entity_id, str) else None
+        if state:
+            try:
+                context[key] = float(state.state)
+            except (TypeError, ValueError):
+                pass
+    climate = hass.states.get(config.get("climate_entity")) if config.get("climate_entity") else None
+    if climate:
+        context["hvac_supports_off"] = "off" in climate.attributes.get("hvac_modes", []) or climate.state == "off"
+    return context
 
 
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
@@ -158,7 +181,7 @@ async def _ws_simulate(hass: HomeAssistant, connection: websocket_api.ActiveConn
     entry, _ = _entry_from_connection(hass, msg["entry_id"])
     config = effective_config(entry)
     instant = datetime.fromisoformat(msg["at"]) if msg.get("at") else datetime.now().astimezone()
-    result = calculate_status(load_schedule(config), now=instant, timezone=config.get("timezone", "Europe/Berlin"), overrides=msg.get("overrides", {}))
+    result = calculate_status(load_schedule(config), now=instant, timezone=config.get("timezone", "Europe/Berlin"), overrides=msg.get("overrides", {}), context=_read_context(hass, entry))
     connection.send_result(msg["id"], result)
 
 
