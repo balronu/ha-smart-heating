@@ -7,3 +7,7 @@ dist/
 coverage.xml
 .coverage
 
+
+# Playwright runtime output
+frontend/playwright-report/
+frontend/test-results/
