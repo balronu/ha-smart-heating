@@ -23,6 +23,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .const import DOMAIN, PLATFORMS, SIGNAL_ENTRY_UPDATED, VERSION
 from .engine import calculate_status
 from .models import ScheduleValidationError, WeeklySchedule
+from .migration import preview_migration
 from .storage import effective_config, load_schedule, normalized_options
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.entry = entry
-        super().__init__(hass, logger=_LOGGER, name=DOMAIN)
+        super().__init__(hass, config_entry=entry, logger=_LOGGER, name=DOMAIN)
 
     async def _async_update_data(self) -> dict[str, Any]:
         config = effective_config(self.entry)
@@ -56,6 +57,16 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
     for key, entity_id in config.get("special_modes", {}).items():
         if isinstance(entity_id, str) and entity_id:
             result[key] = hass.states.is_state(entity_id, "on")
+    for entity_id in config.get("window_entities", []):
+        state = hass.states.get(entity_id)
+        if state and str(state.state).lower() in {"on", "open", "opened", "true"}:
+            result["window_open"] = True
+        elif state and str(state.state).lower() in {"tilt", "tilted", "gekipp", "gekippte"}:
+            result["window_tilted"] = True
+    for entity_id in config.get("presence_entities", []):
+        state = hass.states.get(entity_id)
+        if state and str(state.state).lower() in {"home", "on", "present", "zuhause"}:
+            result["someone_home"] = True
     permission = config.get("heating_permission")
     if isinstance(permission, str) and permission:
         result["heating_permission"] = hass.states.is_state(permission, "on")
@@ -124,7 +135,7 @@ def _entry_from_connection(hass: HomeAssistant, entry_id: str) -> tuple[ConfigEn
 async def _ws_get_status(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, coordinator = _entry_from_connection(hass, msg["entry_id"])
     config = effective_config(entry)
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "schedule": load_schedule(config).as_dict(), "status": coordinator.data or {}, "options": {"name": entry.title, "timezone": config.get("timezone")}})
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "schedule": load_schedule(config).as_dict(), "status": coordinator.data or {}, "options": {"name": entry.title, "timezone": config.get("timezone"), "discovery": config.get("discovery", {}), "special_modes": config.get("special_modes", {})}})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/plan/set", vol.Required("entry_id"): cv.string, vol.Required("schedule"): dict})
@@ -151,8 +162,8 @@ async def _ws_simulate(hass: HomeAssistant, connection: websocket_api.ActiveConn
     connection.send_result(msg["id"], result)
 
 
-@websocket_api.websocket_command({vol.Required("type"): "smart_heating/migration/preview", vol.Required("entry_id"): cv.string})
+@websocket_api.websocket_command({vol.Required("type"): "smart_heating/migration/preview", vol.Required("entry_id"): cv.string, vol.Optional("manual_schedule"): dict})
 @websocket_api.async_response
 async def _ws_migration_preview(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, _ = _entry_from_connection(hass, msg["entry_id"])
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "mode": "preview_only", "automatic_import": False, "source": "supported_entity_and_config_reads_only", "conflicts": [], "message": "No existing automation or scheduler is changed by Beta 1. Import requires an explicit reviewed proposal."})
+    connection.send_result(msg["id"], preview_migration(hass, entry, msg.get("manual_schedule")))

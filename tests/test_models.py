@@ -42,3 +42,26 @@ class ScheduleTests(unittest.TestCase):
         result = calculate_status(schedule, now=datetime.fromisoformat("2026-11-02T07:00:00+01:00"), timezone="Europe/Berlin")
         self.assertTrue(result["simulated"])
         self.assertNotIn("service", result)
+
+    def test_dst_transition_uses_local_calendar(self):
+        schedule = WeeklySchedule.from_mapping({"sunday": [{"start": "01:30", "end": "03:30"}]})
+        self.assertTrue(schedule.active_at(datetime.fromisoformat("2026-03-29T01:45:00+01:00"), "Europe/Berlin"))
+        next_switch, next_state = schedule.next_switch(datetime.fromisoformat("2026-03-29T01:45:00+01:00"), "Europe/Berlin")
+        self.assertEqual(next_state, False)
+        self.assertEqual(next_switch.tzinfo.key, "Europe/Berlin")
+
+    def test_reference_special_mode_semantics(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "20:00"}]})
+        cases = [
+            ({"heating_permission": False, "chimney_sweep": True}, "chimney_sweep"),
+            ({"heating_permission": False}, "disabled"),
+            ({"window_open": True, "window_tilted": True}, "window_open"),
+            ({"window_tilted": True}, "window_tilted"),
+            ({"away": True, "visit": False, "return_home": False}, "away"),
+            ({"summer": True, "return_home": False, "party": False}, "summer"),
+        ]
+        for overrides, expected in cases:
+            with self.subTest(expected=expected):
+                instant = datetime.fromisoformat("2026-11-02T07:00:00+01:00") if expected == "summer" else datetime.fromisoformat("2026-11-02T22:00:00+01:00")
+                result = calculate_status(schedule, now=instant, timezone="Europe/Berlin", overrides=overrides)
+                self.assertEqual(result["mode"], expected)
