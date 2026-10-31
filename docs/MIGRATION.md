@@ -1,4 +1,20 @@
-# Beta-4-Migrationsgrenze
+# Migration boundary
+
+## Beta 13 duplicate-entry and legacy-helper handling
+
+The live inventory must distinguish a native `platform: smart_heating` entity
+from a real HA helper. An entity shown under a Helper-oriented UI surface is
+not sufficient evidence of helper ownership. The exact tuple
+`platform=smart_heating` plus `config_entry_id` is required.
+
+If more than one active `smart_heating` Config Entry exists, the backend fails
+closed and lists the entry IDs. The read-only cleanup planner can classify the
+duplicate entry and its native entities, but it does not remove either one.
+Before any productive removal, capture a current verified HA backup, document
+the exact entry/entity deletion list and dependency scan, simulate the plan in
+an isolated fixture, and obtain a separate user approval for the irreversible
+Config Entry/entity removal. Simple Scheduler, Tado, existing automations,
+productive helpers, persons, trackers, and climate entities are retained.
 
 ## Betriebsarten
 

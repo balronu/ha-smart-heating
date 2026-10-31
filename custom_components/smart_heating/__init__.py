@@ -25,6 +25,7 @@ from .engine import calculate_status
 from .models import ScheduleValidationError, WeeklySchedule
 from .migration import preview_migration
 from .control import analyze_control_plane
+from .cleanup import build_cleanup_plan
 from .management import (
     area_suggestions,
     discover_persons,
@@ -156,6 +157,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         websocket_api.async_register_command(hass, _ws_admin_outdoor_set)
         websocket_api.async_register_command(hass, _ws_admin_safety_set)
         websocket_api.async_register_command(hass, _ws_admin_validate)
+        websocket_api.async_register_command(hass, _ws_cleanup_preview)
         hass.data[_WS_REGISTERED] = True
     return True
 
@@ -173,8 +175,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
+        coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+        if coordinator:
+            await coordinator.async_shutdown()
         hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
     return unloaded
+
+
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Migrate legacy entries without changing their identity or ownership."""
+    if config_entry.version < 2:
+        hass.config_entries.async_update_entry(
+            config_entry,
+            version=2,
+            data={
+                **config_entry.data,
+                "simulation": config_entry.data.get("simulation", True),
+                "operation_mode": config_entry.data.get("operation_mode", "compatibility"),
+            },
+        )
+    return True
 
 
 async def _async_entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -223,6 +243,27 @@ def _entry_from_connection(hass: HomeAssistant, entry_id: str) -> tuple[ConfigEn
         if entry.entry_id == entry_id:
             return entry, hass.data[DOMAIN][entry_id]
     raise vol.Invalid("Unknown Smart Heating config entry")
+
+
+@websocket_api.websocket_command({vol.Required("type"): "smart_heating/cleanup/preview", vol.Required("entry_id"): cv.string})
+@websocket_api.async_response
+async def _ws_cleanup_preview(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Return an ownership dry-run; never mutate registries or entries."""
+    entry, _ = _entry_from_connection(hass, msg["entry_id"])
+    from homeassistant.helpers import entity_registry
+
+    entries = [{"entry_id": item.entry_id, "domain": item.domain} for item in hass.config_entries.async_entries(DOMAIN)]
+    registry = entity_registry.async_get(hass)
+    entities = [
+        {
+            "entity_id": item.entity_id,
+            "platform": item.platform,
+            "config_entry_id": item.config_entry_id,
+            "unique_id": item.unique_id,
+        }
+        for item in registry.entities.values()
+    ]
+    connection.send_result(msg["id"], build_cleanup_plan(entries, entities, keep_entry_id=entry.entry_id))
 
 
 def _observed_status(hass: HomeAssistant, config: dict[str, Any]) -> dict[str, Any]:

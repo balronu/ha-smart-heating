@@ -1,4 +1,4 @@
-# Smart Heating (Beta 12)
+# Smart Heating (Beta 13)
 
 **Smart Heating** ist eine HACS-kompatible Home-Assistant-Integration für
 Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
@@ -11,7 +11,7 @@ Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 
 ## Beta-12-Backend-Verwaltung und Klimazonen
 
-Beta 12 ergänzt eine eigenständige, passive Backend-Verwaltung für Personen,
+Beta 13 führt die eigenständige, passive Backend-Verwaltung für Personen,
 Klimazonen, Thermostate, Fenster-/Kippkontakte, Raumtemperaturfühler,
 Außentemperatur und einen zentralen Controller. Änderungen werden über
 Config-Entry-Optionen beziehungsweise die unterstützte WebSocket-API
@@ -67,7 +67,7 @@ den UI-Fixtures auf Desktop, iPhone, iPad und engem Touchmonitor geprüft:
 
 ## Installation
 
-Beta 12 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
+Beta 13 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
 aktiviert werden. Danach über **HACS → Integrationen → Smart Heating**
 installieren. Ein erforderlicher Home-Assistant-Neustart ist separat zu
 prüfen und darf erst nach Freigabe durchgeführt werden.
@@ -129,7 +129,7 @@ ein unterstützter Export vorliegt:
 - Sonntag–Donnerstag Absenkung 21:00
 - Freitag–Samstag Absenkung 22:00
 
-Beta 12 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
+Beta 13 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
 nicht. Die Migrations-Preview zeigt nur einen Konflikt-/Prüfstatus. Der
 ausführbare Adapter akzeptiert Schreibzugriffe ausschließlich über einen
 isolierten Test-Transport; die Produktiv-Sperre verweigert die Aktivierung,
@@ -169,7 +169,7 @@ bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
-Version: `0.1.0-beta.12`
+Version: `0.1.0-beta.13`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 
