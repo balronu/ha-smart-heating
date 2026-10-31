@@ -1,13 +1,13 @@
 {
   "domain": "smart_heating",
   "name": "Smart Heating",
-  "version": "0.1.0-beta.1",
+  "after_dependencies": ["frontend", "http"],
+  "codeowners": ["@balronu"],
   "config_flow": true,
   "documentation": "https://github.com/balronu/ha-smart-heating",
-  "issue_tracker": "https://github.com/balronu/ha-smart-heating/issues",
-  "codeowners": ["@balronu"],
   "integration_type": "helper",
   "iot_class": "local_push",
-  "requirements": []
+  "issue_tracker": "https://github.com/balronu/ha-smart-heating/issues",
+  "requirements": [],
+  "version": "0.1.0-beta.1"
 }
-
