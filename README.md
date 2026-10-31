@@ -1,9 +1,9 @@
-# Smart Heating (Beta 4)
+# Smart Heating (Beta 5)
 
 **Smart Heating** ist eine HACS-kompatible Home-Assistant-Integration für
 Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 
-> **Beta-4-Sicherheitsgrenze:** Die Integration berechnet die vollständige
+> **Beta-5-Sicherheitsgrenze:** Die Integration berechnet die vollständige
 > Heizungsentscheidung passiv. Sie schaltet
 > keine Climate-Entity, keinen bestehenden Helper, keinen Scheduler und keinen
 > Sondermodus. Eine Migration in eine produktive Heizungssteuerung ist nicht
@@ -30,7 +30,7 @@ Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 
 ## Installation
 
-Beta 4 ist ein Entwicklungsrelease und wird erst nach erfolgreichem CI-Gate
+Beta 5 ist ein Entwicklungsrelease und wird erst nach erfolgreichem CI-Gate
 als GitHub-Prerelease veröffentlicht. In HACS muss die Vorabversion explizit
 aktiviert werden. Danach über **HACS → Integrationen → Smart Heating**
 installieren und Home Assistant neu starten.
@@ -54,6 +54,18 @@ entry_id: YOUR_CONFIG_ENTRY_ID
 
 Die Karte bearbeitet ausschließlich den Zeitplan dieser Smart-Heating-Entry.
 Sie schreibt keine bestehenden Heizungs-Entities.
+
+### Beta-5-Installationsassistent
+
+Die Migrations-Preview zeigt erkannte Entities und Konflikte. Der
+Kompatibilitätsmodus ist der sichere Standard: Smart Heating beobachtet den
+Zeitplan und lässt die bestehende Automation am Thermostat schreiben. Wenn
+Simple Scheduler keinen unterstützten Export bereitstellt, verlangt die UI
+einen validierten manuellen Vorschlag. Der Vollmodus bleibt gesperrt, bis ein
+einzelner Schreiber in einer ausdrücklich isolierten Umgebung nachgewiesen ist.
+
+Der Schornsteinfeger-Modus hat in der Entscheidungsansicht absolute Priorität.
+Ein Sollwert oder `hvac_action` beweist jedoch keinen Brennerstart.
 
 ## Referenzmigration
 
@@ -102,7 +114,7 @@ Teil der Beta-2-Entwicklung.
 
 ## Status
 
-Version: `0.1.0-beta.4`
+Version: `0.1.0-beta.5`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 

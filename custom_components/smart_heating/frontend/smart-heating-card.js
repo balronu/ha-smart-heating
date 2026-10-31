@@ -1,5 +1,5 @@
 /* Smart Heating Beta 4: separated compatibility/full-mode decision view. */
-const SMART_HEATING_CARD_VERSION = "0.1.0-beta.4";
+const SMART_HEATING_CARD_VERSION = "0.1.0-beta.5";
 class SmartHeatingCard extends HTMLElement {
   static getConfigElement() {
     return document.createElement("smart-heating-card-editor");
