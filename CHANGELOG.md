@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.1.0-beta.4 – Beta 4
+
+### Deutsch
+
+- Kompatibilitätsmodus und Vollmodus im Config-/Options-Flow getrennt.
+- Isolierter Climate-Servicepfad mit Primär-/Tado-Fallback, Read-back und
+  automatischem Rollback.
+- Öffentliche HA-Zustände werden ausdrücklich nur als Schreibpfad-Hinweis
+  behandelt; verborgene Automation-/Scheduler-Aktionen werden nicht erfunden.
+- Lovelace-Karte zeigt Betriebsart und Single-Writer-Konflikt sichtbar.
+- VM 104, Simple Scheduler und bestehende Automationen bleiben unverändert.
+
+### English
+
+- Compatibility and full operation modes are separated in Config/Options Flow.
+- Isolated climate service path with primary/Tado fallback, read-back, and
+  automatic rollback.
+- Public HA state is treated only as writer evidence; hidden automation and
+  scheduler actions are never inferred.
+- Lovelace card visibly reports operation mode and single-writer conflicts.
+- VM 104, Simple Scheduler, and existing automations remain unchanged.
+
 ## 0.1.0-beta.3 – Beta 3
 
 ### Deutsch

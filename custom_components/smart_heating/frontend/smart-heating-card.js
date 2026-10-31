@@ -1,5 +1,5 @@
-/* Smart Heating Beta 3: schedule editor and explainable, locked decision view. */
-const SMART_HEATING_CARD_VERSION = "0.1.0-beta.3";
+/* Smart Heating Beta 4: separated compatibility/full-mode decision view. */
+const SMART_HEATING_CARD_VERSION = "0.1.0-beta.4";
 class SmartHeatingCard extends HTMLElement {
   static getConfigElement() {
     return document.createElement("smart-heating-card-editor");
@@ -46,7 +46,10 @@ class SmartHeatingCard extends HTMLElement {
     const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
     const labels = { monday: "Montag", tuesday: "Dienstag", wednesday: "Mittwoch", thursday: "Donnerstag", friday: "Freitag", saturday: "Samstag", sunday: "Sonntag" };
     const specials = Object.entries(status.special_modes || {}).filter(([, value]) => value).map(([key]) => key).join(", ") || "keine";
-    this.innerHTML = `<ha-card><div class="wrap"><header><strong>${this._config.title || "Smart Heating"}</strong><span class="badge">Plan: ${status.mode || "—"}</span></header>${this._error ? `<p class="error" role="alert">${this._error}</p>` : ""}<p class="status">Zeitplan: <b>${status.schedule_active ? "aktiv" : "inaktiv"}</b> · Entscheidungsmodus: <b>${status.actual_mode || "—"}</b> · Nächste Umschaltung: ${status.next_switch || "—"}</p><p class="status">Ziel: <b>${status.target_temperature ?? "—"} °C</b> · HVAC: <b>${status.target_hvac_mode || "—"}</b> · Sondermodi: <b>${specials}</b></p><p class="status">Grund: ${status.reason || "—"} · Steuerung: <b>${status.control_state || "locked"}</b></p><div class="days">${days.map(day => this._day(day, labels[day], schedule[day] || [])).join("")}</div><p class="hint">Zeitplanstatus ist nicht gleich tatsächlicher Heizungsbetrieb. Freigabe, Fenster, Anwesenheit und Sondermodi können den Betrieb übersteuern. Beta 3 bleibt gegen produktive Stellbefehle gesperrt.</p></div></ha-card>`;
+    const operationMode = this._data?.options?.operation_mode || status.operation_mode || "compatibility";
+    const controlPlane = this._data?.options?.control_plane || {};
+    const conflict = controlPlane.activation_allowed === false && operationMode === "full" ? "Aktivierung gesperrt: alter Schreibpfad nicht beweisbar" : "";
+    this.innerHTML = `<ha-card><div class="wrap"><header><strong>${this._config.title || "Smart Heating"}</strong><span class="badge">Plan: ${status.mode || "—"}</span></header>${this._error ? `<p class="error" role="alert">${this._error}</p>` : ""}${conflict ? `<p class="error" role="alert">${conflict}</p>` : ""}<p class="status">Betriebsart: <b>${operationMode}</b> · Zeitplan: <b>${status.schedule_active ? "aktiv" : "inaktiv"}</b> · Entscheidungsmodus: <b>${status.actual_mode || "—"}</b> · Nächste Umschaltung: ${status.next_switch || "—"}</p><p class="status">Ziel: <b>${status.target_temperature ?? "—"} °C</b> · HVAC: <b>${status.target_hvac_mode || "—"}</b> · Sondermodi: <b>${specials}</b></p><p class="status">Grund: ${status.reason || "—"} · Steuerung: <b>${status.control_state || "locked"}</b> · Wärmeanforderung: <b>${status.heat_demand_status || "nicht gemessen"}</b></p><div class="days">${days.map(day => this._day(day, labels[day], schedule[day] || [])).join("")}</div><p class="hint">Zeitplanstatus ist nicht gleich tatsächlicher Heizungsbetrieb. Im Kompatibilitätsmodus bleibt die bestehende Automation zuständig; im Vollmodus bleibt Beta 4 bis zum gesonderten Praxistest gesperrt. Ein Sollwert allein beweist keinen Brennerstart.</p></div></ha-card>`;
     this._style();
     this.querySelectorAll("button[data-add]").forEach(button => button.addEventListener("click", () => this._add(button.dataset.add)));
     this.querySelectorAll("button[data-remove]").forEach(button => button.addEventListener("click", () => this._remove(button.dataset.remove, Number(button.dataset.index))));

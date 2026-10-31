@@ -1,8 +1,8 @@
-# Smart Heating Beta 3 – Architecture
+# Smart Heating Beta 4 – Architecture
 
 ## Scope
 
-Beta 2 owns a persistent weekly schedule and exposes read-only calculated
+Beta 4 owns a persistent weekly schedule and exposes calculated
 status plus a validated editor for that schedule. It does not replace,
 disable, or bridge the existing heating automation. The first production
 integration of an existing boolean or climate target is deliberately deferred.
@@ -31,7 +31,7 @@ The simulator documents the existing reference order:
 This is simulation context only. It never calls `climate.*` or
 `input_boolean.*` services.
 
-The Beta-3 planner additionally returns target temperature, target HVAC mode,
+The Beta-4 planner additionally returns target temperature, target HVAC mode,
 decision source, special-mode state, and `control_state: locked`.
 Compatibility summer mode preserves the reference behavior; HVAC-off planning
 is emitted only when capability is explicitly known and remains non-actuating.
@@ -53,8 +53,14 @@ not rely on private HA storage commands.
 
 The isolated transaction adapter requires an explicit confirmation token,
 snapshots before activation, verifies read-back, and restores the snapshot on
-failure. Only an injected test transport can pass the activation gate in Beta
-3; the Home Assistant path remains locked.
+failure. Only an explicitly armed isolated runtime can pass the activation
+gate in Beta 4; the normal Home Assistant setup path remains locked.
+
+Schornsteinfeger is an absolute priority. It requests configured chimney-sweep
+temperature and `heat` even when permission is off, summer mode is active,
+the schedule is inactive, a window is open, or nobody is home. A command/read-
+back result never claims a burner start: actual heat demand is reported only
+when a device exposes a matching `hvac_action` or equivalent provider status.
 
 ## Discovery contract
 

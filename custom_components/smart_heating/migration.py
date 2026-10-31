@@ -8,6 +8,7 @@ from typing import Any, Mapping, Protocol
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from .discovery import discover_entities
+from .control import analyze_control_plane
 from .models import WeeklySchedule
 
 REFERENCE_SCHEDULE = {
@@ -39,6 +40,7 @@ def _conflict(code: str, severity: str, message: str) -> dict[str, str]:
 def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Build a proposal from public state only; no writes or services."""
     discovery = discover_entities(hass)
+    control_plane = analyze_control_plane(hass, getattr(entry, "data", {}) | getattr(entry, "options", {}))
     schedule = None
     source = "none"
     conflicts: list[dict[str, str]] = []
@@ -66,6 +68,7 @@ def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] 
         "fixture_schedule": REFERENCE_SCHEDULE,
         "proposed_schedule": schedule,
         "discovery": discovery,
+        "control_plane": control_plane,
         "conflicts": conflicts,
         "activation_allowed": False,
         "rollback": {"prepared": False, "activation_required": True, "description": "Production activation is locked until the old writer is explicitly and safely replaced."},

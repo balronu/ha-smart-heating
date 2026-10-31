@@ -1,9 +1,9 @@
-# Smart Heating (Beta 3)
+# Smart Heating (Beta 4)
 
 **Smart Heating** ist eine HACS-kompatible Home-Assistant-Integration für
 Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 
-> **Beta-3-Sicherheitsgrenze:** Die Integration berechnet die vollständige
+> **Beta-4-Sicherheitsgrenze:** Die Integration berechnet die vollständige
 > Heizungsentscheidung passiv. Sie schaltet
 > keine Climate-Entity, keinen bestehenden Helper, keinen Scheduler und keinen
 > Sondermodus. Eine Migration in eine produktive Heizungssteuerung ist nicht
@@ -23,12 +23,14 @@ Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 - Migrationsplan mit Single-Writer-Sperre, Bestätigungstoken, Snapshot,
   Read-back und isoliertem Rollback-Adapter
 - erklärbare Entscheidung mit aktivem Modus, Grund, Zieltemperatur und HVAC-Ziel
+- getrennter Kompatibilitäts- und Vollmodus
+- isolierter Climate-Servicepfad mit Primär-/Tado-Fallback, Read-back und Rollback
 - Kompatibilitäts-Sommermodus sowie ausdrücklich gesperrter HVAC-Off-Planung
 - isolierter Home-Assistant-Lifecycle-Test für Flow, Entities und Neustart
 
 ## Installation
 
-Beta 2 ist ein Entwicklungsrelease und wird erst nach erfolgreichem CI-Gate
+Beta 4 ist ein Entwicklungsrelease und wird erst nach erfolgreichem CI-Gate
 als GitHub-Prerelease veröffentlicht. In HACS muss die Vorabversion explizit
 aktiviert werden. Danach über **HACS → Integrationen → Smart Heating**
 installieren und Home Assistant neu starten.
@@ -65,7 +67,7 @@ ein unterstützter Export vorliegt:
 - Sonntag–Donnerstag Absenkung 21:00
 - Freitag–Samstag Absenkung 22:00
 
-Beta 3 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
+Beta 4 übernimmt diese Werte nicht automatisch und schreibt `input_boolean.heizung`
 nicht. Die Migrations-Preview zeigt nur einen Konflikt-/Prüfstatus. Der
 ausführbare Adapter akzeptiert Schreibzugriffe ausschließlich über einen
 isolierten Test-Transport; die Produktiv-Sperre verweigert die Aktivierung,
@@ -78,6 +80,13 @@ Heizfreigabe → Fenster offen → Fenster gekippt → Abwesenheit → Nacht/Par
 Sommermodus ohne Komfortoverride → Komfort. Die Karte trennt Zeitplanstatus,
 berechneten Heizmodus und tatsächliche Produktivsteuerung. Die Beta führt keine
 Climate- oder Helper-Services aus.
+
+**Schornsteinfeger hat absolute Priorität:** Auch bei 40 °C Außentemperatur,
+Sommermodus, ausgeschalteter Heizfreigabe, Nacht, Abwesenheit und offenen
+Fenstern wird im Planer `heat` mit der konfigurierten
+Schornsteinfeger-Solltemperatur angefordert. Ein hoher Sollwert allein wird
+nicht als Brennerstart behauptet; dafür muss das Gerät `hvac_action` oder einen
+gleichwertigen Wärmeerzeugerstatus liefern.
 
 ## Entwicklung
 
@@ -93,7 +102,7 @@ Teil der Beta-2-Entwicklung.
 
 ## Status
 
-Version: `0.1.0-beta.3`
+Version: `0.1.0-beta.4`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 

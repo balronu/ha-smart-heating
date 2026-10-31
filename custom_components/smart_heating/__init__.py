@@ -24,6 +24,7 @@ from .const import DOMAIN, PLATFORMS, SIGNAL_ENTRY_UPDATED, VERSION
 from .engine import calculate_status
 from .models import ScheduleValidationError, WeeklySchedule
 from .migration import preview_migration
+from .control import analyze_control_plane
 from .storage import effective_config, load_schedule, normalized_options
 
 _LOGGER = logging.getLogger(__name__)
@@ -68,6 +69,8 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
         state = hass.states.get(entity_id)
         if state and str(state.state).lower() in {"home", "on", "present", "zuhause"}:
             result["someone_home"] = True
+    if config.get("presence_entities"):
+        result["away"] = not result.get("someone_home", False)
     permission = config.get("heating_permission")
     if isinstance(permission, str) and permission:
         result["heating_permission"] = hass.states.is_state(permission, "on")
@@ -79,6 +82,7 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     config = effective_config(entry)
     context: dict[str, Any] = {
         "summer_mode": config.get("summer_mode", "compatibility"),
+        "operation_mode": config.get("operation_mode", "compatibility"),
         "frost_temperature": float(config.get("frost_temperature", 5.0)),
         "chimney_temperature": float(config.get("chimney_temperature", 25.0)),
     }
@@ -158,7 +162,7 @@ def _entry_from_connection(hass: HomeAssistant, entry_id: str) -> tuple[ConfigEn
 async def _ws_get_status(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, coordinator = _entry_from_connection(hass, msg["entry_id"])
     config = effective_config(entry)
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "schedule": load_schedule(config).as_dict(), "status": coordinator.data or {}, "options": {"name": entry.title, "timezone": config.get("timezone"), "discovery": config.get("discovery", {}), "special_modes": config.get("special_modes", {})}})
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "schedule": load_schedule(config).as_dict(), "status": coordinator.data or {}, "options": {"name": entry.title, "timezone": config.get("timezone"), "operation_mode": config.get("operation_mode", "compatibility"), "discovery": config.get("discovery", {}), "special_modes": config.get("special_modes", {}), "control_plane": analyze_control_plane(hass, config)}})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/plan/set", vol.Required("entry_id"): cv.string, vol.Required("schedule"): dict})

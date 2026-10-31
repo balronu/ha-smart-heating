@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 DOMAIN = "smart_heating"
-VERSION = "0.1.0-beta.3"
+VERSION = "0.1.0-beta.4"
 PLATFORMS = ["binary_sensor", "sensor"]
 
 CONF_NAME = "name"
 CONF_TIMEZONE = "timezone"
 CONF_CLIMATE_ENTITY = "climate_entity"
+CONF_TADO_FALLBACK = "tado_fallback"
 CONF_HEATING_BOOLEAN = "heating_boolean"
 CONF_HEATING_PERMISSION = "heating_permission"
 CONF_COMFORT_SETPOINT = "comfort_setpoint"
@@ -20,6 +21,7 @@ CONF_SCHEDULE = "schedule"
 CONF_SIMULATION = "simulation"
 CONF_DISCOVERY = "discovery"
 CONF_SUMMER_MODE = "summer_mode"
+CONF_OPERATION_MODE = "operation_mode"
 CONF_HVAC_OFF_SUPPORTED = "hvac_off_supported"
 CONF_FROST_TEMPERATURE = "frost_temperature"
 CONF_CHIMNEY_TEMPERATURE = "chimney_temperature"
@@ -50,3 +52,6 @@ MODE_SUMMER = "summer"
 
 SUMMER_COMPATIBILITY = "compatibility"
 SUMMER_HVAC_OFF = "hvac_off"
+
+MODE_COMPATIBILITY = "compatibility"
+MODE_FULL = "full"

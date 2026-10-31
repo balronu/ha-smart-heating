@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Smart Heating einrichten",
-        "description": "Beta 3 erkennt passende Entities vorsichtig und berechnet Heizungsentscheidungen passiv. Es werden keine bestehenden Heizungs-Entities geschaltet.",
+        "description": "Beta 4 erkennt passende Entities vorsichtig und trennt Kompatibilitäts- und Vollmodus. Produktive Aktivierung bleibt gesperrt.",
         "data": {
           "name": "Name",
           "timezone": "Zeitzone",
@@ -19,7 +19,7 @@
       "schedule": {
         "title": "Wochenplan",
         "description": "Zeitplan als Wochenobjekt konfigurieren. Overlaps werden abgelehnt.",
-        "data": {"schedule": "Wochenplan", "summer_mode": "Sommermodus-Planung"}
+        "data": {"schedule": "Wochenplan", "summer_mode": "Sommermodus-Planung", "operation_mode": "Betriebsart", "chimney_temperature": "Schornsteinfeger-Solltemperatur", "frost_temperature": "Frostschutz-Solltemperatur"}
       }
     },
     "error": {"invalid_schedule": "Ungültiger oder überlappender Zeitplan."}

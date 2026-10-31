@@ -41,6 +41,9 @@ def calculate_status(
         "target_hvac_mode": decision.target_hvac_mode,
         "control_enabled": False,
         "control_state": "locked",
+        "operation_mode": context.get("operation_mode", "compatibility"),
+        "heat_demand_verified": False,
+        "heat_demand_status": "not_measured",
         "special_modes": {key: bool(value) for key, value in (overrides or {}).items() if key in {"party", "visit", "return_home", "chimney_sweep", "summer"}},
         "simulated": True,
     }
