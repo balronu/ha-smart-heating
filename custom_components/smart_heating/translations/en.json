@@ -17,9 +17,9 @@
         "data": {"schedule": "Weekly schedule", "summer_mode": "Summer mode planning", "operation_mode": "Operation mode", "chimney_temperature": "Chimney sweep target temperature", "frost_temperature": "Frost protection target temperature"}
       }
     },
-    "error": {"invalid_schedule": "Invalid or overlapping schedule.", "confirmation_required": "Review the suggestions and explicitly confirm them."}
+    "error": {"invalid_schedule": "Invalid or overlapping schedule.", "confirmation_required": "Review the suggestions and explicitly confirm them."},
+    "abort": {"already_configured": "Smart Heating is already configured. Open the existing entry under Settings → Devices & services."}
   },
-  "abort": {"already_configured": "Smart Heating is already configured. Open the existing entry under Settings → Devices & services."},
   "entity": {
     "binary_sensor": {"schedule_active": {"name": "Schedule active"}},
     "sensor": {"next_switch": {"name": "Next switch"}, "mode": {"name": "Calculated heating mode"}}
