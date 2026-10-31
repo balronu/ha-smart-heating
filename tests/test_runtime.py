@@ -64,6 +64,7 @@ class RuntimeTests(unittest.TestCase):
                     self.assertEqual(rejected["errors"]["base"], "confirmation_required")
                     flow = await hass.config_entries.flow.async_configure(rejected["flow_id"], {"confirm": True})
                     entry = flow["result"]
+                    hass.config_entries.async_update_entry(entry, data={**entry.data, "schedule": {"monday": [{"start": "06:00:00", "end": "08:00:00", "target_temperature": 20.5}]}})
                     self.assertEqual(entry.domain, "smart_heating")
                     await hass.async_block_till_done()
                     self.assertEqual(entry.state.value, "loaded")
@@ -97,50 +98,31 @@ class RuntimeTests(unittest.TestCase):
                     }.issubset(websocket_commands))
 
                     options = await hass.config_entries.options.async_init(entry.entry_id)
-                    # HA 2026.10 serializes the options schema before the UI
-                    # can render it.  A raw ``dict`` validator raises here and
-                    # becomes the reported HTTP 500; keep this as an explicit
-                    # regression gate for the public flow contract.
                     from homeassistant.helpers import config_validation as cv
                     from probatio import to_field_list
 
                     serialized_schema = to_field_list(options["data_schema"], custom_serializer=cv.custom_serializer)
-                    schedule_field = next(field for field in serialized_schema if field["name"] == "schedule")
-                    self.assertEqual(schedule_field["selector"]["object"], {"multiple": False})
-
-                    invalid = await hass.config_entries.options.async_configure(
-                        options["flow_id"],
-                        {"schedule": {"monday": [{"start": "06:00", "end": "08:00"}, {"start": "07:00", "end": "09:00"}]}},
-                    )
-                    self.assertEqual(invalid["type"], "form")
-                    self.assertEqual(invalid["errors"]["base"], "invalid_schedule")
+                    self.assertEqual({field["name"] for field in serialized_schema}, {"summer_mode", "operation_mode", "chimney_temperature", "frost_temperature"})
+                    self.assertNotIn("schedule", {field["name"] for field in serialized_schema})
                     valid = await hass.config_entries.options.async_configure(
-                        invalid["flow_id"],
+                        options["flow_id"],
                         {
-                            "schedule": {"monday": [{"start": "06:00", "end": "08:00"}], "sunday": [{"start": "07:00", "end": "21:00"}]},
-                            "climate_entity": "climate.esszimmer",
-                            "tado_fallback": "climate.esszimmer",
-                            "heating_boolean": "input_boolean.heizung",
-                            "heating_permission": "input_boolean.heizung_freigabe",
-                            "comfort_setpoint": "input_number.heiztemperatur",
-                            "night_setpoint": "input_number.absenktemperatur",
-                            "outdoor_temperature": "sensor.outdoor",
-                            "window_entities": ["binary_sensor.fenster"],
-                            "presence_entities": ["person.michael"],
-                            "party_entity": "input_boolean.party",
+                            "summer_mode": "compatibility",
+                            "operation_mode": "compatibility",
+                            "chimney_temperature": 26,
+                            "frost_temperature": 6,
                         },
                     )
                     self.assertEqual(valid["type"], "create_entry")
                     self.assertEqual(entry.options["schedule"]["monday"][0]["start"], "06:00:00")
-                    self.assertEqual(entry.options["climate_entity"], "climate.esszimmer")
-                    self.assertEqual(entry.options["special_modes"]["party"], "input_boolean.party")
+                    self.assertEqual(entry.options["chimney_temperature"], 26)
 
                     self.assertTrue(await hass.config_entries.async_unload(entry.entry_id))
                     await hass.async_block_till_done()
                     self.assertTrue(await hass.config_entries.async_setup(entry.entry_id))
                     await hass.async_block_till_done()
                     self.assertEqual(entry.state.value, "loaded")
-                    self.assertEqual(entry.options["schedule"]["sunday"][0]["end"], "21:00:00")
+                    self.assertEqual(entry.options["schedule"]["monday"][0]["end"], "08:00:00")
                     self.assertTrue(await hass.config_entries.async_remove(entry.entry_id))
                     await hass.async_block_till_done()
                     readd = await hass.config_entries.flow.async_init("smart_heating", context={"source": "user"})

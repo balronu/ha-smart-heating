@@ -29,6 +29,14 @@ test("uses the full mobile width and keeps technical UI separate", async ({ page
   await page.screenshot({ path: `test-results/${test.info().project.name}-backend.png`, fullPage: true });
 });
 
+test("shows the graphical weekly planner with day, time, and target controls", async ({ page }) => {
+  await expect(page.locator("[data-weekly-planner]")).toBeVisible();
+  await expect(page.locator("[data-schedule-day]")).toHaveCount(7);
+  await page.locator("button[data-schedule-add=monday]").click();
+  await expect(page.locator("fieldset[data-schedule-day=monday] input[type=time]")).toHaveCount(2);
+  await expect(page.locator("fieldset[data-schedule-day=monday] input[type=number]")).toHaveCount(1);
+});
+
 test("accepts the array form returned by config_entries/get", async ({ page }) => {
   await page.goto("/frontend/fixtures/backend-panel.html?array");
   await expect(page.locator("main.smart-heating-backend")).toBeVisible();

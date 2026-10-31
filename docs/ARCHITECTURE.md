@@ -1,6 +1,6 @@
 # Smart Heating – Architecture
 
-## Beta 15 integration boundary
+## Beta 16 integration boundary
 
 Smart Heating is a regular `hub`-type Config-Entry integration, not a Home
 Assistant Helper integration. Its own status entities are native entities
@@ -33,7 +33,7 @@ restart, service call, entity removal, Config Entry removal, or automation
 change. The evidence and API completeness limits are recorded in the Phase 17
 read-only report.
 
-Beta 15 fixes the Home Assistant 2026.10 config-flow HTTP 500 caused by
+Beta 16 fixes the Home Assistant 2026.10 options-flow presentation problem caused by
 serializing the weekly schedule as a raw Python `dict`; the options schema now
 uses a native serializable Object Selector. This remains a UI/schema fix and
 does not alter heating control ownership.

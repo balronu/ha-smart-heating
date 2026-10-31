@@ -1,4 +1,4 @@
-# Smart Heating (Beta 15)
+# Smart Heating (Beta 16)
 
 **Smart Heating** is a HACS-compatible Home Assistant integration for weekly
 schedules, status, simulation, and a compact Lovelace card.
@@ -8,14 +8,14 @@ schedules, status, simulation, and a compact Lovelace card.
 > climate entities, existing helpers, schedulers, or special modes. Productive
 > migration is not included.
 
-> **Phase 19 safety boundary (2026-10-31):** Beta 15 is published only from
+> **Phase 20 safety boundary (2026-10-31):** Beta 16 is published only from
 > the development repository and is not installed automatically on VM 104.
 > The productive instance was inspected read-only only; both existing Config
 > Entries remain unchanged.
 
 ## Beta 13 backend management and climate zones
 
-Beta 15 provides a separate passive backend panel for people, climate zones,
+Beta 16 provides a separate passive backend panel for people, climate zones,
 thermostats, window/tilt contacts, room temperature sensors, outdoor
 temperature, and one central controller. Changes are persisted through Config
 Entry options and the supported WebSocket API; Home Assistant entities are
@@ -45,6 +45,8 @@ used only for room suggestions.
 - unknown window states are shown as unknown rather than closed in passive previews
 - persistent internal operating state exposed through native switch/select/number/sensor entities
 - an internal passive weekly scheduler; Simple Scheduler and manually created helpers are not required by Smart Heating
+- a graphical seven-day planner with multiple windows and optional target temperatures
+- a native Options Flow with understandable operating/safety fields instead of a YAML object editor
 
 ## Branding
 
@@ -71,9 +73,13 @@ with `window`, `door`, or `opening` device classes. Battery, diagnostic,
 temperature, and other companion entities are excluded. Existing unsuitable
 assignments remain stored and are marked for manual review only.
 
+The native Options Flow intentionally contains only four safe operating and
+safety values. Edit the weekly schedule graphically in the panel; saving other
+options preserves all existing windows and optional target temperatures.
+
 ## Installation and setup
 
-Beta 15 is a GitHub pre-release. Pre-releases must be enabled
+Beta 16 is a GitHub pre-release. Pre-releases must be enabled
 explicitly in HACS. Then install **Smart Heating** through **HACS → Integrations**.
 If Home Assistant requires a restart, treat it as a separately approved step.
 
@@ -135,7 +141,7 @@ fixture. Productive VM 104 installation is explicitly outside this beta. The
 compatibility mode is passive; full mode remains locked until a separately
 verified single-writer proof exists.
 
-Version: `0.1.0-beta.15`
+Version: `0.1.0-beta.16`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 
