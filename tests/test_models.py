@@ -9,7 +9,7 @@ _package.__path__ = [str(Path(__file__).parents[1] / "custom_components" / "smar
 sys.modules.setdefault("custom_components.smart_heating", _package)
 
 from custom_components.smart_heating.engine import calculate_status
-from custom_components.smart_heating.models import ScheduleValidationError, WeeklySchedule
+from custom_components.smart_heating.models import ScheduleValidationError, WeeklySchedule, evaluate_decision, reset_actions, summer_hysteresis_state
 
 
 class ScheduleTests(unittest.TestCase):
@@ -65,3 +65,36 @@ class ScheduleTests(unittest.TestCase):
                 instant = datetime.fromisoformat("2026-11-02T07:00:00+01:00") if expected == "summer" else datetime.fromisoformat("2026-11-02T22:00:00+01:00")
                 result = calculate_status(schedule, now=instant, timezone="Europe/Berlin", overrides=overrides)
                 self.assertEqual(result["mode"], expected)
+
+    def test_full_decision_targets_preserve_reference_priority(self):
+        cases = [
+            ({"chimney_sweep": True, "heating_permission": False, "window_open": True}, "chimney_sweep", "heat", 25.0),
+            ({"heating_permission": False}, "disabled", "off", None),
+            ({"window_open": True}, "window_open", "heat", 5.0),
+            ({"window_tilted": True}, "window_tilted", "heat", 17.0),
+            ({"away": True}, "away", "heat", 17.0),
+            ({"party": True}, "party", "heat", 22.0),
+        ]
+        for flags, mode, hvac, target in cases:
+            with self.subTest(mode=mode):
+                decision = evaluate_decision(schedule_active=False, overrides=flags, comfort_temperature=22, night_temperature=17)
+                self.assertEqual((decision.mode, decision.target_hvac_mode, decision.target_temperature), (mode, hvac, target))
+
+    def test_summer_modes_are_explicit_and_safe(self):
+        compatibility = evaluate_decision(schedule_active=True, overrides={"summer": True}, comfort_temperature=22, night_temperature=17)
+        hvac_off = evaluate_decision(schedule_active=True, overrides={"summer": True}, comfort_temperature=22, night_temperature=17, summer_mode="hvac_off")
+        unsupported = evaluate_decision(schedule_active=True, overrides={"summer": True}, comfort_temperature=22, night_temperature=17, summer_mode="hvac_off", hvac_supports_off=False)
+        self.assertEqual(compatibility.target_hvac_mode, "heat")
+        self.assertEqual(hvac_off.target_hvac_mode, "off")
+        self.assertEqual(unsupported.target_hvac_mode, "heat")
+
+    def test_reset_automation_semantics(self):
+        self.assertEqual(reset_actions(arrived=True), ("return_home", "visit"))
+        self.assertEqual(reset_actions(schedule_on=True), ("party", "visit"))
+        self.assertEqual(reset_actions(arrived=True, permission_on=True), ("return_home", "visit", "party"))
+
+    def test_summer_hysteresis_reference_thresholds(self):
+        self.assertTrue(summer_hysteresis_state(outdoor_temperature=18.5, currently_active=False))
+        self.assertTrue(summer_hysteresis_state(outdoor_temperature=17.1, currently_active=True))
+        self.assertFalse(summer_hysteresis_state(outdoor_temperature=17.0, currently_active=True))
+        self.assertTrue(summer_hysteresis_state(outdoor_temperature=None, currently_active=True))

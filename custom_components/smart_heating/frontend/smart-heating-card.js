@@ -1,5 +1,5 @@
-/* Smart Heating Beta 2: passive schedule editor for the integration's own store. */
-const SMART_HEATING_CARD_VERSION = "0.1.0-beta.2";
+/* Smart Heating Beta 3: schedule editor and explainable, locked decision view. */
+const SMART_HEATING_CARD_VERSION = "0.1.0-beta.3";
 class SmartHeatingCard extends HTMLElement {
   static getConfigElement() {
     return document.createElement("smart-heating-card-editor");
@@ -45,7 +45,8 @@ class SmartHeatingCard extends HTMLElement {
     const status = this._data?.status || {};
     const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
     const labels = { monday: "Montag", tuesday: "Dienstag", wednesday: "Mittwoch", thursday: "Donnerstag", friday: "Freitag", saturday: "Samstag", sunday: "Sonntag" };
-    this.innerHTML = `<ha-card><div class="wrap"><header><strong>${this._config.title || "Smart Heating"}</strong><span class="badge">Plan: ${status.mode || "—"}</span></header>${this._error ? `<p class="error" role="alert">${this._error}</p>` : ""}<p class="status">Zeitplan: <b>${status.schedule_active ? "aktiv" : "inaktiv"}</b> · Tatsächlicher Modus: <b>${status.actual_mode || "—"}</b> · Nächste Umschaltung: ${status.next_switch || "—"}</p><div class="days">${days.map(day => this._day(day, labels[day], schedule[day] || [])).join("")}</div><p class="hint">Zeitplanstatus ist nicht gleich tatsächlicher Heizbetrieb. Freigabe, Fenster, Anwesenheit und Sondermodi können den Betrieb übersteuern.</p></div></ha-card>`;
+    const specials = Object.entries(status.special_modes || {}).filter(([, value]) => value).map(([key]) => key).join(", ") || "keine";
+    this.innerHTML = `<ha-card><div class="wrap"><header><strong>${this._config.title || "Smart Heating"}</strong><span class="badge">Plan: ${status.mode || "—"}</span></header>${this._error ? `<p class="error" role="alert">${this._error}</p>` : ""}<p class="status">Zeitplan: <b>${status.schedule_active ? "aktiv" : "inaktiv"}</b> · Entscheidungsmodus: <b>${status.actual_mode || "—"}</b> · Nächste Umschaltung: ${status.next_switch || "—"}</p><p class="status">Ziel: <b>${status.target_temperature ?? "—"} °C</b> · HVAC: <b>${status.target_hvac_mode || "—"}</b> · Sondermodi: <b>${specials}</b></p><p class="status">Grund: ${status.reason || "—"} · Steuerung: <b>${status.control_state || "locked"}</b></p><div class="days">${days.map(day => this._day(day, labels[day], schedule[day] || [])).join("")}</div><p class="hint">Zeitplanstatus ist nicht gleich tatsächlicher Heizungsbetrieb. Freigabe, Fenster, Anwesenheit und Sondermodi können den Betrieb übersteuern. Beta 3 bleibt gegen produktive Stellbefehle gesperrt.</p></div></ha-card>`;
     this._style();
     this.querySelectorAll("button[data-add]").forEach(button => button.addEventListener("click", () => this._add(button.dataset.add)));
     this.querySelectorAll("button[data-remove]").forEach(button => button.addEventListener("click", () => this._remove(button.dataset.remove, Number(button.dataset.index))));

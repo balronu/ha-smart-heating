@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.1.0-beta.3 – Beta 3
+
+### Deutsch
+
+- Erklärbarer Entscheidungsplaner mit den dokumentierten Prioritäten,
+  Sollwert-/HVAC-Ziel, Auslöser und Reset-Semantik.
+- Kompatibilitätsmodus und vorbereitete HVAC-Off-Planung mit sicherem Fallback,
+  ohne produktive Stellbefehle.
+- Transaktionaler Migrationsadapter für isolierte Tests mit Bestätigung,
+  Snapshot, Read-back, Idempotenz-Grundlage und automatischem Rollback.
+- Lovelace-Karte zeigt Entscheidungsgrund, Ziel, Sondermodi und gesperrten
+  Steuerungsstatus getrennt vom Zeitplan.
+- Beta-3-Laufzeit- und Prioritätstests erweitert; VM 104 bleibt unverändert.
+
+### English
+
+- Explainable decision planner preserving the documented priority order,
+  target setpoint/HVAC target, cause, and reset semantics.
+- Compatibility summer mode and prepared HVAC-off planning with safe fallback,
+  without productive actuation.
+- Transactional migration adapter for isolated tests with confirmation,
+  snapshot, read-back, idempotency foundation, and automatic rollback.
+- Lovelace card now separates schedule status, decision reason, target, special
+  modes, and the locked control status.
+- Beta 3 runtime and priority coverage expanded; VM 104 remains unchanged.
+
 ## 0.1.0-beta.2 – Beta 2
 
 ### Deutsch

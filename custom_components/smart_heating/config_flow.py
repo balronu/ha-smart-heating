@@ -19,12 +19,15 @@ from .const import (
     CONF_PRESENCE_ENTITIES,
     CONF_SCHEDULE,
     CONF_SPECIAL_MODES,
+    CONF_SUMMER_MODE,
     CONF_TIMEZONE,
     CONF_WINDOW_ENTITIES,
     DEFAULT_NAME,
     DEFAULT_SCHEDULE,
     DEFAULT_TIMEZONE,
     DOMAIN,
+    SUMMER_COMPATIBILITY,
+    SUMMER_HVAC_OFF,
 )
 from .models import ScheduleValidationError, WeeklySchedule
 from .discovery import apply_discovery_defaults, discover_entities
@@ -45,7 +48,7 @@ class SmartHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             user_input = apply_discovery_defaults(user_input, discovery)
             await self.async_set_unique_id(f"{user_input[CONF_NAME].strip().lower()}-{user_input[CONF_TIMEZONE]}")
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(title=user_input[CONF_NAME].strip(), data={**user_input, CONF_SCHEDULE: DEFAULT_SCHEDULE, "discovery": discovery, "simulation": True})
+            return self.async_create_entry(title=user_input[CONF_NAME].strip(), data={**user_input, CONF_SCHEDULE: DEFAULT_SCHEDULE, CONF_SUMMER_MODE: SUMMER_COMPATIBILITY, "discovery": discovery, "simulation": True})
         defaults = apply_discovery_defaults({CONF_NAME: DEFAULT_NAME, CONF_TIMEZONE: DEFAULT_TIMEZONE}, discovery)
         schema_values: dict[Any, Any] = {
             vol.Required(CONF_NAME, default=defaults[CONF_NAME]): str,
@@ -105,4 +108,7 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(step_id="schedule", data_schema=self._schema())
 
     def _schema(self) -> vol.Schema:
-        return vol.Schema({vol.Required(CONF_SCHEDULE, default=self._entry.options.get(CONF_SCHEDULE, self._entry.data.get(CONF_SCHEDULE, DEFAULT_SCHEDULE))): dict})
+        return vol.Schema({
+            vol.Required(CONF_SCHEDULE, default=self._entry.options.get(CONF_SCHEDULE, self._entry.data.get(CONF_SCHEDULE, DEFAULT_SCHEDULE))): dict,
+            vol.Optional(CONF_SUMMER_MODE, default=self._entry.options.get(CONF_SUMMER_MODE, self._entry.data.get(CONF_SUMMER_MODE, SUMMER_COMPATIBILITY))): vol.In([SUMMER_COMPATIBILITY, SUMMER_HVAC_OFF]),
+        })

@@ -27,5 +27,6 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
             "ambiguous_roles": discover_entities(hass).get("ambiguous", []),
         },
         "loaded": entry.entry_id in hass.data.get(DOMAIN, {}),
-        "production_control": "disabled_in_beta_2",
+        "production_control": "disabled_in_beta_3",
+        "migration_activation": "locked_until_single_writer_is_proven",
     }

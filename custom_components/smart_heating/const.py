@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "smart_heating"
-VERSION = "0.1.0-beta.2"
+VERSION = "0.1.0-beta.3"
 PLATFORMS = ["binary_sensor", "sensor"]
 
 CONF_NAME = "name"
@@ -19,6 +19,10 @@ CONF_SPECIAL_MODES = "special_modes"
 CONF_SCHEDULE = "schedule"
 CONF_SIMULATION = "simulation"
 CONF_DISCOVERY = "discovery"
+CONF_SUMMER_MODE = "summer_mode"
+CONF_HVAC_OFF_SUPPORTED = "hvac_off_supported"
+CONF_FROST_TEMPERATURE = "frost_temperature"
+CONF_CHIMNEY_TEMPERATURE = "chimney_temperature"
 
 DEFAULT_NAME = "Smart Heating"
 DEFAULT_TIMEZONE = "Europe/Berlin"
@@ -43,3 +47,6 @@ MODE_RETURN_HOME = "return_home"
 MODE_CHIMNEY_SWEEP = "chimney_sweep"
 MODE_DISABLED = "disabled"
 MODE_SUMMER = "summer"
+
+SUMMER_COMPATIBILITY = "compatibility"
+SUMMER_HVAC_OFF = "hvac_off"
