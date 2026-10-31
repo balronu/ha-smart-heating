@@ -1,6 +1,6 @@
 # Smart Heating – Architecture
 
-## Beta 13 integration boundary
+## Beta 14 integration boundary
 
 Smart Heating is a regular `hub`-type Config-Entry integration, not a Home
 Assistant Helper integration. Its own status entities are native entities
@@ -16,6 +16,27 @@ never silently selects one entry or creates another.
 The cleanup endpoint is preview-only. It classifies exact native ownership by
 platform and Config Entry, retains protected/external entities, and produces
 no registry or Config Entry mutation.
+
+## Phase 18B productive boundary (2026-10-31)
+
+The repository Beta 14 artifact is not automatically installed on productive
+VM 104. The live instance has two loaded `smart_heating` Config Entries. The
+entry named `Smart Heating VM 104`
+(`01M68R60BY4VA2NA7PYG2DX5YS`) is the recommended primary because the default
+dashboard card references it. The younger `01M691Q1KXHQSWVKKVHG6MF6Q3` entry
+owns the four `_2` native entities and is only a cleanup candidate after an
+exhaustive reference export, backup, simulation, and explicit approval.
+
+The existing production automation remains the only active Climate writer.
+Smart Heating stays passive; a release does not imply installation, reload,
+restart, service call, entity removal, Config Entry removal, or automation
+change. The evidence and API completeness limits are recorded in the Phase 17
+read-only report.
+
+Beta 14 fixes the Home Assistant 2026.10 config-flow HTTP 500 caused by
+serializing the weekly schedule as a raw Python `dict`; the options schema now
+uses a native serializable Object Selector. This remains a UI/schema fix and
+does not alter heating control ownership.
 
 ## Scope
 

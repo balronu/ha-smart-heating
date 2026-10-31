@@ -67,6 +67,13 @@ class RuntimeTests(unittest.TestCase):
                     self.assertEqual(entry.domain, "smart_heating")
                     await hass.async_block_till_done()
                     self.assertEqual(entry.state.value, "loaded")
+
+                    duplicate = await hass.config_entries.flow.async_init(
+                        "smart_heating", context={"source": "user"}
+                    )
+                    self.assertEqual(duplicate["type"], "abort")
+                    self.assertEqual(duplicate["reason"], "already_configured")
+
                     self.assertIsNotNone(hass.states.get("sensor.next_switch"))
                     self.assertIsNotNone(hass.states.get("sensor.calculated_heating_mode"))
                     self.assertIsNotNone(hass.states.get("binary_sensor.schedule_active"))
@@ -90,6 +97,17 @@ class RuntimeTests(unittest.TestCase):
                     }.issubset(websocket_commands))
 
                     options = await hass.config_entries.options.async_init(entry.entry_id)
+                    # HA 2026.10 serializes the options schema before the UI
+                    # can render it.  A raw ``dict`` validator raises here and
+                    # becomes the reported HTTP 500; keep this as an explicit
+                    # regression gate for the public flow contract.
+                    from homeassistant.helpers import config_validation as cv
+                    from probatio import to_field_list
+
+                    serialized_schema = to_field_list(options["data_schema"], custom_serializer=cv.custom_serializer)
+                    schedule_field = next(field for field in serialized_schema if field["name"] == "schedule")
+                    self.assertEqual(schedule_field["selector"]["object"], {"multiple": False})
+
                     invalid = await hass.config_entries.options.async_configure(
                         options["flow_id"],
                         {"schedule": {"monday": [{"start": "06:00", "end": "08:00"}, {"start": "07:00", "end": "09:00"}]}},

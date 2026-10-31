@@ -1,4 +1,4 @@
-# Smart Heating (Beta 13)
+# Smart Heating (Beta 14)
 
 **Smart Heating** is a HACS-compatible Home Assistant integration for weekly
 schedules, status, simulation, and a compact Lovelace card.
@@ -7,6 +7,11 @@ schedules, status, simulation, and a compact Lovelace card.
 > decision passively. It does not actuate
 > climate entities, existing helpers, schedulers, or special modes. Productive
 > migration is not included.
+
+> **Phase 18B safety boundary (2026-10-31):** Beta 14 is published only from
+> the development repository and is not installed automatically on VM 104.
+> The productive instance was inspected read-only only; both existing Config
+> Entries remain unchanged.
 
 ## Beta 13 backend management and climate zones
 
@@ -124,7 +129,7 @@ fixture. Productive VM 104 installation is explicitly outside this beta. The
 compatibility mode is passive; full mode remains locked until a separately
 verified single-writer proof exists.
 
-Version: `0.1.0-beta.13`
+Version: `0.1.0-beta.14`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 

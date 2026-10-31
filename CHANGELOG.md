@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.1.0-beta.14 – Beta 14
+
+### Deutsch
+
+- HTTP-500 beim Öffnen des Options-/Konfigurationsflusses unter Home Assistant
+  2026.10 behoben: Der Wochenplan verwendet jetzt einen serialisierbaren
+  nativen Object-Selector statt eines nicht serialisierbaren `dict`-Validators.
+- Regressionstests für Schema-Serialisierung, bestehende Entries und die
+  verständliche `already_configured`-Meldung ergänzt.
+- Keine Änderungen an Heizungsbefehlen, Automationen, Simple Scheduler oder
+  Tado; Beta 14 wird nicht automatisch auf VM 104 installiert.
+
+### English
+
+- Fixed the HTTP 500 raised when opening the options/configuration flow on Home
+  Assistant 2026.10: the weekly schedule now uses a serializable native Object
+  Selector instead of an unserializable raw `dict` validator.
+- Added regression coverage for schema serialization, existing entries, and
+  the user-facing `already_configured` abort.
+- No heating commands, automations, Simple Scheduler, or Tado changes; Beta 14
+  is not installed automatically on VM 104.
+
 ## 0.1.0-beta.13 – Beta 13
 
 ### Deutsch
