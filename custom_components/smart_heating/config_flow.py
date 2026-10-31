@@ -58,13 +58,17 @@ def _window_selector(multiple: bool = True) -> selector.EntitySelector:
 class SmartHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Create one passive Smart Heating configuration entry."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self) -> None:
         self._pending_input: dict[str, Any] | None = None
         self._pending_discovery: dict[str, Any] | None = None
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
+        # One backend/configuration per HA instance. Never create a second
+        # entry as a workaround for a stale panel or a repeated setup attempt.
+        if user_input is None and self.hass.config_entries.async_entries(DOMAIN):
+            return self.async_abort(reason="already_configured")
         discovery = discover_entities(self.hass)
         if user_input is not None:
             user_input = apply_discovery_defaults(user_input, discovery)

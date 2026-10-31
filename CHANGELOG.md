@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.0-beta.13 – Beta 13
+
+### Deutsch
+
+- `integration_type` von `helper` auf `hub` korrigiert; Smart Heating erscheint als reguläre Integration.
+- Neue Config-Entry-Erstellungen werden bei vorhandener Instanz abgelehnt; bestehende Entries bleiben erhalten.
+- Versionierte Entry-Migration ergänzt sowie Coordinator-Unload bereinigt.
+- Backend korrigiert die tatsächlichen `config_entries/get`-Rückgabeformen und bricht bei mehreren aktiven Entries eindeutig ab.
+- Read-only Cleanup-Planer mit exakter Eigentümerschaft, Schutzliste und Tests ergänzt; produktive Löschung ist nicht enthalten.
+
+### English
+
+- Corrected `integration_type` from `helper` to `hub` so Smart Heating is presented as a regular integration.
+- New Config Entry creation now aborts when an instance already exists; existing entries are preserved.
+- Added versioned entry migration and coordinator unload cleanup.
+- Backend now handles the actual `config_entries/get` response shapes and fails closed when multiple active entries exist.
+- Added a read-only cleanup planner with exact ownership, protected entities, and tests; no productive deletion is included.
+
 ## 0.1.0-beta.12 – Beta 12
 
 ### Deutsch

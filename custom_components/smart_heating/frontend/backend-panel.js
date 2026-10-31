@@ -1,4 +1,4 @@
-const VERSION = "0.1.0-beta.12";
+const VERSION = "0.1.0-beta.13";
 class SmartHeatingBackendPanel extends HTMLElement {
   set hass(value) {
     this._hass = value;
@@ -9,10 +9,13 @@ class SmartHeatingBackendPanel extends HTMLElement {
     if (!this._hass || this._loading) return;
     this._loading = true;
     try {
-      const entries = await this._hass.callWS({ type: "config_entries/get" });
-      const payload = entries.result || entries;
-      const entry = (payload.entries || []).find((item) => item.domain === "smart_heating" && !item.disabled_by);
-      if (!entry) throw new Error("Keine Smart-Heating-Konfiguration gefunden.");
+      const response = await this._hass.callWS({ type: "config_entries/get" });
+      const candidates = [response, response?.result, response?.data, response?.result?.entries, response?.data?.entries];
+      const entries = candidates.find((value) => Array.isArray(value)) || (Array.isArray(response?.entries) ? response.entries : []);
+      const active = entries.filter((item) => item && item.domain === "smart_heating" && !item.disabled_by);
+      if (active.length === 0) throw new Error("Keine Smart-Heating-Konfiguration gefunden. Bitte zuerst die Integration unter Einstellungen → Geräte & Dienste einrichten.");
+      if (active.length > 1) throw new Error(`Mehrere Smart-Heating-Konfigurationen gefunden (${active.map((item) => item.entry_id).join(", ")}). Keine Instanz wurde automatisch ausgewählt; bitte die Duplikatprüfung/Migration durchführen.`);
+      const entry = active[0];
       this._entryId = entry.entry_id;
       this._data = await this._hass.callWS({ type: "smart_heating/admin/get", entry_id: this._entryId });
       this._loaded = true;
@@ -48,7 +51,7 @@ class SmartHeatingBackendPanel extends HTMLElement {
     const roomCards = areas.map((area) => `<details data-room="room-${this._esc(area.area_id)}"><summary>${this._esc(area.name)}</summary><p>Thermostate: ${this._esc((area.suggestions?.thermostat_entities || []).join(", ") || "keine")}</p><p>Temperaturfühler: ${this._esc((area.suggestions?.temperature_entities || []).join(", ") || "keine")}</p><p>Fensterkandidaten: ${this._esc((area.suggestions?.window_entities || []).join(", ") || "keine")}</p></details>`).join("") || "<p class=hint>Keine HA-Räume erkannt.</p>";
     const personRows = persons.map((person) => { const selected = (management.persons || []).some((item) => (item.presence_entities || []).includes(person.entity_id)); return `<li>${this._esc(person.name)} · ${this._esc(person.state)} ${selected ? "· berücksichtigt" : `<button data-person-add="${this._esc(person.entity_id)}" data-person-name="${this._esc(person.name)}">berücksichtigen</button>`}</li>`; }).join("") || "<li>Keine native person.*-Entity erkannt.</li>";
     const section = (id, title, body) => `<details data-section="${id}"><summary>${title}</summary><div class="section-body">${body}</div></details>`;
-    const error = this._error ? `<p class="error" role="alert">${this._esc(this._error)}</p>` : "";
+    const error = this._loading ? `<p class="hint" role="status">Smart Heating wird geladen …</p>` : this._error ? `<p class="error" role="alert">${this._esc(this._error)}</p>` : "";
     const version = this._data?.version || VERSION;
     this.innerHTML = `<main class="smart-heating-backend"><header><h1>Smart Heating</h1><p>Backend-Verwaltung · ${this._esc(version)} · passiver Kompatibilitätsmodus</p></header>${error}<p class="hint">Diese Verwaltungsoberfläche speichert technische Smart-Heating-Zuordnungen in der Config Entry. Home-Assistant-Räume, Geräte, Personen und Tracker werden nicht verändert.</p>${section("rooms", "Räume &amp; Klimazonen", `<div class="rooms">${roomCards}</div><h2>Klimazonen</h2>${zoneCards}<form data-zone-form><label>Name<input name=name required></label><label>Räume<select name=area_ids multiple>${areas.map((area) => `<option value="${this._esc(area.area_id)}">${this._esc(area.name)}</option>`).join("")}</select></label><label>Thermostate<select name=thermostat_entities multiple>${this._entityOptions(climates)}</select></label><label>Temperaturfühler<select name=temperature_entities multiple>${this._entityOptions(temperatures)}</select></label><button>Zone speichern</button></form>`)}${section("windows", "Fenster &amp; Kippsensoren", `<p>Nur als Fenster markierte Binary-Sensoren werden als Vorschläge angezeigt; unbekannte Zustände bleiben unbekannt.</p><form data-sensor-form><label>Fensterkontakt<select name=entity_id>${this._entityOptions(windows)}</select></label><label>Art<select name=state_semantics><option value=open>Offen</option><option value=tilt>Gekippt</option><option value=open_or_tilted>Offen und gekippt</option></select></label><button>Sensor speichern</button></form>`)}${section("persons", "Personen &amp; Anwesenheit", `<ul>${personRows}</ul><p class=hint>Es werden ausschließlich native person.*-Entities verwendet.</p>`)}${section("outdoor", "Außentemperatur", `<form data-outdoor-form><label>Temperaturquelle<select name=entity_id>${this._entityOptions(temperatures, management.outdoor_temperature?.entity_id ? [management.outdoor_temperature.entity_id] : [])}</select></label><button>Quelle speichern</button></form>`)}${section("controller", "Heizungscontroller", `<form data-controller-form><label>Controller<select name=entity_id>${this._entityOptions(climates, management.controller?.entity_id ? [management.controller.entity_id] : [])}</select></label><button>Controller speichern</button></form>`)}${section("safety", "Sondermodi &amp; Sicherheit", `<p>Schornsteinfeger bleibt in der Entscheidungslogik absolut priorisiert. Im passiven Modus werden keine Helper oder Thermostate geschaltet.</p>`)}${section("diagnostics", "Diagnose &amp; Migration", `<p>Config Entry: ${this._esc(this._entryId || "unbekannt")}</p><p>Validierung: ${this._data?.validation?.length ? this._esc(this._data.validation.join(", ")) : "keine Konflikte"}</p>`)}<style>${this._style()}</style></main>`;
     this.querySelectorAll("details[data-section], details[data-room], details[data-zone]").forEach((node) => { node.open = openSections.includes(node.dataset.section || node.dataset.room || node.dataset.zone); });

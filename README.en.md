@@ -1,16 +1,16 @@
-# Smart Heating (Beta 12)
+# Smart Heating (Beta 13)
 
 **Smart Heating** is a HACS-compatible Home Assistant integration for weekly
 schedules, status, simulation, and a compact Lovelace card.
 
-> **Beta 12 safety boundary:** The integration calculates the full heating
+> **Beta 13 safety boundary:** The integration calculates the full heating
 > decision passively. It does not actuate
 > climate entities, existing helpers, schedulers, or special modes. Productive
 > migration is not included.
 
-## Beta 12 backend management and climate zones
+## Beta 13 backend management and climate zones
 
-Beta 12 adds a separate passive backend panel for people, climate zones,
+Beta 13 provides a separate passive backend panel for people, climate zones,
 thermostats, window/tilt contacts, room temperature sensors, outdoor
 temperature, and one central controller. Changes are persisted through Config
 Entry options and the supported WebSocket API; Home Assistant entities are
@@ -62,7 +62,7 @@ checked in UI fixtures on desktop, iPhone, iPad, and a narrow touch monitor:
 
 ## Installation and setup
 
-Beta 12 is a GitHub pre-release. Pre-releases must be enabled
+Beta 13 is a GitHub pre-release. Pre-releases must be enabled
 explicitly in HACS. Then install **Smart Heating** through **HACS → Integrations**.
 If Home Assistant requires a restart, treat it as a separately approved step.
 
@@ -107,7 +107,7 @@ available:
 - Sunday–Thursday setback starts at 21:00
 - Friday–Saturday setback starts at 22:00
 
-Beta 12 does not import these values automatically and never writes
+Beta 13 does not import these values automatically and never writes
 `input_boolean.heizung`. The transaction adapter accepts writes only through
 an isolated test transport; production activation remains locked.
 
@@ -124,7 +124,7 @@ fixture. Productive VM 104 installation is explicitly outside this beta. The
 compatibility mode is passive; full mode remains locked until a separately
 verified single-writer proof exists.
 
-Version: `0.1.0-beta.12`
+Version: `0.1.0-beta.13`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 

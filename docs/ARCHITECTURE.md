@@ -1,4 +1,21 @@
-# Smart Heating Beta 4 – Architecture
+# Smart Heating – Architecture
+
+## Beta 13 integration boundary
+
+Smart Heating is a regular `hub`-type Config-Entry integration, not a Home
+Assistant Helper integration. Its own status entities are native entities
+owned by a Config Entry and are persisted through Config Entry data/options;
+they are not `input_*` helpers. The Config Flow accepts name and time zone,
+and refuses to create another instance when an entry already exists.
+
+The backend resolves `config_entries/get` defensively: it accepts the HA array
+form and supported object wrappers, requires exactly one active Smart Heating
+entry, and reports a clear migration error when multiple entries exist. It
+never silently selects one entry or creates another.
+
+The cleanup endpoint is preview-only. It classifies exact native ownership by
+platform and Config Entry, retains protected/external entities, and produces
+no registry or Config Entry mutation.
 
 ## Scope
 

@@ -28,3 +28,15 @@ test("uses the full mobile width and keeps technical UI separate", async ({ page
   expect(sizes.body).toBeLessThanOrEqual(sizes.viewport + 1);
   await page.screenshot({ path: `test-results/${test.info().project.name}-backend.png`, fullPage: true });
 });
+
+test("accepts the array form returned by config_entries/get", async ({ page }) => {
+  await page.goto("/frontend/fixtures/backend-panel.html?array");
+  await expect(page.locator("main.smart-heating-backend")).toBeVisible();
+  await expect(page.locator("[role=alert]")).toHaveCount(0);
+});
+
+test("fails closed when more than one active entry exists", async ({ page }) => {
+  await page.goto("/frontend/fixtures/backend-panel.html?multiple");
+  await expect(page.locator("[role=alert]")).toContainText("Mehrere Smart-Heating-Konfigurationen");
+  await expect(page.locator("[role=alert]")).toContainText("duplicate");
+});
