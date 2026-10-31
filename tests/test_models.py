@@ -98,3 +98,36 @@ class ScheduleTests(unittest.TestCase):
         self.assertTrue(summer_hysteresis_state(outdoor_temperature=17.1, currently_active=True))
         self.assertFalse(summer_hysteresis_state(outdoor_temperature=17.0, currently_active=True))
         self.assertTrue(summer_hysteresis_state(outdoor_temperature=None, currently_active=True))
+
+    def test_chimney_sweep_is_absolute_at_extreme_conditions(self):
+        decision = evaluate_decision(
+            schedule_active=False,
+            overrides={
+                "chimney_sweep": True,
+                "heating_permission": False,
+                "summer": True,
+                "window_open": True,
+                "away": True,
+                "party": True,
+                "visit": True,
+                "return_home": True,
+            },
+            comfort_temperature=22,
+            night_temperature=17,
+            chimney_temperature=28,
+        )
+        self.assertEqual(decision.mode, "chimney_sweep")
+        self.assertEqual(decision.target_hvac_mode, "heat")
+        self.assertEqual(decision.target_temperature, 28)
+
+    def test_chimney_sweep_ignores_extreme_outdoor_temperature_in_status(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "20:00"}]})
+        result = calculate_status(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            timezone="Europe/Berlin",
+            overrides={"chimney_sweep": True, "heating_permission": False, "summer": True},
+            context={"outdoor_temperature": 40.0, "summer_mode": "hvac_off", "chimney_temperature": 28.0},
+        )
+        self.assertEqual(result["mode"], "chimney_sweep")
+        self.assertEqual(result["target_hvac_mode"], "heat")

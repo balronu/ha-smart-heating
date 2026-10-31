@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from .const import DEFAULT_SCHEDULE
+from .const import DEFAULT_SCHEDULE, MODE_COMPATIBILITY
 from .models import WeeklySchedule
 
 
@@ -24,4 +24,5 @@ def normalized_options(options: Mapping[str, Any], schedule: WeeklySchedule | No
     result["schedule"] = (schedule or load_schedule(options)).as_dict()
     result.setdefault("simulation", True)
     result.setdefault("special_modes", {})
+    result.setdefault("operation_mode", MODE_COMPATIBILITY)
     return result

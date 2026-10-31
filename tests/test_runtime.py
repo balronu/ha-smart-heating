@@ -99,6 +99,34 @@ class RuntimeTests(unittest.TestCase):
                     await hass.async_block_till_done()
                     self.assertEqual(entry.state.value, "loaded")
                     self.assertEqual(entry.options["schedule"]["sunday"][0]["end"], "21:00:00")
+                    from custom_components.smart_heating.control import async_apply_decision
+                    from custom_components.smart_heating.models import HeatingDecision
+
+                    async def set_hvac_mode(call):
+                        state = hass.states.get(call.data["entity_id"])
+                        attributes = dict(state.attributes)
+                        attributes["hvac_action"] = "heating" if call.data["hvac_mode"] == "heat" else "idle"
+                        hass.states.async_set(call.data["entity_id"], call.data["hvac_mode"], attributes)
+
+                    async def set_temperature(call):
+                        state = hass.states.get(call.data["entity_id"])
+                        attributes = dict(state.attributes)
+                        attributes["temperature"] = call.data["temperature"]
+                        hass.states.async_set(call.data["entity_id"], state.state, attributes)
+
+                    hass.services.async_register("climate", "set_hvac_mode", set_hvac_mode)
+                    hass.services.async_register("climate", "set_temperature", set_temperature)
+                    control_result = await async_apply_decision(
+                        hass,
+                        {"operation_mode": "full", "climate_entity": "climate.esszimmer"},
+                        HeatingDecision("comfort", "isolated runtime", 21.5, "heat", "test"),
+                        activation_confirmed=True,
+                        legacy_writer_disabled=True,
+                        isolated_test=True,
+                    )
+                    self.assertEqual(control_result.status, "applied")
+                    self.assertEqual(hass.states.get("climate.esszimmer").state, "heat")
+                    self.assertEqual(hass.states.get("climate.esszimmer").attributes["temperature"], 21.5)
                     await hass.async_stop()
             finally:
                 custom_components.__path__ = old_path

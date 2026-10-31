@@ -11,7 +11,11 @@ from homeassistant.helpers import selector
 
 from .const import (
     CONF_COMFORT_SETPOINT,
+    CONF_CHIMNEY_TEMPERATURE,
     CONF_CLIMATE_ENTITY,
+    CONF_FROST_TEMPERATURE,
+    CONF_OPERATION_MODE,
+    CONF_TADO_FALLBACK,
     CONF_HEATING_BOOLEAN,
     CONF_HEATING_PERMISSION,
     CONF_NIGHT_SETPOINT,
@@ -26,6 +30,8 @@ from .const import (
     DEFAULT_SCHEDULE,
     DEFAULT_TIMEZONE,
     DOMAIN,
+    MODE_COMPATIBILITY,
+    MODE_FULL,
     SUMMER_COMPATIBILITY,
     SUMMER_HVAC_OFF,
 )
@@ -48,7 +54,7 @@ class SmartHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             user_input = apply_discovery_defaults(user_input, discovery)
             await self.async_set_unique_id(f"{user_input[CONF_NAME].strip().lower()}-{user_input[CONF_TIMEZONE]}")
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(title=user_input[CONF_NAME].strip(), data={**user_input, CONF_SCHEDULE: DEFAULT_SCHEDULE, CONF_SUMMER_MODE: SUMMER_COMPATIBILITY, "discovery": discovery, "simulation": True})
+            return self.async_create_entry(title=user_input[CONF_NAME].strip(), data={**user_input, CONF_SCHEDULE: DEFAULT_SCHEDULE, CONF_SUMMER_MODE: SUMMER_COMPATIBILITY, CONF_OPERATION_MODE: MODE_COMPATIBILITY, CONF_CHIMNEY_TEMPERATURE: 25.0, CONF_FROST_TEMPERATURE: 5.0, "discovery": discovery, "simulation": True})
         defaults = apply_discovery_defaults({CONF_NAME: DEFAULT_NAME, CONF_TIMEZONE: DEFAULT_TIMEZONE}, discovery)
         schema_values: dict[Any, Any] = {
             vol.Required(CONF_NAME, default=defaults[CONF_NAME]): str,
@@ -56,6 +62,7 @@ class SmartHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         }
         for key, domains in (
             (CONF_CLIMATE_ENTITY, ["climate"]),
+            (CONF_TADO_FALLBACK, ["climate"]),
             (CONF_HEATING_BOOLEAN, ["input_boolean"]),
             (CONF_HEATING_PERMISSION, ["input_boolean"]),
             (CONF_COMFORT_SETPOINT, ["input_number", "number"]),
@@ -111,4 +118,7 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
         return vol.Schema({
             vol.Required(CONF_SCHEDULE, default=self._entry.options.get(CONF_SCHEDULE, self._entry.data.get(CONF_SCHEDULE, DEFAULT_SCHEDULE))): dict,
             vol.Optional(CONF_SUMMER_MODE, default=self._entry.options.get(CONF_SUMMER_MODE, self._entry.data.get(CONF_SUMMER_MODE, SUMMER_COMPATIBILITY))): vol.In([SUMMER_COMPATIBILITY, SUMMER_HVAC_OFF]),
+            vol.Optional(CONF_OPERATION_MODE, default=self._entry.options.get(CONF_OPERATION_MODE, self._entry.data.get(CONF_OPERATION_MODE, MODE_COMPATIBILITY))): vol.In([MODE_COMPATIBILITY, MODE_FULL]),
+            vol.Optional(CONF_CHIMNEY_TEMPERATURE, default=self._entry.options.get(CONF_CHIMNEY_TEMPERATURE, self._entry.data.get(CONF_CHIMNEY_TEMPERATURE, 25.0))): vol.All(vol.Coerce(float), vol.Range(min=5, max=35)),
+            vol.Optional(CONF_FROST_TEMPERATURE, default=self._entry.options.get(CONF_FROST_TEMPERATURE, self._entry.data.get(CONF_FROST_TEMPERATURE, 5.0))): vol.All(vol.Coerce(float), vol.Range(min=3, max=12)),
         })
