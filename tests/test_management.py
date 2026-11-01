@@ -191,3 +191,24 @@ class ManagementTests(unittest.TestCase):
             restored = window_contact_summary(Hass({}), data)
         self.assertEqual(restored["ignored"], 0)
         self.assertEqual(restored["contacts"][0]["entity_id"], "binary_sensor.fenster_a")
+
+    def test_saved_window_assignment_counts_in_target_room_not_ha_room(self):
+        data = default_management()
+        upsert_item(data, "sensors", {"id": "bathroom-contact", "type": "window", "entity_id": "binary_sensor.badezimmer_fenster", "area_id": "badezimmer", "area_name": "Badezimmer"})
+        contacts = [{"entity_id": "binary_sensor.badezimmer_fenster", "name": "Badezimmer Fenster", "area_id": "esszimmer", "area_name": "Esszimmer", "status": "closed", "available": True, "configured": True, "review_flags": [], "review_required": False}]
+        with patch("custom_components.smart_heating.management.discover_areas", return_value=[
+            {"area_id": "badezimmer", "name": "Badezimmer", "entity_ids": []},
+            {"area_id": "esszimmer", "name": "Esszimmer", "entity_ids": []},
+        ]), patch("custom_components.smart_heating.management.discover_window_contacts", return_value=contacts):
+            result = area_suggestions(Hass({}), data)
+        by_id = {item["area_id"]: item for item in result}
+        self.assertEqual(by_id["badezimmer"]["window_contact_count"], 1)
+        self.assertEqual(by_id["esszimmer"]["window_contact_count"], 0)
+        self.assertEqual(by_id["badezimmer"]["window_contacts"][0]["assigned_area_id"], "badezimmer")
+        self.assertEqual(by_id["badezimmer"]["window_contacts"][0]["ha_area_id"], "esszimmer")
+
+    def test_same_contact_cannot_be_assigned_twice(self):
+        data = default_management()
+        upsert_item(data, "sensors", {"id": "one", "type": "window", "entity_id": "binary_sensor.fenster", "area_id": "wohnzimmer"})
+        with self.assertRaisesRegex(ValueError, "duplicate_sensor_entity"):
+            upsert_item(data, "sensors", {"id": "two", "type": "tilt", "entity_id": "binary_sensor.fenster", "area_id": "bad"})

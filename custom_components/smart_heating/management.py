@@ -177,6 +177,12 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
             item["type"] = kind
             item.setdefault("enabled", True)
             item.setdefault("zone_ids", [])
+            # Older beta data used both names. Preserve the assignment while
+            # exposing one canonical field to the UI and runtime.
+            if not item.get("area_id") and item.get("assigned_area_id"):
+                item["area_id"] = item["assigned_area_id"]
+            if not item.get("area_name") and item.get("assigned_area_name"):
+                item["area_name"] = item["assigned_area_name"]
             item.setdefault("state_semantics", "open_or_tilted" if kind in {"window", "tilt"} else "")
             item.setdefault("ignored", False)
     if result["controller"]:
@@ -222,6 +228,16 @@ def validate_management(value: Mapping[str, Any] | None) -> list[str]:
                 errors.append(f"unknown_zone_reference:{kind}:{item['id']}")
             if kind == "temperature" and item.get("strategy", "primary_fallback") not in {"primary_fallback", "first_available", "mean_valid"}:
                 errors.append(f"invalid_temperature_strategy:{item['id']}")
+    sensor_owners: dict[str, str] = {}
+    for kind, items in data["sensors"].items():
+        for item in items:
+            entity_id = str(item.get("entity_id", ""))
+            if not entity_id:
+                continue
+            owner = sensor_owners.get(entity_id)
+            if owner and owner != item["id"]:
+                errors.append(f"duplicate_sensor_entity:{entity_id}:{owner}:{item['id']}")
+            sensor_owners.setdefault(entity_id, item["id"])
     outdoor = data.get("outdoor_temperature", {})
     if outdoor and not str(outdoor.get("entity_id", "")).startswith("sensor."):
         errors.append("invalid_outdoor_temperature_entity")
@@ -260,9 +276,31 @@ def area_suggestions(hass: Any, management: Mapping[str, Any] | None = None) -> 
         for area_id in zone.get("area_ids", [])
         if area_id
     }
+    configured_contacts = {
+        str(item.get("entity_id")): item
+        for kind in ("window", "tilt")
+        for item in management.get("sensors", {}).get(kind, [])
+        if isinstance(item, Mapping) and item.get("entity_id") and not item.get("ignored")
+    }
+    discovered_contacts = {item["entity_id"]: item for item in discover_window_contacts(hass, configured_contacts)}
     for area in discover_areas(hass):
         area = dict(area)
-        contacts = [item for item in discover_window_contacts(hass) if item.get("area_id") == area["area_id"]]
+        contacts = []
+        for entity_id, discovered in discovered_contacts.items():
+            configured = configured_contacts.get(entity_id, {})
+            assigned_area_id = configured.get("area_id")
+            # A matching HA area is only discovery context, never a saved
+            # Smart-Heating assignment. Room cards count explicit mappings;
+            # unassigned contacts remain in the central review list.
+            if assigned_area_id == area["area_id"]:
+                contact = dict(discovered)
+                # Keep HA registry placement and Smart-Heating assignment
+                # separate. The latter is the source of the room count.
+                contact["ha_area_id"] = discovered.get("area_id")
+                contact["ha_area_name"] = discovered.get("area_name")
+                contact["assigned_area_id"] = assigned_area_id
+                contact["assigned_area_name"] = configured.get("area_name")
+                contacts.append(contact)
         climates = discover_climate_entities(hass, area["entity_ids"])
         temperatures = discover_temperature_entities(hass, area["entity_ids"])
         room_temperatures = [item for item in temperatures if item.get("temperature_role") == "room"]
@@ -544,7 +582,7 @@ def window_contact_summary(hass: Any, management: Mapping[str, Any]) -> dict[str
     for contact in contacts:
         key = contact.get("assigned_area_id") or contact.get("area_id") or "__unassigned__"
         area_name = contact.get("assigned_area_name") or contact.get("area_name")
-        group = groups.setdefault(key, {"area_id": key if key != "__unassigned__" else None, "area_name": area_name, "count": 0, "open": 0, "tilted": 0, "unknown": 0, "review": 0, "contacts": []})
+        group = groups.setdefault(key, {"area_id": key if key != "__unassigned__" else None, "area_name": area_name, "count": 0, "open": 0, "tilted": 0, "closed": 0, "unknown": 0, "review": 0, "contacts": []})
         group["count"] += 1
         group[contact["status"]] = group.get(contact["status"], 0) + 1
         group["review"] += int(contact["review_required"])
@@ -586,6 +624,13 @@ def upsert_item(data: dict[str, Any], collection: str, item: Mapping[str, Any]) 
             raise ValueError("invalid_sensor_type")
         normalized.setdefault("zone_ids", [])
         items = data["sensors"][kind]
+        entity_id = str(normalized.get("entity_id", ""))
+        if entity_id and any(
+            existing.get("entity_id") == entity_id and existing.get("id") != normalized["id"]
+            for sensor_items in data["sensors"].values()
+            for existing in sensor_items
+        ):
+            raise ValueError(f"duplicate_sensor_entity:{entity_id}")
         items[:] = [existing for existing in items if existing.get("id") != normalized["id"]]
         items.append(normalized)
         errors = validate_management(data)

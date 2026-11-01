@@ -1,4 +1,29 @@
-# Smart Heating (Beta 24)
+# Smart Heating (Beta 25)
+
+## Phase 32 – compact weekly plan and room-based window management
+
+Beta 25 publishes the Phase-32 changes. The weekly planner shows all seven days compactly; only the selected
+day opens its editor. Windows can still be added, removed, copied, and saved
+with an optional target temperature, with server-side validation and
+persistence.
+
+Window and door contacts are managed directly inside each Smart Heating room
+with name, state, and availability shown separately. The saved Smart Heating
+room ID is evaluated separately from the current Home Assistant area, so saved
+assignments remain visible in the target room after reload. Multiple contacts,
+search, moving, removal, and ignored contacts are supported; HA areas and
+original sensors remain unchanged. The central contact list is reduced to
+unresolved, unavailable, or erroneous contacts plus the compact ignored-sensor
+list.
+
+The Lovelace card is not part of this phase.
+
+## Beta 25 installation note
+
+Beta 25 is published as a pre-release through HACS. The productive
+installation remains in passive compatibility mode; a real iPhone acceptance
+is still performed separately by the operator. The new Lovelace card is not
+part of this phase.
 
 ## Beta 24 iPhone acceptance
 
@@ -185,7 +210,7 @@ fixture. Productive VM 104 installation is explicitly outside this beta. The
 compatibility mode is passive; full mode remains locked until a separately
 verified single-writer proof exists.
 
-Version: `0.1.0-beta.24`
+Version: `0.1.0-beta.25`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 

@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.1.0-beta.25 – Beta 25
+
+### Deutsch
+
+- Wochenplan als kompakte Sieben-Tage-Übersicht mit Bearbeitung nur des
+  ausgewählten Tages; vorhandene Zeitfenster, Kopieren, Hinzufügen, Entfernen,
+  Zieltemperaturen, Validierung und explizites Speichern bleiben erhalten.
+- Fenster- und Türkontakte direkt in Raumkarten mit kompakter Anzeige von Name,
+  Zustand und Verfügbarkeit sowie durchsuchbarem Hinzufügen, Verschieben und
+  Entfernen ergänzt.
+- Gespeicherte Smart-Heating-Raum-IDs werden von HA-Bereichsnamen und
+  Registry-Platzierung getrennt; dadurch wird der bisherige `0 Fenster`-
+  Zuordnungsfehler nach Reload behoben.
+- Doppelte Kontakt-Entity-Zuordnungen werden verhindert. Ignorierte Sensoren,
+  nicht verfügbare Kontakte und bestehende ungeeignete Altzuordnungen bleiben
+  erhalten und werden nicht automatisch gelöscht.
+
+### English
+
+- Reworked the weekly planner into a compact seven-day overview that edits only
+  the selected day while preserving existing windows, copying, add/remove,
+  target temperatures, validation, and explicit saving.
+- Added room-local window and door contact management with compact name, state,
+  and availability display plus searchable add, move, and remove actions.
+- Separated saved Smart Heating room IDs from HA area names and registry
+  placement, fixing the existing post-reload `0 windows` assignment mismatch.
+- Prevented duplicate contact-entity assignments. Ignored sensors, unavailable
+  contacts, and unsuitable legacy mappings remain preserved and are not deleted
+  automatically.
+
+The Lovelace card is intentionally not changed by Phase 32. No Home Assistant
+area, original sensor, automation, scheduler, thermostat, or heating command is
+changed by these development changes.
+
 ## 0.1.0-beta.24 – Beta 24
 
 ### Deutsch
