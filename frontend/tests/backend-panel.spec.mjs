@@ -210,3 +210,22 @@ test("rejects overlapping windows before the websocket save", async ({ page }) =
   await page.locator("[data-schedule-save]").click();
   await expect(page.locator("[role=status]")).toContainText("überlappen");
 });
+
+test("searches long cross-area device lists and keeps the saved bathroom choices", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.climate_entities = [{ entity_id: "climate.heizthermostat_badezimmer_mit_einer_sehr_langen_entity_id", name: "Badezimmer Thermostat", area_id: "badezimmer" }];
+    panel._data.temperature_entities = [{ entity_id: "sensor.badezimmer_temperatur_mit_einer_sehr_langen_entity_id", name: "Badezimmer Temperatur", temperature_role: "room", area_id: "badezimmer" }, { entity_id: "sensor.fensterkontakt_temperatur", name: "Fensterkontakt Temperatur", temperature_role: "contact", area_id: "wohnzimmer" }];
+    panel._data.areas.push({ area_id: "badezimmer", name: "Badezimmer", relevant: false, relevance_source: "unassigned", thermostat_entities: [], temperature_entities: [] });
+    panel._data.management.zones = [{ id: "bathroom-zone", name: "Badezimmer", area_ids: ["badezimmer"], thermostat_entities: ["climate.heizthermostat_badezimmer_mit_einer_sehr_langen_entity_id"], temperature_entities: ["sensor.badezimmer_temperatur_mit_einer_sehr_langen_entity_id"], enabled: true }];
+    panel._render();
+  });
+  await page.getByText("Räume & Klimazonen", { exact: true }).click();
+  const room = page.locator("details[data-room=room-badezimmer]");
+  await room.locator("summary").click();
+  await expect(room.locator("select[name=thermostat_entity] optgroup")).toHaveAttribute("label", "Weitere geeignete Geräte");
+  await expect(room.locator("select[name=temperature_entity] option[value='sensor.fensterkontakt_temperatur']")).toHaveCount(1);
+  await room.locator("input[data-room-device-search]").fill("fensterkontakt");
+  await expect(room.locator("select[name=temperature_entity] option[value='sensor.fensterkontakt_temperatur']")).toHaveJSProperty("hidden", false);
+  await expect(room.locator("select[name=temperature_entity] option[value='sensor.badezimmer_temperatur_mit_einer_sehr_langen_entity_id']")).toHaveJSProperty("hidden", true);
+});

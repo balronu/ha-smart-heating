@@ -27,7 +27,9 @@ TECHNICAL_TEMPERATURE_HINTS = (
     "battery", "batterie", "cpu", "gpu", "disk", "filament", "drucker", "pve", "nas", "nvme",
     "smart", "ssd", "hdd", "taupunkt", "dewpoint", "feuchte", "humidity", "spannung", "voltage",
     "leistung", "power", "verbrauch", "uptime", "scheduler", "zeitplan", "diagnostic", "diagnose",
+    "outdoor", "outside", "weather", "wetter", "außen", "aussen", "outside", "forecast",
 )
+CONTACT_TEMPERATURE_HINTS = ("fenster", "tür", "tuer", "door", "kontakt", "contact", "öffnung", "offnung")
 
 
 def discover_persons(hass: Any) -> list[dict[str, Any]]:
@@ -323,6 +325,19 @@ def _entity_record(hass: Any, entity_id: str, role: str) -> dict[str, Any]:
     }
 
 
+def _entity_area(hass: Any, entity_id: str) -> tuple[str | None, str | None]:
+    """Return HA area metadata for grouping; never change the registry."""
+    try:
+        from homeassistant.helpers import area_registry, entity_registry
+
+        item = entity_registry.async_get(hass).async_get(entity_id)
+        area_id = getattr(item, "area_id", None)
+        area = area_registry.async_get(hass).async_get_area(area_id) if area_id else None
+        return area_id, getattr(area, "name", None) if area else None
+    except (AttributeError, ImportError):
+        return None, None
+
+
 def _registry_device_class(hass: Any, entity_id: str) -> str:
     try:
         from homeassistant.helpers import entity_registry
@@ -354,12 +369,18 @@ def discover_temperature_entities(hass: Any, entity_ids: list[str] | tuple[str, 
         if not is_eligible_temperature_entity(hass, entity_id):
             continue
         item = _entity_record(hass, entity_id, "temperature")
+        item["area_id"], item["area_name"] = _entity_area(hass, entity_id)
         haystack = f"{item['name']} {entity_id}".lower()
         matches = [hint for hint in TECHNICAL_TEMPERATURE_HINTS if hint in haystack]
-        item["temperature_role"] = "technical" if matches else "room"
-        item["classification_reason"] = "Technische Quelle: " + ", ".join(matches) if matches else "Geeigneter Raumtemperaturfühler"
+        contact_matches = [hint for hint in CONTACT_TEMPERATURE_HINTS if hint in haystack]
+        item["temperature_role"] = "technical" if matches else "contact" if contact_matches else "room"
+        item["classification_reason"] = (
+            "Technische Quelle: " + ", ".join(matches) if matches
+            else "Fenster-/Kontaktfühler: manuell prüfen" if contact_matches
+            else "Geeigneter Raumtemperaturfühler"
+        )
         result.append(item)
-    return sorted(result, key=lambda item: (item["temperature_role"] != "room", item["name"].lower(), item["entity_id"]))
+    return sorted(result, key=lambda item: ({"room": 0, "contact": 1, "technical": 2}.get(item["temperature_role"], 3), item["name"].lower(), item["entity_id"]))
 
 
 def discover_climate_entities(hass: Any, entity_ids: list[str] | tuple[str, ...] | None = None) -> list[dict[str, Any]]:
@@ -368,7 +389,14 @@ def discover_climate_entities(hass: Any, entity_ids: list[str] | tuple[str, ...]
     if entity_ids is None:
         states = getattr(getattr(hass, "states", None), "async_all", lambda _domain: [])("climate")
         ids = [state.entity_id for state in states]
-    return sorted((_entity_record(hass, entity_id, "climate") for entity_id in ids if entity_id.startswith("climate.")), key=lambda item: (item["name"].lower(), item["entity_id"]))
+    result = []
+    for entity_id in ids:
+        if not entity_id.startswith("climate."):
+            continue
+        item = _entity_record(hass, entity_id, "climate")
+        item["area_id"], item["area_name"] = _entity_area(hass, entity_id)
+        result.append(item)
+    return sorted(result, key=lambda item: (item["name"].lower(), item["entity_id"]))
 
 
 def discover_controller_entities(hass: Any, configured_entity_id: str | None = None) -> list[dict[str, Any]]:

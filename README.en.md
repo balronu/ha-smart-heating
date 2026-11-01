@@ -1,6 +1,6 @@
-# Smart Heating (Beta 22)
+# Smart Heating (Beta 23)
 
-## Beta 22 administration UI
+## Beta 23 administration UI
 
 The administration UI now provides compact mobile weekly-plan editing with
 native time inputs, non-overlapping comfort windows, day copying, and visible
@@ -173,7 +173,7 @@ fixture. Productive VM 104 installation is explicitly outside this beta. The
 compatibility mode is passive; full mode remains locked until a separately
 verified single-writer proof exists.
 
-Version: `0.1.0-beta.21`
+Version: `0.1.0-beta.23`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 

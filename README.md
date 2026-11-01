@@ -1,6 +1,17 @@
-# Smart Heating (Beta 22)
+# Smart Heating (Beta 23)
 
-## Beta-22-Verwaltungsoberfläche
+## Beta-23-UX-Abnahme
+
+Die Versionsanzeige verwendet die vom Backend-WebSocket gelieferte zentrale
+Integrationsversion. Frontend-Fallbacks zeigen keine erfundene Release-Version
+mehr an; dadurch werden veraltete JavaScript-Caches sichtbar statt als aktuelle
+Version ausgegeben. Die mobile Verwaltung gruppiert Geräte zuerst nach dem
+aktuellen HA-Bereich, bietet geeignete Geräte anderer Bereiche danach an und
+trennt Raum-, Kontakt-, Außen- und technische Temperaturquellen. Wochenplan,
+Fensterkontakte, ignorierte Sensoren, Personen und Sondermodi bleiben passiv;
+bestehende Zuordnungen werden nicht automatisch verändert.
+
+## Beta-23-Verwaltungsoberfläche
 
 Die Verwaltungsoberfläche bietet eine kompakte, mobile Wochenplanbearbeitung
 mit nativen Zeitfeldern, nicht überlappenden Komfortfenstern, Tageskopie und
@@ -222,7 +233,7 @@ bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
-Version: `0.1.0-beta.21`
+Version: `0.1.0-beta.23`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 
