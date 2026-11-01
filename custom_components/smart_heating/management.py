@@ -18,6 +18,11 @@ WINDOW_TILT_STATES = {"tilt", "tilted", "gekippt", "gekipp", "gekippte"}
 WINDOW_CLOSED_STATES = {"off", "closed", "close", "geschlossen", "false"}
 TEMPERATURE_UNITS = {"°c", "°f", "c", "f"}
 INDOOR_AREA_HINTS = ("wohn", "zimmer", "küche", "kueche", "bad", "schlaf", "büro", "buero", "flur", "diele", "ess", "living", "bed", "bath", "office", "hall")
+TECHNICAL_TEMPERATURE_HINTS = (
+    "battery", "batterie", "cpu", "gpu", "disk", "filament", "drucker", "pve", "nas", "nvme",
+    "smart", "ssd", "hdd", "taupunkt", "dewpoint", "feuchte", "humidity", "spannung", "voltage",
+    "leistung", "power", "verbrauch", "uptime", "scheduler", "zeitplan", "diagnostic", "diagnose",
+)
 
 
 def discover_persons(hass: Any) -> list[dict[str, Any]]:
@@ -80,6 +85,7 @@ def default_management() -> dict[str, Any]:
         "schema_version": SCHEMA_VERSION,
         "persons": [],
         "zones": [],
+        "relevant_area_ids": [],
         "sensors": {kind: [] for kind in SENSOR_TYPES},
         "controller": {},
         "outdoor_temperature": {},
@@ -105,6 +111,7 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
     result["schema_version"] = SCHEMA_VERSION
     result["persons"] = [deepcopy(item) for item in source.get("persons", []) if isinstance(item, Mapping)]
     result["zones"] = [deepcopy(item) for item in source.get("zones", []) if isinstance(item, Mapping)]
+    result["relevant_area_ids"] = [str(item) for item in source.get("relevant_area_ids", []) if str(item)]
     source_sensors = source.get("sensors", {})
     if isinstance(source_sensors, Mapping):
         result["sensors"] = {
@@ -201,7 +208,7 @@ def discover_areas(hass: Any) -> list[dict[str, Any]]:
     return result
 
 
-def area_suggestions(hass: Any) -> list[dict[str, Any]]:
+def area_suggestions(hass: Any, management: Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
     """Add read-only domain suggestions to discovered areas."""
     result = []
     for area in discover_areas(hass):
@@ -209,14 +216,18 @@ def area_suggestions(hass: Any) -> list[dict[str, Any]]:
         contacts = [item for item in discover_window_contacts(hass) if item.get("area_id") == area["area_id"]]
         climates = discover_climate_entities(hass, area["entity_ids"])
         temperatures = discover_temperature_entities(hass, area["entity_ids"])
+        room_temperatures = [item for item in temperatures if item.get("temperature_role") == "room"]
         area["suggested_indoor"] = is_suggested_indoor_area(area["name"])
+        explicit_ids = set((management or {}).get("relevant_area_ids", []))
+        area["relevant"] = area["area_id"] in explicit_ids or area["suggested_indoor"]
         area["suggestions"] = {
             "thermostat_entities": [entity["entity_id"] for entity in climates],
-            "temperature_entities": [entity["entity_id"] for entity in temperatures],
+            "temperature_entities": [entity["entity_id"] for entity in room_temperatures],
             "window_entities": [item["entity_id"] for item in contacts],
         }
         area["thermostat_entities"] = climates
-        area["temperature_entities"] = temperatures
+        area["temperature_entities"] = room_temperatures
+        area["additional_temperature_entities"] = [item for item in temperatures if item.get("temperature_role") != "room"]
         area["window_contacts"] = contacts
         area["window_contact_count"] = len(contacts)
         result.append(area)
@@ -275,12 +286,22 @@ def is_eligible_temperature_entity(hass: Any, entity_id: str) -> bool:
 
 
 def discover_temperature_entities(hass: Any, entity_ids: list[str] | tuple[str, ...] | None = None) -> list[dict[str, Any]]:
-    """Discover °C/°F temperature sensors without guessing from names."""
+    """Discover temperature sensors and classify room versus technical sources."""
     ids = list(entity_ids or [])
     if not ids:
         states = getattr(getattr(hass, "states", None), "async_all", lambda _domain: [])("sensor")
         ids = [state.entity_id for state in states]
-    return sorted((_entity_record(hass, entity_id, "temperature") for entity_id in ids if is_eligible_temperature_entity(hass, entity_id)), key=lambda item: (item["name"].lower(), item["entity_id"]))
+    result = []
+    for entity_id in ids:
+        if not is_eligible_temperature_entity(hass, entity_id):
+            continue
+        item = _entity_record(hass, entity_id, "temperature")
+        haystack = f"{item['name']} {entity_id}".lower()
+        matches = [hint for hint in TECHNICAL_TEMPERATURE_HINTS if hint in haystack]
+        item["temperature_role"] = "technical" if matches else "room"
+        item["classification_reason"] = "Technische Quelle: " + ", ".join(matches) if matches else "Geeigneter Raumtemperaturfühler"
+        result.append(item)
+    return sorted(result, key=lambda item: (item["temperature_role"] != "room", item["name"].lower(), item["entity_id"]))
 
 
 def discover_climate_entities(hass: Any, entity_ids: list[str] | tuple[str, ...] | None = None) -> list[dict[str, Any]]:

@@ -1,11 +1,14 @@
-# Smart Heating (Beta 18)
+# Smart Heating (Beta 19)
 
 ## Verbindliche Begriffe und Oberflächen
 
 - **Frontend – Lovelace-Karte:** Heizungsstatus, Visualisierung und passive Wochenplanvorschau.
 - **Verwaltungsoberfläche – Smart Heating im HA-Seitenmenü:** Wochenpläne, Klimazonen, Räume, Temperaturfühler, Fensterkontakte, Personen und beobachtbare Steuerungssignale.
 - **Integrationskonfiguration – HA-Optionsdialog:** technische Optionen wie Betriebsmodus, Sommerstrategie sowie Schornsteinfeger- und Frostschutzwerte.
-- **Backend – Python-Integration:** Datenhaltung, Validierung, Zustandsberechnung, WebSocket-APIs und Heizungslogik.
+- **Smart Heating Integration:** technische Home-Assistant-Integration.
+- **Smart Heating Verwaltung:** eigenständige Oberfläche im HA-Seitenmenü.
+- **Smart Heating Einstellungen:** nativer Home-Assistant-Optionsdialog.
+- **Smart Heating Dashboard-Karte:** Lovelace-Frontend zur Anzeige und späteren Bedienung.
 
 Im Optionsdialog ist **Nur beobachten (aktuell)** voreingestellt. Smart Heating berechnet Heizbedarf und Empfehlungen, ohne Thermostate, Automationen oder andere Geräte zu verändern. **Heizung aktiv steuern** ist noch nicht verfügbar und serverseitig gesperrt. Die Sommerstrategie ist davon getrennt und schaltet im Beobachtungsmodus keine Thermostate aus.
 
@@ -18,22 +21,21 @@ Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 > Sondermodus. Eine Migration in eine produktive Heizungssteuerung ist nicht
 > enthalten.
 
-> **Phase-20-Sicherheitsgrenze (31.10.2026):** Beta 17 ist ausschließlich im
+> **Phase-26-Sicherheitsgrenze (01.11.2026):** Beta 19 ist ausschließlich im
 > Entwicklungsrepository veröffentlicht und wird nicht automatisch auf VM 104
 > installiert. Die produktive Instanz wurde nur lesend untersucht; beide
 > vorhandenen Config Entries bleiben unverändert.
 
-## Beta-12-Backend-Verwaltung und Klimazonen
+## Beta-19-Verwaltung und Klimazonen
 
-Beta 17 führt die eigenständige, passive Backend-Verwaltung für Personen,
+Beta 19 führt die eigenständige, passive Smart Heating Verwaltung für Personen,
 Klimazonen, Thermostate, Fenster-/Kippkontakte, Raumtemperaturfühler,
 Außentemperatur und einen zentralen Controller. Änderungen werden über
 Config-Entry-Optionen beziehungsweise die unterstützte WebSocket-API
 gespeichert; Home-Assistant-Entities werden niemals angelegt oder gelöscht.
 Personen stammen ausschließlich aus `person.*`. Unbekannte Anwesenheit wird
 nicht als Abwesenheit interpretiert. Ein Thermostat darf nicht zwei aktiven
-Zonen zugeordnet sein. Die Backend-Menüs sind unabhängig aufklappbar; HA-Areas
-werden nur gelesen und als Raumvorschläge verwendet.
+Zonen zugeordnet sein. Die Verwaltungsbereiche sind unabhängig aufklappbar; HA-Bereiche werden nur gelesen, getrennt dargestellt und erst nach ausdrücklicher interner Auswahl als heizungsrelevant geführt.
 
 ## Funktionen
 
@@ -45,7 +47,7 @@ werden nur gelesen und als Raumvorschläge verwendet.
 - read-only Diagnose und Migration-Preview
 - kompakte responsive Lovelace-Karte mit eigener, validierter Planverwaltung
 - deutsche und englische Übersetzungen
-- vorsichtige automatische Entity-Erkennung mit sichtbaren Mehrdeutigkeiten
+- vorsichtige automatische Entity-Erkennung mit sichtbaren Mehrdeutigkeiten und Klassifikation technischer Temperaturquellen
 - Migrationsplan mit Single-Writer-Sperre, Bestätigungstoken, Snapshot,
   Read-back und isoliertem Rollback-Adapter
 - erklärbare Entscheidung mit aktivem Modus, Grund, Zieltemperatur und HVAC-Ziel
@@ -95,7 +97,7 @@ anderer Optionen vollständig erhalten.
 
 ## Installation
 
-Beta 17 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
+Beta 19 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
 aktiviert werden. Danach über **HACS → Integrationen → Smart Heating**
 installieren. Ein erforderlicher Home-Assistant-Neustart ist separat zu
 prüfen und darf erst nach Freigabe durchgeführt werden.
@@ -124,7 +126,7 @@ entry_id: YOUR_CONFIG_ENTRY_ID
 Die Karte bearbeitet ausschließlich den Zeitplan dieser Smart-Heating-Entry.
 Sie schreibt keine bestehenden Heizungs-Entities.
 
-### Beta-17-Backend-Oberfläche
+### Beta-19-Smart-Heating-Verwaltung
 
 Das Seitenpanel zeigt den Wochenplan als kompakte Tagesübersicht. Nur der
 ausgewählte Tag wird bearbeitet; Fenster können mit optionaler Zieltemperatur
@@ -205,7 +207,7 @@ bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
-Version: `0.1.0-beta.17`
+Version: `0.1.0-beta.19`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 

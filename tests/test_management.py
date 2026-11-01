@@ -10,8 +10,10 @@ sys.modules.setdefault("custom_components.smart_heating", package)
 
 from custom_components.smart_heating.management import (  # noqa: E402
     default_management,
+    normalize_management,
     discover_controller_entities,
     discover_temperature_entities,
+    area_suggestions,
     is_eligible_window_entity,
     person_presence,
     upsert_item,
@@ -99,6 +101,22 @@ class ManagementTests(unittest.TestCase):
         result = discover_temperature_entities(hass)
         self.assertEqual([item["entity_id"] for item in result], ["sensor.outside"])
         self.assertEqual(result[0]["state"], "unknown")
+
+    def test_temperature_discovery_separates_technical_sources(self):
+        hass = Hass({
+            "sensor.wohnzimmer_temperature": State("21", {"device_class": "temperature", "unit_of_measurement": "°C", "friendly_name": "Wohnzimmer"}, "sensor.wohnzimmer_temperature"),
+            "sensor.pve_disk_temperature": State("40", {"device_class": "temperature", "unit_of_measurement": "°C", "friendly_name": "PVE Disk"}, "sensor.pve_disk_temperature"),
+            "sensor.esszimmer_taupunkt": State("12", {"device_class": "temperature", "unit_of_measurement": "°C", "friendly_name": "Esszimmer Taupunkt"}, "sensor.esszimmer_taupunkt"),
+        })
+        result = {item["entity_id"]: item for item in discover_temperature_entities(hass)}
+        self.assertEqual(result["sensor.wohnzimmer_temperature"]["temperature_role"], "room")
+        self.assertEqual(result["sensor.pve_disk_temperature"]["temperature_role"], "technical")
+        self.assertEqual(result["sensor.esszimmer_taupunkt"]["temperature_role"], "technical")
+
+    def test_explicit_area_relevance_is_internal_and_persistent(self):
+        data = normalize_management({"relevant_area_ids": ["wohnzimmer"], "zones": [], "sensors": {}})
+        self.assertEqual(data["relevant_area_ids"], ["wohnzimmer"])
+        self.assertEqual(data["zones"], [])
 
     def test_controller_discovery_is_observable_and_includes_input_boolean(self):
         hass = Hass({
