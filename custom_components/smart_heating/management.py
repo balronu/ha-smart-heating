@@ -8,7 +8,7 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from .models import ScheduleValidationError, WeeklySchedule
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 COLLECTION_KEYS = ("persons", "zones", "sensors")
 SENSOR_TYPES = ("window", "tilt", "temperature", "thermostat")
 SAFETY_MODES = ("party", "visit", "return_home", "summer", "chimney_sweep", "frost_protection")
@@ -48,6 +48,9 @@ SAFETY_MODE_PREFERRED_HELPERS = {
     "chimney_sweep": "input_boolean.schornsteinfeger",
 }
 SPECIAL_MODE_BINDINGS = ("internal", "entity", "helper_create")
+SPECIAL_MODE_ACTIVATION_TYPES = ("internal", "entity", "binary_sensor", "switch", "presence", "time", "combined")
+WINDOW_HANDLING = ("normal", "ignore_tilted", "ignore_open", "ignore_all")
+WINDOW_STRATEGIES = ("none", "setback", "frost", "pause_demand", "custom_temperature")
 SPECIAL_MODE_TYPES = (*SAFETY_MODES, "custom")
 SUPPORTED_CUSTOM_BEHAVIORS = ("passive_only",)
 SPECIAL_MODE_DEFINITIONS = {
@@ -130,7 +133,28 @@ def zone_status(hass: Any, zones: list[Mapping[str, Any]]) -> list[dict[str, Any
         for entity_id in zone.get("temperature_entities", []):
             state = hass.states.get(entity_id)
             temperatures.append({"entity_id": entity_id, "state": str(state.state) if state else "missing"})
-        result.append({"zone_id": zone.get("id"), "name": zone.get("name"), "enabled": zone.get("enabled", True), "thermostats": thermostats, "temperatures": temperatures, "available": bool(thermostats) and all(item["state"] not in {"missing", "unknown", "unavailable"} for item in thermostats)})
+        result.append({"zone_id": zone.get("id"), "name": zone.get("name"), "enabled": zone.get("enabled", True), "thermostats": thermostats, "temperatures": temperatures, "available": bool(thermostats) and any(item["state"] not in {"missing", "unknown", "unavailable"} for item in thermostats), "thermostat_count": len(thermostats), "unavailable_thermostats": sum(item["state"] in {"missing", "unknown", "unavailable"} for item in thermostats), "lead_thermostat_entity": zone.get("lead_thermostat_entity")})
+    return result
+
+
+def zone_backend_summary(hass: Any, zones: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Expose passive per-room window/thermostat diagnostics for the UI."""
+    from .backend_engine import evaluate_window_groups, evaluate_window_strategy
+
+    result = []
+    for zone in zones:
+        groups = []
+        for group in zone.get("window_groups", []):
+            sensors = []
+            for sensor in group.get("sensors", []):
+                state = hass.states.get(sensor.get("entity_id"))
+                sensors.append({"entity_id": sensor.get("entity_id"), "state": getattr(state, "state", "missing"), "semantics": sensor.get("semantics", "binary")})
+            groups.append({**group, "sensors": sensors})
+        windows = evaluate_window_groups(groups)
+        delays = zone.get("window_delays", {})
+        reaction = evaluate_window_strategy(state=windows["state"], strategy=zone.get("window_strategy", "none"), tilted_delay=delays.get("tilted", 0), open_delay=delays.get("open", 0), close_delay=delays.get("closed", 0))
+        status = next((item for item in zone_status(hass, [zone]) if item["zone_id"] == zone.get("id")), {})
+        result.append({"zone_id": zone.get("id"), "name": zone.get("name"), "thermostats": status.get("thermostats", []), "thermostat_count": len(status.get("thermostats", [])), "window_state": windows["state"], "window_groups": windows["windows"], "window_conflicts": windows["conflicts"], "window_reaction": reaction, "passive": True})
     return result
 
 
@@ -229,9 +253,15 @@ def _normalize_special_mode(item: Mapping[str, Any], fallback: Mapping[str, Any]
         "binding_type": binding,
         "status_source": helper_entity,
         "helper_entity": helper_entity,
-        "controllable": False,
-        "origin": str(source.get("origin") or ("builtin" if mode_type in SPECIAL_MODE_DEFINITIONS else "user")),
-    }
+            "controllable": False,
+            "origin": str(source.get("origin") or ("builtin" if mode_type in SPECIAL_MODE_DEFINITIONS else "user")),
+            "priority": int(source.get("priority", {"chimney_sweep": 1000, "frost_protection": 900}.get(mode_type, 500))),
+            "activation_type": str(source.get("activation_type") or ("entity" if helper_entity else "internal")),
+            "activation_source": str(source.get("activation_source") or helper_entity),
+            "expires_at": source.get("expires_at"),
+            "window_handling": str(source.get("window_handling") or "normal"),
+            "effect": deepcopy(source.get("effect") if isinstance(source.get("effect"), Mapping) else {"action": "observe"}),
+        }
 
 
 def normalize_special_modes(source: Mapping[str, Any] | None, safety_modes: Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
@@ -298,6 +328,12 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
         zone.setdefault("lead_thermostat_entity", zone["thermostat_entities"][0] if zone["thermostat_entities"] else None)
         if zone.get("lead_thermostat_entity") not in zone["thermostat_entities"]:
             zone["lead_thermostat_entity"] = zone["thermostat_entities"][0] if zone["thermostat_entities"] else None
+        zone["window_strategy"] = str(zone.get("window_strategy") or "none") if str(zone.get("window_strategy") or "none") in WINDOW_STRATEGIES else "none"
+        raw_delays = zone.get("window_delays", {}) if isinstance(zone.get("window_delays"), Mapping) else {}
+        zone["window_delays"] = {key: max(0, int(raw_delays.get(key, 0) or 0)) for key in ("tilted", "open", "closed")}
+        zone["window_custom_temperature"] = zone.get("window_custom_temperature")
+        groups = zone.get("window_groups", [])
+        zone["window_groups"] = [deepcopy(group) for group in groups if isinstance(group, Mapping)] if isinstance(groups, list) else []
         if not zone.get("temperature_entities") and zone.get("temperature_entity"):
             zone["temperature_entities"] = [zone["temperature_entity"]]
         zone["temperature_entities"] = list(dict.fromkeys(str(item) for item in zone.get("temperature_entities", []) if str(item).startswith("sensor.")))
@@ -320,6 +356,9 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
                 item["area_name"] = item["assigned_area_name"]
             item.setdefault("state_semantics", "open_or_tilted" if kind in {"window", "tilt"} else "")
             item.setdefault("ignored", False)
+            item.setdefault("window_group_id", None)
+            if kind == "window" and item.get("state_semantics") == "open_or_tilted":
+                item["state_semantics"] = "binary"
     if result["controller"]:
         result["controller"]["id"] = _id(result["controller"].get("id"))
     return result
@@ -336,6 +375,13 @@ def validate_management(value: Mapping[str, Any] | None) -> list[str]:
         mode_ids.add(mode_id)
         if mode.get("binding_type") not in SPECIAL_MODE_BINDINGS:
             errors.append(f"invalid_special_mode_binding:{mode_id}")
+        if mode.get("activation_type") not in SPECIAL_MODE_ACTIVATION_TYPES:
+            errors.append(f"invalid_special_mode_activation:{mode_id}")
+        if mode.get("window_handling") not in WINDOW_HANDLING:
+            errors.append(f"invalid_window_handling:{mode_id}")
+        effect = mode.get("effect", {})
+        if not isinstance(effect, Mapping) or effect.get("action", "observe") not in {"observe", "comfort", "setback", "fixed_temperature", "relative_temperature", "pause_demand", "override_windows"}:
+            errors.append(f"invalid_special_mode_effect:{mode_id}")
         if mode.get("mode_type") == "custom" and mode.get("behavior") not in SUPPORTED_CUSTOM_BEHAVIORS:
             errors.append(f"unsupported_special_mode_behavior:{mode_id}")
         if mode.get("binding_type") == "helper_create":
@@ -364,6 +410,17 @@ def validate_management(value: Mapping[str, Any] | None) -> list[str]:
             if thermostat in thermostat_owners and zone.get("enabled", True):
                 errors.append(f"thermostat_conflict:{thermostat}:{thermostat_owners[thermostat]}:{zone['id']}")
             thermostat_owners.setdefault(thermostat, zone["id"])
+        if zone.get("window_strategy") not in WINDOW_STRATEGIES:
+            errors.append(f"invalid_window_strategy:{zone['id']}")
+        group_ids: set[str] = set()
+        for group in zone.get("window_groups", []):
+            group_id = str(group.get("id", ""))
+            if not group_id or group_id in group_ids:
+                errors.append(f"duplicate_window_group:{zone['id']}:{group_id or 'missing'}")
+            group_ids.add(group_id)
+            for sensor in group.get("sensors", []):
+                if sensor.get("semantics", "binary") not in {"binary", "tilt", "open", "multistate", "opening"}:
+                    errors.append(f"invalid_window_sensor_semantics:{zone['id']}:{sensor.get('entity_id', '')}")
         for person_id in zone.get("person_ids", []):
             if person_id not in person_ids:
                 errors.append(f"unknown_person_reference:{zone['id']}:{person_id}")

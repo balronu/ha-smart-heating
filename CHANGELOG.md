@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.1.0-beta.29 – Beta 29 / Phase 38 Backend Completion
+
+### Deutsch
+
+- Versioniertes Management-Schema 4 ergänzt: Einzelthermostate werden
+  idempotent in verlustfreie Thermostatlisten überführt; Mehrfachzuordnungen
+  und Raumkonflikte werden gemeldet.
+- Passive Backend-Auswertung für physische Fenstergruppen, explizite
+  Binär-/Kipp-/Öffnungssemantik, widersprüchliche oder nicht verfügbare
+  Signale und getrennte Verzögerungen ergänzt.
+- Sondermodi erhalten Ablauf, Aktivierungsart, Fensterbehandlung, Wirkung und
+  deterministische Prioritätsauflösung. Unbekannte Daten erzeugen keinen
+  erfundenen Heizbedarf.
+
+### English
+
+- Added management schema 4 with idempotent, lossless migration to thermostat
+  lists and duplicate ownership diagnostics.
+- Added passive physical-window grouping, explicit binary/tilt/open semantics,
+  conflict handling, unavailable-state diagnostics, and deterministic delays.
+- Special modes now expose expiry, activation type, window handling, effects,
+  and deterministic priority. Unknown data never invents heat demand.
+
 ## 0.1.0-beta.28 – Beta 28
 
 ### Deutsch
