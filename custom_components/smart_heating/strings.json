@@ -27,20 +27,9 @@
     "error": {"active_control_unavailable": "Aktive Steuerung ist noch nicht verfügbar. Smart Heating bleibt im Beobachtungsmodus."},
     "step": {
       "settings": {
-        "title": "Smart Heating Einstellungen",
-        "description": "Betriebsmodus, Sommerstrategie und Sicherheitswerte. Im Beobachtungsmodus berechnet Smart Heating Heizbedarf und Empfehlungen, ohne Thermostate, Automationen oder andere Geräte zu verändern. Die aktive Steuerung ist noch nicht verfügbar. Wochenplan, Fensterkontakte und Raumzuordnung werden im Smart-Heating-Seitenmenü bearbeitet; vorhandene Zuordnungen bleiben erhalten.",
-        "data": {
-          "summer_mode": "Sommerbetrieb",
-          "operation_mode": "Betriebsmodus",
-          "chimney_temperature": "Schornsteinfeger – Zieltemperatur",
-          "frost_temperature": "Frostschutz – Mindesttemperatur"
-        },
-        "data_description": {
-          "summer_mode": "Smart Heating bewertet den Sommerbetrieb. Im Beobachtungsmodus werden keine Thermostate ausgeschaltet.",
-          "operation_mode": "Nur beobachten berechnet Heizbedarf und Empfehlungen. Heizung aktiv steuern ist noch nicht verfügbar.",
-          "chimney_temperature": "Zieltemperatur für die Berechnung im Schornsteinfegermodus. Im Beobachtungsmodus wird keine Temperatur an die Heizung übertragen.",
-          "frost_temperature": "Temperaturgrenze für die passive Frostschutzbewertung. Smart Heating verändert im Beobachtungsmodus keine Thermostate."
-        }
+        "title": "Smart Heating Verwaltung",
+        "description": "Alle Einstellungen werden direkt in der Smart-Heating-Verwaltung vorgenommen. Öffne Smart Heating über das Seitenmenü von Home Assistant. Dieser Dialog ändert keine bestehenden Werte.",
+        "data": {}
       }
     }
   },

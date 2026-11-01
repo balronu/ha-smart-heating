@@ -20,6 +20,9 @@ from custom_components.smart_heating.management import (  # noqa: E402
     upsert_item,
     validate_management,
     window_contact_summary,
+    normalize_special_modes,
+    aggregate_window_status,
+    is_eligible_window_entity,
 )
 from custom_components.smart_heating.models import evaluate_decision  # noqa: E402
 from custom_components.smart_heating.storage import load_schedule  # noqa: E402
@@ -49,6 +52,47 @@ class Hass:
 
 
 class ManagementTests(unittest.TestCase):
+    def test_single_thermostat_migrates_to_list_and_lead(self):
+        data = normalize_management({"zones": [{"id": "dining", "name": "Esszimmer", "thermostat_entity": "climate.radiator_one"}]})
+        zone = data["zones"][0]
+        self.assertEqual(zone["thermostat_entities"], ["climate.radiator_one"])
+        self.assertEqual(zone["lead_thermostat_entity"], "climate.radiator_one")
+
+    def test_three_thermostats_are_preserved_and_duplicate_owners_are_rejected(self):
+        data = default_management()
+        upsert_item(data, "zones", {"id": "dining", "name": "Esszimmer", "thermostat_entities": ["climate.one", "climate.two", "climate.three"], "lead_thermostat_entity": "climate.two"})
+        self.assertEqual(data["zones"][0]["thermostat_entities"], ["climate.one", "climate.two", "climate.three"])
+        with self.assertRaises(ValueError):
+            upsert_item(data, "zones", {"id": "other", "name": "Andere", "thermostat_entities": ["climate.two"]})
+
+    def test_window_aggregation_is_conservative_and_multistate_is_explicit(self):
+        self.assertEqual(aggregate_window_status(["closed", "tilted"]), "tilted")
+        self.assertEqual(aggregate_window_status(["closed", "open_unknown"]), "open_unknown")
+        self.assertEqual(aggregate_window_status(["closed", "unknown"]), "unknown")
+        self.assertEqual(aggregate_window_status(["closed", "unavailable"]), "unavailable")
+        self.assertFalse(is_eligible_window_entity("sensor.window_state", "opening"))
+        self.assertFalse(is_eligible_window_entity("sensor.window_state", "temperature"))
+    def test_legacy_special_modes_migrate_idempotently_and_keep_entity_binding(self):
+        legacy = {"safety": {"modes": {"party": {"enabled": True, "helper_entity": "input_boolean.party", "temperature": 22, "zone_ids": ["zone"]}}}}
+        first = normalize_management(legacy)
+        second = normalize_management(first)
+        party = next(item for item in first["special_modes"] if item["id"] == "party")
+        self.assertEqual(party["binding_type"], "entity")
+        self.assertEqual(party["status_source"], "input_boolean.party")
+        self.assertTrue(party["available"])
+        self.assertEqual(first["special_modes"], second["special_modes"])
+
+    def test_custom_mode_is_internal_passive_and_has_stable_id(self):
+        data = normalize_management({"special_modes": [{"id": "quiet-hours", "name": "Ruhe", "mode_type": "custom"}]})
+        mode = next(item for item in data["special_modes"] if item["id"] == "quiet-hours")
+        self.assertEqual(mode["behavior"], "passive_only")
+        self.assertEqual(mode["binding_type"], "internal")
+        self.assertFalse(mode["controllable"])
+        self.assertEqual(mode["id"], "quiet-hours")
+
+    def test_unsupported_helper_creation_is_validation_error(self):
+        errors = validate_management({"special_modes": [{"id": "x", "name": "X", "binding_type": "helper_create"}]})
+        self.assertIn("helper_creation_unsupported:x", errors)
     def test_native_persons_aggregate_home_and_unknown(self):
         data = default_management()
         upsert_item(data, "persons", {"id": "a", "name": "A", "presence_entities": ["person.a"]})

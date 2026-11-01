@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from copy import deepcopy
 from typing import Any, Mapping
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from .models import ScheduleValidationError, WeeklySchedule
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 COLLECTION_KEYS = ("persons", "zones", "sensors")
 SENSOR_TYPES = ("window", "tilt", "temperature", "thermostat")
 SAFETY_MODES = ("party", "visit", "return_home", "summer", "chimney_sweep", "frost_protection")
@@ -46,6 +46,17 @@ SAFETY_MODE_PREFERRED_HELPERS = {
     "return_home": "input_boolean.heimweg",
     "summer": "input_boolean.heizung_sommermodus",
     "chimney_sweep": "input_boolean.schornsteinfeger",
+}
+SPECIAL_MODE_BINDINGS = ("internal", "entity", "helper_create")
+SPECIAL_MODE_TYPES = (*SAFETY_MODES, "custom")
+SUPPORTED_CUSTOM_BEHAVIORS = ("passive_only",)
+SPECIAL_MODE_DEFINITIONS = {
+    "party": ("Party", "Komfortbetrieb zeitweise passiv anzeigen."),
+    "visit": ("Besuch", "Besuch passiv berücksichtigen."),
+    "return_home": ("Heimweg", "Bevorstehende Rückkehr passiv anzeigen."),
+    "summer": ("Sommermodus", "Sommerstatus passiv anzeigen."),
+    "chimney_sweep": ("Schornsteinfeger", "Höchste fachliche Priorität in der Vorschau; keine Heizbefehle."),
+    "frost_protection": ("Frostschutz", "Frostschutzstatus passiv anzeigen."),
 }
 
 
@@ -142,6 +153,7 @@ def default_management() -> dict[str, Any]:
         "controller": {},
         "outdoor_temperature": {},
         "safety": {"modes": {mode: {"enabled": False, "helper_entity": "", "temperature": None, "duration_minutes": None, "zone_ids": []} for mode in SAFETY_MODES}},
+        "special_modes": default_special_modes(),
         "internal": {
             "enabled": True,
             "operating_mode": "automatic",
@@ -154,6 +166,89 @@ def default_management() -> dict[str, Any]:
             "zones": {},
         },
     }
+
+
+def default_special_modes() -> list[dict[str, Any]]:
+    """Return stable, passive objects for the built-in special modes."""
+    return [
+        {
+            "id": mode,
+            "name": label,
+            "description": description,
+            "mode_type": mode,
+            "behavior": mode,
+            "available": False,
+            "active": False,
+            "temperature": None,
+            "duration_minutes": None,
+            "zone_ids": [],
+            "binding_type": "internal",
+            "status_source": "",
+            "helper_entity": "",
+            "controllable": False,
+            "origin": "builtin",
+        }
+        for mode, (label, description) in SPECIAL_MODE_DEFINITIONS.items()
+    ]
+
+
+def _special_mode_id(item: Mapping[str, Any], index: int = 0) -> str:
+    value = str(item.get("id") or "").strip()
+    if value:
+        return value
+    mode_type = str(item.get("mode_type") or item.get("function") or "custom").strip()
+    if mode_type in SPECIAL_MODE_DEFINITIONS:
+        return mode_type
+    name = str(item.get("name") or "custom").strip().lower() or "custom"
+    return f"custom-{uuid5(NAMESPACE_URL, f'{name}:{index}').hex[:12]}"
+
+
+def _normalize_special_mode(item: Mapping[str, Any], fallback: Mapping[str, Any] | None = None, index: int = 0) -> dict[str, Any]:
+    source = dict(fallback or {}) | dict(item)
+    mode_type = str(source.get("mode_type") or source.get("function") or "custom")
+    if mode_type not in SPECIAL_MODE_TYPES:
+        mode_type = "custom"
+    label, description = SPECIAL_MODE_DEFINITIONS.get(mode_type, (str(source.get("name") or "Benutzerdefinierter Modus"), "Benutzerdefinierter passiver Sondermodus."))
+    helper_entity = str(item.get("helper_entity") or item.get("status_source") or source.get("helper_entity") or source.get("status_source") or "")
+    binding = str(item.get("binding_type") or ("entity" if helper_entity else source.get("binding_type") or "internal"))
+    if binding not in SPECIAL_MODE_BINDINGS:
+        binding = "internal"
+    if binding == "entity" and not helper_entity:
+        binding = "internal"
+    return {
+        "id": _special_mode_id(source, index),
+        "name": str(source.get("name") or label).strip() or label,
+        "description": str(source.get("description") or description).strip(),
+        "mode_type": mode_type,
+        "behavior": str(source.get("behavior") or (mode_type if mode_type != "custom" else "passive_only")),
+        "available": bool(item.get("available", item.get("enabled", source.get("available", False)))),
+        "active": bool(item.get("active", source.get("active", False))),
+        "temperature": source.get("temperature"),
+        "duration_minutes": source.get("duration_minutes"),
+        "zone_ids": [str(value) for value in source.get("zone_ids", []) if str(value)],
+        "binding_type": binding,
+        "status_source": helper_entity,
+        "helper_entity": helper_entity,
+        "controllable": False,
+        "origin": str(source.get("origin") or ("builtin" if mode_type in SPECIAL_MODE_DEFINITIONS else "user")),
+    }
+
+
+def normalize_special_modes(source: Mapping[str, Any] | None, safety_modes: Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Merge legacy safety mappings into stable special-mode objects once."""
+    legacy = safety_modes if isinstance(safety_modes, Mapping) else {}
+    explicit = source.get("special_modes", []) if isinstance(source, Mapping) else []
+    by_id: dict[str, dict[str, Any]] = {}
+    for index, item in enumerate(default_special_modes()):
+        legacy_item = legacy.get(item["id"], {}) if isinstance(legacy, Mapping) else {}
+        by_id[item["id"]] = _normalize_special_mode(legacy_item, item, index)
+    if isinstance(explicit, list):
+        for index, item in enumerate(explicit, len(by_id)):
+            if not isinstance(item, Mapping):
+                continue
+            normalized = _normalize_special_mode(item, by_id.get(str(item.get("id") or "")), index)
+            by_id[normalized["id"]] = normalized
+    return list(by_id.values())
 
 
 def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -184,6 +279,7 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
         }
         for mode in SAFETY_MODES
     }
+    result["special_modes"] = normalize_special_modes(source, result["safety"]["modes"])
     result["safety"].setdefault("priority", ["chimney_sweep", "frost_protection", "party", "visit", "return_home", "summer"])
     internal = source.get("internal", {})
     result["internal"].update(deepcopy(internal) if isinstance(internal, Mapping) else {})
@@ -195,6 +291,16 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
             item["id"] = _id(item.get("id"))
             item.setdefault("enabled", True)
     for zone in result["zones"]:
+        legacy_thermostat = zone.get("thermostat_entity")
+        if not zone.get("thermostat_entities") and legacy_thermostat:
+            zone["thermostat_entities"] = [legacy_thermostat]
+        zone["thermostat_entities"] = list(dict.fromkeys(str(item) for item in zone.get("thermostat_entities", []) if str(item).startswith("climate.")))
+        zone.setdefault("lead_thermostat_entity", zone["thermostat_entities"][0] if zone["thermostat_entities"] else None)
+        if zone.get("lead_thermostat_entity") not in zone["thermostat_entities"]:
+            zone["lead_thermostat_entity"] = zone["thermostat_entities"][0] if zone["thermostat_entities"] else None
+        if not zone.get("temperature_entities") and zone.get("temperature_entity"):
+            zone["temperature_entities"] = [zone["temperature_entity"]]
+        zone["temperature_entities"] = list(dict.fromkeys(str(item) for item in zone.get("temperature_entities", []) if str(item).startswith("sensor.")))
         settings = result["internal"]["zones"].setdefault(zone["id"], {})
         settings.setdefault("comfort_temperature", zone.get("comfort_temperature", 20.0))
         settings.setdefault("night_temperature", zone.get("night_temperature", 17.0))
@@ -222,6 +328,18 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
 def validate_management(value: Mapping[str, Any] | None) -> list[str]:
     data = normalize_management(value)
     errors: list[str] = []
+    mode_ids: set[str] = set()
+    for mode in data.get("special_modes", []):
+        mode_id = str(mode.get("id", ""))
+        if not mode_id or mode_id in mode_ids:
+            errors.append(f"duplicate_special_mode_id:{mode_id or 'missing'}")
+        mode_ids.add(mode_id)
+        if mode.get("binding_type") not in SPECIAL_MODE_BINDINGS:
+            errors.append(f"invalid_special_mode_binding:{mode_id}")
+        if mode.get("mode_type") == "custom" and mode.get("behavior") not in SUPPORTED_CUSTOM_BEHAVIORS:
+            errors.append(f"unsupported_special_mode_behavior:{mode_id}")
+        if mode.get("binding_type") == "helper_create":
+            errors.append(f"helper_creation_unsupported:{mode_id}")
     ids: set[str] = set()
     for collection_name in ("persons", "zones"):
         for item in data[collection_name]:
@@ -487,6 +605,10 @@ def is_suggested_indoor_area(name: str) -> bool:
 
 def _window_status(state: Any) -> str:
     value = str(getattr(state, "state", "missing") if state else "missing").lower()
+    if value in {"unavailable", "nicht verfügbar"}:
+        return "unavailable"
+    if value in {"open_unknown", "open unknown", "offen unbekannt"}:
+        return "open_unknown"
     if value in WINDOW_OPEN_STATES:
         return "open"
     if value in WINDOW_TILT_STATES:
@@ -499,6 +621,22 @@ def _window_status(state: Any) -> str:
 def is_eligible_window_entity(entity_id: str, device_class: str) -> bool:
     """Return whether an entity is safe to offer as an automatic contact."""
     return entity_id.startswith("binary_sensor.") and str(device_class).lower() in WINDOW_DEVICE_CLASSES
+
+
+def aggregate_window_status(statuses: list[str] | tuple[str, ...]) -> str:
+    """Aggregate contacts conservatively; ambiguity never becomes closed."""
+    values = {str(value) for value in statuses}
+    if "unavailable" in values:
+        return "unavailable"
+    if "unknown" in values:
+        return "unknown"
+    if "open_unknown" in values:
+        return "open_unknown"
+    if "open" in values:
+        return "open"
+    if "tilted" in values:
+        return "tilted"
+    return "closed" if values else "unknown"
 
 
 def discover_window_contacts(hass: Any, configured_entities: list[str] | tuple[str, ...] = ()) -> list[dict[str, Any]]:
@@ -520,17 +658,17 @@ def discover_window_contacts(hass: Any, configured_entities: list[str] | tuple[s
     for item in registry.values():
         entity_id = getattr(item, "entity_id", "")
         domain = entity_id.split(".", 1)[0] if "." in entity_id else ""
-        # Only binary sensors represent an on/off opening state safely. A
-        # sensor with a window-like name can be a battery, diagnostic, or
-        # aggregate sensor and must never enter the automatic contact list.
-        if domain != "binary_sensor":
+        # Binary contacts and explicitly opening-class sensors are eligible.
+        # Names alone never make a sensor a contact.
+        if domain not in {"binary_sensor", "sensor"}:
             continue
         state = hass.states.get(entity_id)
         attrs = getattr(state, "attributes", {}) if state else {}
         device_class = str(attrs.get("device_class") or getattr(item, "device_class", "") or "").lower()
         name = getattr(item, "name", None) or getattr(item, "original_name", None) or getattr(state, "name", None) or entity_id
         label = f"{name} {entity_id}".lower()
-        if not is_eligible_window_entity(entity_id, device_class):
+        multi_state_opening = domain == "sensor" and device_class == "opening"
+        if not is_eligible_window_entity(entity_id, device_class) and not multi_state_opening:
             continue
         area_id = getattr(item, "area_id", None)
         candidates.append({
@@ -612,11 +750,12 @@ def window_contact_summary(hass: Any, management: Mapping[str, Any]) -> dict[str
     for contact in contacts:
         key = contact.get("assigned_area_id") or contact.get("area_id") or "__unassigned__"
         area_name = contact.get("assigned_area_name") or contact.get("area_name")
-        group = groups.setdefault(key, {"area_id": key if key != "__unassigned__" else None, "area_name": area_name, "count": 0, "open": 0, "tilted": 0, "closed": 0, "unknown": 0, "review": 0, "contacts": []})
+        group = groups.setdefault(key, {"area_id": key if key != "__unassigned__" else None, "area_name": area_name, "count": 0, "open": 0, "open_unknown": 0, "tilted": 0, "closed": 0, "unknown": 0, "unavailable": 0, "review": 0, "contacts": []})
         group["count"] += 1
         group[contact["status"]] = group.get(contact["status"], 0) + 1
         group["review"] += int(contact["review_required"])
         group["contacts"].append(contact)
+        group["aggregate_status"] = aggregate_window_status([item.get("status", "unknown") for item in group["contacts"]])
     return {
         "total": len(contacts) + len(ignored),
         "configured": sum(item["configured"] for item in contacts) + len(ignored),
@@ -637,7 +776,12 @@ def upsert_item(data: dict[str, Any], collection: str, item: Mapping[str, Any]) 
         normalized.setdefault("zone_ids", [])
         normalized["presence_entities"] = [entity for entity in normalized["presence_entities"] if str(entity).startswith("person.")]
     elif collection == "zones":
-        normalized.setdefault("thermostat_entities", [])
+        legacy_thermostat = normalized.get("thermostat_entity")
+        normalized.setdefault("thermostat_entities", [legacy_thermostat] if legacy_thermostat else [])
+        normalized["thermostat_entities"] = list(dict.fromkeys(str(entity) for entity in normalized["thermostat_entities"] if str(entity).startswith("climate.")))
+        normalized["lead_thermostat_entity"] = normalized.get("lead_thermostat_entity") or (normalized["thermostat_entities"][0] if normalized["thermostat_entities"] else None)
+        if normalized["lead_thermostat_entity"] and normalized["lead_thermostat_entity"] not in normalized["thermostat_entities"]:
+            raise ValueError("lead_thermostat_not_in_zone")
         normalized.setdefault("temperature_entities", [])
         normalized.setdefault("window_entities", [])
         normalized.setdefault("tilt_entities", [])

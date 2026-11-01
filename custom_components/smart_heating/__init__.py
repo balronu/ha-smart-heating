@@ -12,6 +12,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import voluptuous as vol
 from homeassistant.components import frontend, websocket_api
@@ -20,7 +21,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import CONF_CLIMATE_ENTITY, CONF_OUTDOOR_TEMPERATURE, CONF_TADO_FALLBACK, DOMAIN, PLATFORMS, SIGNAL_ENTRY_UPDATED, VERSION
+from .const import CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE, CONF_OPERATION_MODE, CONF_SUMMER_MODE, MODE_COMPATIBILITY, MODE_FULL, SUMMER_COMPATIBILITY, SUMMER_HVAC_OFF, CONF_CLIMATE_ENTITY, CONF_OUTDOOR_TEMPERATURE, CONF_TADO_FALLBACK, DOMAIN, PLATFORMS, SIGNAL_ENTRY_UPDATED, VERSION
 from .engine import calculate_status
 from .models import ScheduleValidationError, WeeklySchedule
 from .migration import preview_migration
@@ -35,12 +36,14 @@ from .management import (
     is_eligible_temperature_entity,
     discover_persons,
     normalize_management,
+    normalize_special_modes,
     person_presence,
     remove_item,
     upsert_item,
     validate_management,
     window_contact_summary,
     zone_status,
+    SAFETY_MODES,
 )
 from .storage import effective_config, load_schedule, normalized_options
 
@@ -183,6 +186,10 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         websocket_api.async_register_command(hass, _ws_admin_outdoor_set)
         websocket_api.async_register_command(hass, _ws_admin_area_relevance_set)
         websocket_api.async_register_command(hass, _ws_admin_safety_set)
+        websocket_api.async_register_command(hass, _ws_admin_system_set)
+        websocket_api.async_register_command(hass, _ws_admin_special_mode_set)
+        websocket_api.async_register_command(hass, _ws_admin_special_mode_delete)
+        websocket_api.async_register_command(hass, _ws_admin_special_mode_duplicate)
         websocket_api.async_register_command(hass, _ws_admin_validate)
         websocket_api.async_register_command(hass, _ws_cleanup_preview)
         hass.data[_WS_REGISTERED] = True
@@ -391,7 +398,8 @@ async def _admin_mutation(hass: HomeAssistant, connection: websocket_api.ActiveC
 @websocket_api.async_response
 async def _ws_admin_get(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "schedule": load_schedule(effective_config(entry)).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contact_summary(hass, management), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "preview": hass.data.get(DOMAIN, {}).get(entry.entry_id).data if hass.data.get(DOMAIN, {}).get(entry.entry_id) else {}, "validation": validate_management(management)})
+    config = effective_config(entry)
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contact_summary(hass, management), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "preview": hass.data.get(DOMAIN, {}).get(entry.entry_id).data if hass.data.get(DOMAIN, {}).get(entry.entry_id) else {}, "validation": validate_management(management)})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/person/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
@@ -512,6 +520,125 @@ async def _ws_admin_safety_set(hass: HomeAssistant, connection: websocket_api.Ac
             connection.send_error(msg["id"], "invalid_configuration", "helper_entity_not_found")
             return
     await _admin_mapping_set(hass, connection, msg, "safety")
+
+
+@websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/system/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.async_response
+async def _ws_admin_system_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    entry, _ = _admin_entry(hass, msg["entry_id"])
+    item = msg["item"]
+    operation_mode = item.get(CONF_OPERATION_MODE, MODE_COMPATIBILITY)
+    summer_mode = item.get(CONF_SUMMER_MODE, SUMMER_COMPATIBILITY)
+    if operation_mode not in {MODE_COMPATIBILITY, MODE_FULL}:
+        connection.send_error(msg["id"], "invalid_configuration", "invalid_operation_mode")
+        return
+    if operation_mode == MODE_FULL:
+        connection.send_error(msg["id"], "invalid_configuration", "active_control_unavailable")
+        return
+    if summer_mode not in {SUMMER_COMPATIBILITY, SUMMER_HVAC_OFF}:
+        connection.send_error(msg["id"], "invalid_configuration", "invalid_summer_mode")
+        return
+    try:
+        chimney = float(item.get(CONF_CHIMNEY_TEMPERATURE, 25.0))
+        frost = float(item.get(CONF_FROST_TEMPERATURE, 5.0))
+    except (TypeError, ValueError):
+        connection.send_error(msg["id"], "invalid_configuration", "invalid_safety_temperature")
+        return
+    if not 5 <= chimney <= 35 or not 3 <= frost <= 12:
+        connection.send_error(msg["id"], "invalid_configuration", "safety_temperature_out_of_range")
+        return
+    options = dict(entry.options)
+    options.update({CONF_OPERATION_MODE: operation_mode, CONF_SUMMER_MODE: summer_mode, CONF_CHIMNEY_TEMPERATURE: chimney, CONF_FROST_TEMPERATURE: frost})
+    hass.config_entries.async_update_entry(entry, options=options)
+    await _async_entry_updated(hass, entry)
+    connection.send_result(msg["id"], {"settings": {CONF_OPERATION_MODE: operation_mode, CONF_SUMMER_MODE: summer_mode, CONF_CHIMNEY_TEMPERATURE: chimney, CONF_FROST_TEMPERATURE: frost}})
+
+
+def _special_mode_legacy(mode: dict[str, Any]) -> dict[str, Any]:
+    """Keep the Beta 27 runtime mapping in sync with a built-in object."""
+    return {
+        "enabled": bool(mode.get("available", False)),
+        "helper_entity": str(mode.get("helper_entity") or mode.get("status_source") or ""),
+        "temperature": mode.get("temperature"),
+        "duration_minutes": mode.get("duration_minutes"),
+        "zone_ids": list(mode.get("zone_ids", []) or []),
+    }
+
+
+def _validate_special_mode(hass: HomeAssistant, current: dict[str, Any], item: dict[str, Any]) -> dict[str, Any]:
+    modes = normalize_special_modes({"special_modes": [item]}, current.get("safety", {}).get("modes", {}))
+    mode_id = str(item.get("id") or "")
+    candidate = next((mode for mode in modes if mode["id"] == mode_id), modes[-1])
+    if candidate["binding_type"] == "helper_create":
+        raise ValueError("helper_creation_unsupported:kein sicherer offizieller HA-Helper-Erstellungspfad nachgewiesen")
+    helper_entity = candidate.get("helper_entity", "")
+    if helper_entity and not str(helper_entity).startswith("input_boolean."):
+        raise ValueError("helper_entity_must_be_input_boolean")
+    if candidate["mode_type"] == "custom" and candidate["behavior"] != "passive_only":
+        raise ValueError("unsupported_special_mode_behavior")
+    return candidate
+
+
+@websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/special_mode/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.async_response
+async def _ws_admin_special_mode_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    entry, management = _admin_entry(hass, msg["entry_id"])
+    try:
+        item = dict(msg["item"])
+        if not item.get("id"):
+            item["id"] = uuid4().hex
+        candidate = _validate_special_mode(hass, management, item)
+        modes = [mode for mode in management.get("special_modes", []) if mode["id"] != candidate["id"]]
+        modes.append(candidate)
+        management["special_modes"] = modes
+        if candidate["mode_type"] in SAFETY_MODES:
+            management["safety"]["modes"][candidate["mode_type"]] = _special_mode_legacy(candidate)
+        _admin_save(hass, entry, management)
+        await _async_entry_updated(hass, entry)
+    except ValueError as err:
+        connection.send_error(msg["id"], "invalid_configuration", str(err))
+        return
+    connection.send_result(msg["id"], {"management": management, "validation": validate_management(management)})
+
+
+@websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/special_mode/delete", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
+@websocket_api.async_response
+async def _ws_admin_special_mode_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    entry, management = _admin_entry(hass, msg["entry_id"])
+    mode = next((item for item in management.get("special_modes", []) if item["id"] == msg["item_id"]), None)
+    if not mode:
+        connection.send_error(msg["id"], "not_found", "special_mode_not_found")
+        return
+    if mode.get("origin") == "builtin":
+        connection.send_error(msg["id"], "invalid_configuration", "builtin_mode_can_only_be_disabled")
+        return
+    management["special_modes"] = [item for item in management["special_modes"] if item["id"] != msg["item_id"]]
+    _admin_save(hass, entry, management)
+    await _async_entry_updated(hass, entry)
+    connection.send_result(msg["id"], {"management": management, "validation": validate_management(management)})
+
+
+@websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/special_mode/duplicate", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
+@websocket_api.async_response
+async def _ws_admin_special_mode_duplicate(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    entry, management = _admin_entry(hass, msg["entry_id"])
+    source = next((item for item in management.get("special_modes", []) if item["id"] == msg["item_id"]), None)
+    if not source:
+        connection.send_error(msg["id"], "not_found", "special_mode_not_found")
+        return
+    duplicate = dict(source)
+    duplicate["id"] = uuid4().hex
+    duplicate["name"] = f"{source.get('name', 'Sondermodus')} (Kopie)"
+    duplicate["origin"] = "user"
+    duplicate["mode_type"] = "custom"
+    duplicate["behavior"] = "passive_only"
+    duplicate["binding_type"] = "internal"
+    duplicate["helper_entity"] = ""
+    duplicate["status_source"] = ""
+    management["special_modes"].append(duplicate)
+    _admin_save(hass, entry, management)
+    await _async_entry_updated(hass, entry)
+    connection.send_result(msg["id"], {"management": management, "created": duplicate, "validation": validate_management(management)})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/validate", vol.Required("entry_id"): cv.string})

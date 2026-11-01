@@ -102,39 +102,21 @@ class RuntimeTests(unittest.TestCase):
                     from probatio import to_field_list
 
                     serialized_schema = to_field_list(options["data_schema"], custom_serializer=cv.custom_serializer)
-                    self.assertEqual({field["name"] for field in serialized_schema}, {"summer_mode", "operation_mode", "chimney_temperature", "frost_temperature"})
-                    self.assertNotIn("schedule", {field["name"] for field in serialized_schema})
-                    blocked = await hass.config_entries.options.async_configure(
+                    self.assertEqual({field["name"] for field in serialized_schema}, set())
+                    preserved_before = dict(entry.options)
+                    acknowledged = await hass.config_entries.options.async_configure(
                         options["flow_id"],
-                        {
-                            "summer_mode": "compatibility",
-                            "operation_mode": "full",
-                            "chimney_temperature": 25,
-                            "frost_temperature": 5,
-                        },
+                        {},
                     )
-                    self.assertEqual(blocked["type"], "form")
-                    self.assertEqual(blocked["errors"]["base"], "active_control_unavailable")
-                    options = await hass.config_entries.options.async_init(entry.entry_id)
-                    valid = await hass.config_entries.options.async_configure(
-                        options["flow_id"],
-                        {
-                            "summer_mode": "compatibility",
-                            "operation_mode": "compatibility",
-                            "chimney_temperature": 26,
-                            "frost_temperature": 6,
-                        },
-                    )
-                    self.assertEqual(valid["type"], "create_entry")
-                    self.assertEqual(entry.options["schedule"]["monday"][0]["start"], "06:00:00")
-                    self.assertEqual(entry.options["chimney_temperature"], 26)
+                    self.assertEqual(acknowledged["type"], "create_entry")
+                    self.assertEqual(entry.options, preserved_before)
 
                     self.assertTrue(await hass.config_entries.async_unload(entry.entry_id))
                     await hass.async_block_till_done()
                     self.assertTrue(await hass.config_entries.async_setup(entry.entry_id))
                     await hass.async_block_till_done()
                     self.assertEqual(entry.state.value, "loaded")
-                    self.assertEqual(entry.options["schedule"]["monday"][0]["end"], "08:00:00")
+                    self.assertEqual(entry.data["schedule"]["monday"][0]["end"], "08:00:00")
                     self.assertTrue(await hass.config_entries.async_remove(entry.entry_id))
                     await hass.async_block_till_done()
                     readd = await hass.config_entries.flow.async_init("smart_heating", context={"source": "user"})
