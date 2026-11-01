@@ -1,6 +1,6 @@
-# Smart Heating (Beta 30)
+# Smart Heating (Beta 31)
 
-## Phase 40 – Fensterkontakt-Funktionen (lokal in Entwicklung)
+## Phase 40 – Fensterkontakt-Funktionen (Beta 31)
 
 Die Raumverwaltung erlaubt pro Fensterkontakt die manuelle Funktion
 **Gekippt-Sensor**, **Offen-Sensor** oder **Nicht zugeordnet**. Mehrere Kontakte
@@ -10,8 +10,8 @@ Heizungsautomatik ignoriert“ diagnostiziert; ohne gültiges Signal gilt der
 Zustand für die passive Automatik als geschlossen. Bestehende Zuordnungen
 werden rückwärtskompatibel migriert und nicht anhand von Namen vermutet.
 
-Diese Phase ist lokal und unveröffentlicht; sie verändert keine Home-Assistant-
-Entities, Helper, Bereiche, Zigbee2MQTT-Daten oder Heizungsbefehle.
+Diese Beta verändert keine Home-Assistant-Entities, Helper, Bereiche,
+Zigbee2MQTT-Daten oder Heizungsbefehle.
 
 ## Phase 38 backend boundary (Beta 29)
 
