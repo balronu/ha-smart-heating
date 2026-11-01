@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.beforeEach(async ({ page }) => {
   await page.goto("/frontend/fixtures/backend-panel.html");
   await page.evaluate(() => localStorage.clear());
-  await page.reload();
+  await page.waitForTimeout(50);
   await expect(page.locator("main.smart-heating-backend")).toBeVisible();
   await expect(page.locator("details[data-section]")).toHaveCount(7);
   await expect(page.locator("details[open]")).toHaveCount(0);
@@ -113,6 +113,20 @@ test("uses contact cards on small displays", async ({ page }) => {
   await expect(page.locator(".contact-cards article")).toHaveCount(3);
 });
 
+test("keeps bathroom window status readable and separates saved assignment", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.window_contacts.contacts.push({ id: "window-bathroom", name: "Badezimmer Fenster", entity_id: "binary_sensor.badezimmer_fenster", area_name: "Badezimmer", assigned_area_id: "badezimmer", assigned_area_name: "Badezimmer", status: "closed", review_required: false, review_flags: [] });
+    panel._render();
+  });
+  await page.locator("details[data-section=windows] summary").click();
+  const row = page.locator("tr[data-window-row]").filter({ hasText: "Badezimmer Fenster" });
+  await expect(row).toContainText("Badezimmer");
+  await expect(row).toContainText("geschlossen");
+  await expect(row).toContainText("Gespeicherter Raum");
+  await expect(row).toContainText("Badezimmer");
+});
+
 test("ignores and restores a contact without deleting the HA entity", async ({ page }) => {
   await page.locator("details[data-section=windows] summary").click();
   const row = page.locator('tr[data-window-row]').filter({ hasText: "Wohnzimmer Fenster" });
@@ -146,6 +160,22 @@ test("edits only the selected day and saves with visible confirmation", async ({
   await expect(page.locator("[role=status]")).toContainText("erfolgreich gespeichert");
   await page.reload();
   await expect(page.locator("[data-schedule-day=wednesday] [data-day-summary]")).toContainText("06:00 – 08:30");
+});
+
+test("shows unsaved state before saving and stacks time fields on a narrow phone", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.evaluate(() => { const meta = document.createElement("meta"); meta.name = "viewport"; meta.content = "width=device-width, initial-scale=1"; document.head.append(meta); });
+  await page.waitForTimeout(50);
+  await expect(page.locator("main.smart-heating-backend")).toBeVisible();
+  await page.locator("button[data-schedule-add=monday]").click();
+  await expect(page.locator("[data-weekly-planner] [role=status]")).toContainText("noch nicht gespeichert");
+  const layout = await page.locator("[data-day-editor=monday] [data-schedule-row]").evaluate((row) => {
+    const labels = [...row.querySelectorAll("label")].map((label) => label.getBoundingClientRect());
+    return labels.map((box) => ({ top: Math.round(box.top), left: Math.round(box.left), right: Math.round(box.right) }));
+  });
+  expect(layout[1].top).toBeGreaterThan(layout[0].top);
+  expect(layout[0].right).toBeLessThanOrEqual(320);
+  expect(layout[1].right).toBeLessThanOrEqual(320);
 });
 
 test("shows an inline validation message and does not call save for invalid windows", async ({ page }) => {
@@ -196,7 +226,23 @@ test("offers suitable bathroom devices outside the HA area and preserves the sel
   await expect(room.locator("select[name=thermostat_entity] option[value='climate.heizthermostat_badezimmer']")).toHaveCount(1);
   await expect(room.locator("select[name=temperature_entity] option[value='sensor.badezimmer_temperatur']")).toHaveCount(1);
   await expect(room.locator("select[name=temperature_entity] option[value='sensor.gefrierschrank_temperatur']")).toHaveCount(0);
+  await expect(room.locator("input[name=comfort_temperature]")).toHaveValue("20");
+  await expect(room.locator("input[name=comfort_temperature]")).not.toHaveValue("24");
   await expect(room.locator("[data-room-assignment-hint]")).toContainText("separat aktiviert");
+});
+
+test("labels unavailable contact states as unavailable and explains passive special modes", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.window_contacts.contacts.push({ id: "window-unknown", name: "Keller Sensor", entity_id: "binary_sensor.keller_fenster", area_name: "Keller", status: "unavailable", review_required: true, review_flags: ["stale_or_unavailable"] });
+    panel._render();
+  });
+  await page.locator("details[data-section=windows] summary").click();
+  await expect(page.locator("tr[data-window-row]").filter({ hasText: "Keller Sensor" })).toContainText("nicht verfügbar");
+  await page.locator("details[data-section=safety] summary").click();
+  const mode = page.locator('[data-safety-mode="party"]');
+  await expect(mode).toContainText("Statusquelle");
+  await expect(mode).toContainText("Kontrollkästchen aktiviert keinen Modus");
 });
 
 test("rejects overlapping windows before the websocket save", async ({ page }) => {

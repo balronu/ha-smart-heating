@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.1.0-beta.24 – Beta 24
+
+### Deutsch
+
+- Wochenplan auf iPhone-Breite mit gestapelten Zeitfeldern, sauberem Umbruch
+  deutscher Begriffe und sichtbarer Kennzeichnung ungespeicherter Änderungen
+  verbessert; bestehende Fenster und Zieltemperaturen bleiben erhalten.
+- Raum-/Klimazonen-Zuordnungen zeigen gespeicherte Werte und übernehmen neue
+  Auswahl erst nach ausdrücklicher Bestätigung. Komfortwerte werden nicht
+  automatisch auf einen Badezimmer-Wunschwert gesetzt.
+- Fensterkontakte zeigen Raum, Zustand und Eignung getrennt; unbekannt und
+  nicht verfügbar werden ausdrücklich bezeichnet. Ignorierte Kontakte bleiben
+  separat einklappbar.
+- Sondermodi unterscheiden Konfiguration, aktuelle Aktivität und vorhandene
+  Statusquelle. Das Kontrollkästchen bleibt passiv und löst keine Heizung aus.
+
+### English
+
+- Improved the weekly planner for iPhone widths with stacked time fields,
+  readable German labels, and explicit unsaved-change feedback while preserving
+  existing windows and target temperatures.
+- Room and climate-zone assignments now show saved values and apply new choices
+  only after explicit confirmation. Comfort values are never changed to an
+  implicit bathroom preference.
+- Window contacts separate room, state, and suitability; unknown and unavailable
+  states are explicit, while ignored contacts remain compact and collapsible.
+- Special modes distinguish configuration, current activity, and status-source
+  availability. The checkbox remains passive and never triggers heating.
+
+No Home Assistant entity, area, helper, automation, scheduler, thermostat, or
+heating command is changed by this release.
+
 ## 0.1.0-beta.23 – Beta 23
 
 ### Deutsch
