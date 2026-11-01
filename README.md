@@ -1,5 +1,28 @@
 # Smart Heating (Beta 39)
 
+## Phase 86 – Native Lovelace-Karte (lokal, passiv)
+
+Die lokale Weiterentwicklung enthält eine native `smart-heating-card`. Sie
+liest einmalig den bestehenden `smart_heating/plan/get`-Vertrag und zeigt
+Betriebsmodus, Räume, Temperaturen, Fensterstatus, Sondermodi, Wochenplan,
+Shadow-Status und offene SMART-Sperren. Ausführliche, kompakte und individuell
+konfigurierbare Bereiche werden über den grafischen Karteneditor unterstützt;
+mehrere Karteninstanzen bleiben unabhängig.
+
+Die Karte ist ausschließlich lesend: Sie sendet keine Heiz-, Thermostat-,
+Scheduler- oder Sondermodus-Befehle. Unbekannte und nicht verfügbare Werte
+werden sichtbar als unbekannt/nicht vorhanden dargestellt. Die Integration
+registriert das Modul weiterhin über den bestehenden versionierten
+`frontend.add_extra_js_url`-Pfad. Die Karte ist lokal vorbereitet und noch
+nicht veröffentlicht oder auf VM 104 installiert.
+
+### Local installation/use
+
+After a later approved release, add a Lovelace card of type
+`custom:smart-heating-card`, select the Smart-Heating Config Entry, and use
+the visual editor for the display mode and visible sections. Until then this
+Phase-86 implementation remains local and passive.
+
 ## Phase 85 – UX-Konsolidierung (lokal, nicht veröffentlicht)
 
 Die lokale Weiterentwicklung auf Beta.39 verdichtet den Wochenplan zu

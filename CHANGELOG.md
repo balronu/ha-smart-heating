@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased – Phase 86 native Lovelace card / native Lovelace card
+
+### Deutsch
+
+- Eine native `smart-heating-card` mit ausführlicher, kompakter und individuell
+  konfigurierbarer Darstellung wurde lokal vorbereitet.
+- Die Karte liest ausschließlich `smart_heating/plan/get`, aktualisiert sich
+  bei erneuter HA-Zustandsübergabe, unterstützt mehrere Instanzen und zeigt
+  unbekannte Daten ausdrücklich an.
+- Räume, Temperaturen, Fensterkontakte, Sondermodi, Wochenplan,
+  Shadow-Vergleich und SMART-Sperren werden passiv dargestellt. Es gibt keine
+  Karten-Schreiboperationen oder Heizbefehle.
+- Ein grafischer Editor für Titel, Darstellung und sichtbare Bereiche ist
+  enthalten. Die Änderung ist lokal, unreleased und nicht auf VM 104 installiert.
+
+### English
+
+- A native `smart-heating-card` with detailed, compact, and individually
+  configurable views is prepared locally.
+- The card reads only `smart_heating/plan/get`, supports independent multiple
+  instances, and renders unknown data explicitly.
+- Rooms, temperatures, window contacts, special modes, weekly schedule, shadow
+  comparison, and SMART blockers are passive read-only views. No card write or
+  heating operation is available.
+- A visual editor covers title, display mode, and visible sections. This work
+  is local, unreleased, and not installed on VM 104.
+
 ## Unreleased – Phase 85 UX-Konsolidierung / UX consolidation
 
 ### Deutsch
