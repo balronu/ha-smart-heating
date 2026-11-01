@@ -2,11 +2,14 @@
 
 import asyncio
 import custom_components
+import json
+import logging
 import sys
 from pathlib import Path
 from shutil import copytree
 import tempfile
 import unittest
+from types import SimpleNamespace
 
 try:
     from homeassistant import loader
@@ -72,19 +75,8 @@ class RuntimeTests(unittest.TestCase):
                     await hass.async_block_till_done()
                     self.assertEqual(entry.state.value, "loaded")
 
-                    from custom_components.smart_heating import _ws_admin_room_save
+                    from homeassistant.components.websocket_api.connection import ActiveConnection
                     from custom_components.smart_heating.management import normalize_management
-
-                    class CaptureConnection:
-                        def __init__(self):
-                            self.results = []
-                            self.errors = []
-
-                        def send_result(self, message_id, result):
-                            self.results.append((message_id, result))
-
-                        def send_error(self, message_id, code, message):
-                            self.errors.append((message_id, code, message))
 
                     room_item = {
                         "id": "badezimmer",
@@ -119,23 +111,65 @@ class RuntimeTests(unittest.TestCase):
                         },
                     ]
 
+                    messages = []
+                    connection = ActiveConnection(
+                        logging.getLogger("smart_heating.runtime_test"),
+                        hass,
+                        messages.append,
+                        SimpleNamespace(id="runtime-test-user", name="Runtime Test"),
+                        None,
+                        "127.0.0.1",
+                    )
+
+                    async def ws_call(message_id, message):
+                        connection.async_handle({"id": message_id, **message})
+                        await hass.async_block_till_done()
+                        payloads = [
+                            json.loads(item) if isinstance(item, (bytes, bytearray)) else item
+                            for item in messages
+                        ]
+                        result = next((item for item in payloads if item.get("id") == message_id), None)
+                        self.assertIsNotNone(result, payloads)
+                        messages.clear()
+                        self.assertEqual(result["type"], "result", result)
+                        return result["result"]
+
                     async def save_room(message_id, roles):
-                        connection = CaptureConnection()
-                        await _ws_admin_room_save.__wrapped__(
-                            hass,
-                            connection,
-                            {"id": message_id, "entry_id": entry.entry_id, "item": room_item, "contacts": [{**contact, "contact_role": role} for contact, role in zip(contacts, roles)]},
+                        return await ws_call(
+                            message_id,
+                            {
+                                "type": "smart_heating/admin/room/save",
+                                "entry_id": entry.entry_id,
+                                "item": room_item,
+                                "contacts": [{**contact, "contact_role": role} for contact, role in zip(contacts, roles)],
+                            },
                         )
-                        self.assertFalse(connection.errors)
-                        self.assertEqual(connection.results[0][0], message_id)
-                        return connection.results[0][1]
 
                     first_save = await save_room(101, ("tilt", "open"))
                     self.assertEqual(first_save["persisted_contact_roles"], {contact["entity_id"]: role for contact, role in zip(contacts, ("tilt", "open"))})
                     persisted = normalize_management(entry.options["management"])
                     self.assertEqual({item["entity_id"]: item["contact_role"] for item in persisted["sensors"]["window"]}, {contact["entity_id"]: role for contact, role in zip(contacts, ("tilt", "open"))})
+                    saved_zone = next(item for item in persisted["zones"] if item["id"] == "badezimmer")
+                    self.assertEqual(saved_zone["thermostat_entities"], room_item["thermostat_entities"])
+                    self.assertEqual(saved_zone["temperature_entities"], room_item["temperature_entities"])
+                    self.assertEqual(
+                        {key: saved_zone[key] for key in ("comfort_temperature", "night_temperature", "frost_temperature")},
+                        {key: room_item[key] for key in ("comfort_temperature", "night_temperature", "frost_temperature")},
+                    )
+                    admin_readback = await ws_call(
+                        102,
+                        {"type": "smart_heating/admin/get", "entry_id": entry.entry_id},
+                    )
+                    self.assertEqual(
+                        {
+                            item["entity_id"]: item["contact_role"]
+                            for item in admin_readback["window_contacts"]["contacts"]
+                            if item["entity_id"] in {contact["entity_id"] for contact in contacts}
+                        },
+                        first_save["persisted_contact_roles"],
+                    )
 
-                    second_save = await save_room(102, ("tilt", "open"))
+                    second_save = await save_room(103, ("tilt", "open"))
                     self.assertEqual(second_save["persisted_contact_roles"], first_save["persisted_contact_roles"])
                     self.assertTrue(await hass.config_entries.async_unload(entry.entry_id))
                     await hass.async_block_till_done()
@@ -143,6 +177,25 @@ class RuntimeTests(unittest.TestCase):
                     await hass.async_block_till_done()
                     persisted_after_reload = normalize_management(entry.options["management"])
                     self.assertEqual({item["entity_id"]: item["contact_role"] for item in persisted_after_reload["sensors"]["window"]}, first_save["persisted_contact_roles"])
+                    reloaded_zone = next(item for item in persisted_after_reload["zones"] if item["id"] == "badezimmer")
+                    self.assertEqual(reloaded_zone["thermostat_entities"], room_item["thermostat_entities"])
+                    self.assertEqual(reloaded_zone["temperature_entities"], room_item["temperature_entities"])
+                    self.assertEqual(
+                        {key: reloaded_zone[key] for key in ("comfort_temperature", "night_temperature", "frost_temperature")},
+                        {key: room_item[key] for key in ("comfort_temperature", "night_temperature", "frost_temperature")},
+                    )
+                    reloaded_admin_readback = await ws_call(
+                        104,
+                        {"type": "smart_heating/admin/get", "entry_id": entry.entry_id},
+                    )
+                    self.assertEqual(
+                        {
+                            item["entity_id"]: item["contact_role"]
+                            for item in reloaded_admin_readback["window_contacts"]["contacts"]
+                            if item["entity_id"] in {contact["entity_id"] for contact in contacts}
+                        },
+                        first_save["persisted_contact_roles"],
+                    )
 
                     duplicate = await hass.config_entries.flow.async_init(
                         "smart_heating", context={"source": "user"}
