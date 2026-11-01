@@ -1,6 +1,18 @@
-# Smart Heating (Beta 23)
+# Smart Heating (Beta 24)
 
-## Beta 23 administration UI
+## Beta 24 iPhone acceptance
+
+The administration UI is hardened for narrow iPhone layouts: time fields stack
+when required, German labels do not split in the middle of words, and the
+weekly planner explicitly reports unsaved and saved changes. Room and climate
+zone assignments show their saved values and apply new choices only after save.
+
+Window contacts separate room, state, and suitability. `unknown` and
+`unavailable` are shown as explicit unavailable states, and ignored sensors
+remain separately collapsible. Special modes distinguish availability,
+activity, and status-source presence. All functions remain passive.
+
+## Beta 24 administration UI
 
 The administration UI now provides compact mobile weekly-plan editing with
 native time inputs, non-overlapping comfort windows, day copying, and visible
@@ -173,7 +185,7 @@ fixture. Productive VM 104 installation is explicitly outside this beta. The
 compatibility mode is passive; full mode remains locked until a separately
 verified single-writer proof exists.
 
-Version: `0.1.0-beta.23`
+Version: `0.1.0-beta.24`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 

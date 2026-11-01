@@ -1,4 +1,17 @@
-# Smart Heating (Beta 23)
+# Smart Heating (Beta 24)
+
+## Beta-24-iPhone-Abnahme
+
+Die Verwaltung ist für schmale iPhone-Ansichten gehärtet: Zeitfelder werden
+bei Bedarf untereinander dargestellt, deutsche Begriffe umbrechen nicht mitten
+im Wort, und der Wochenplan meldet ungespeicherte beziehungsweise gespeicherte
+Änderungen ausdrücklich. Raum-/Klimazonen-Zuordnungen zeigen gespeicherte Werte
+und übernehmen neue Auswahl erst nach dem Speichern.
+
+Fensterkontakte zeigen Raum, Zustand und Eignung getrennt. `unknown` und
+`unavailable` werden als **unbekannt** beziehungsweise **nicht verfügbar**
+angezeigt; ignorierte Sensoren bleiben separat einklappbar. Sondermodi trennen
+Verfügbarkeit, Aktivität und Statusquelle. Alle Funktionen bleiben passiv.
 
 ## Beta-23-UX-Abnahme
 
@@ -233,7 +246,7 @@ bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
-Version: `0.1.0-beta.23`
+Version: `0.1.0-beta.24`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 
