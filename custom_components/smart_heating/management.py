@@ -40,6 +40,13 @@ SAFETY_MODE_HINTS = {
     "chimney_sweep": ("schornstein", "feger", "chimney"),
     "frost_protection": ("frost", "frostschutz"),
 }
+SAFETY_MODE_PREFERRED_HELPERS = {
+    "party": "input_boolean.party",
+    "visit": "input_boolean.besuch",
+    "return_home": "input_boolean.heimweg",
+    "summer": "input_boolean.heizung_sommermodus",
+    "chimney_sweep": "input_boolean.schornsteinfeger",
+}
 
 
 def discover_persons(hass: Any) -> list[dict[str, Any]]:
@@ -65,6 +72,8 @@ def discover_helper_entities(hass: Any) -> list[dict[str, Any]]:
         name = _entity_name(state, entity_id)
         haystack = f"{name} {entity_id}".lower()
         suggestions = [mode for mode, hints in SAFETY_MODE_HINTS.items() if any(hint in haystack for hint in hints)]
+        preferred_for = [mode for mode, preferred in SAFETY_MODE_PREFERRED_HELPERS.items() if preferred == entity_id]
+        suggestions = list(dict.fromkeys(preferred_for + suggestions))
         current = str(state.state).lower()
         result.append({
             "entity_id": entity_id,
@@ -76,6 +85,7 @@ def discover_helper_entities(hass: Any) -> list[dict[str, Any]]:
             "active": current == "on",
             "status": "aktiv" if current == "on" else "inaktiv" if current == "off" else "nicht verfügbar",
             "suggested_for": suggestions,
+            "preferred_for": preferred_for,
             "suitable": True,
         })
     return sorted(result, key=lambda item: (item["name"].lower(), item["entity_id"]))

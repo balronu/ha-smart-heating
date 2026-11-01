@@ -177,6 +177,24 @@ class ManagementTests(unittest.TestCase):
         self.assertFalse(helpers["input_boolean.besuch"]["available"])
         self.assertFalse(helpers["input_boolean.besuch"]["active"])
 
+    def test_exact_special_mode_helpers_are_preferred_without_activation(self):
+        hass = Hass({
+            "input_boolean.party": State("off", {"friendly_name": "Party"}, "input_boolean.party"),
+            "input_boolean.besuch": State("off", {"friendly_name": "Besuch"}, "input_boolean.besuch"),
+            "input_boolean.heimweg": State("off", {"friendly_name": "Heimweg"}, "input_boolean.heimweg"),
+            "input_boolean.heizung_sommermodus": State("off", {"friendly_name": "Heizung Sommermodus"}, "input_boolean.heizung_sommermodus"),
+            "input_boolean.schornsteinfeger": State("off", {"friendly_name": "Schornsteinfeger"}, "input_boolean.schornsteinfeger"),
+            "input_boolean.fremdmodus": State("off", {"friendly_name": "Fremdmodus"}, "input_boolean.fremdmodus"),
+        })
+        helpers = {item["entity_id"]: item for item in discover_helper_entities(hass)}
+        self.assertEqual(helpers["input_boolean.party"]["preferred_for"], ["party"])
+        self.assertEqual(helpers["input_boolean.besuch"]["preferred_for"], ["visit"])
+        self.assertEqual(helpers["input_boolean.heimweg"]["preferred_for"], ["return_home"])
+        self.assertEqual(helpers["input_boolean.heizung_sommermodus"]["preferred_for"], ["summer"])
+        self.assertEqual(helpers["input_boolean.schornsteinfeger"]["preferred_for"], ["chimney_sweep"])
+        self.assertEqual(helpers["input_boolean.fremdmodus"]["preferred_for"], [])
+        self.assertTrue(all(item["state"] == "off" for item in helpers.values()))
+
     def test_controller_discovery_is_observable_and_includes_input_boolean(self):
         hass = Hass({
             "input_boolean.heizung": State("off", {"friendly_name": "Heizung"}, "input_boolean.heizung"),

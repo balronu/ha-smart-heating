@@ -1,4 +1,15 @@
-# Smart Heating (Beta 26)
+# Smart Heating (Beta 27)
+
+## Phase 35 – letzter iPhone-UX-Feinschliff
+
+Beta 27 zeigt passende Sondermodus-Helfer als kompakte Empfehlungen und öffnet
+weitere `input_boolean`-Quellen erst über die Suche. Gespeicherte, fehlende und
+nicht verfügbare Quellen bleiben sichtbar; keine Quelle wird automatisch
+gespeichert oder aktiviert. Der Wochenplan startet als kompakte Übersicht mit
+kurzen Tageszusammenfassungen, öffnet nur einen Tag zur Bearbeitung und kehrt
+nach dem Speichern zur Übersicht zurück. Alle Änderungen bleiben passiv.
+
+Die Lovelace-Karte ist weiterhin nicht Bestandteil dieser Phase.
 
 ## Phase 34 – Sondermodi, Außentemperatur und mobile Zuordnungen
 
@@ -282,7 +293,7 @@ bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
-Version: `0.1.0-beta.25`
+Version: `0.1.0-beta.27`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 

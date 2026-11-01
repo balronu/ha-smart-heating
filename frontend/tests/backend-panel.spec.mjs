@@ -117,6 +117,24 @@ test("offers only boolean status helpers and separates availability from activit
   await expect(party).toContainText("Status");
 });
 
+test("keeps special-mode defaults compact and reveals extra Boolean helpers through search", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.helper_entities = [
+      { entity_id: "input_boolean.party", name: "Party", state: "off", domain: "input_boolean", available: true, active: false, preferred_for: ["party"] },
+      { entity_id: "input_boolean.fremdmodus", name: "Fremdmodus", state: "off", domain: "input_boolean", available: true, active: false, preferred_for: [] },
+    ];
+    panel._render();
+  });
+  await page.locator("details[data-section=safety] summary").click();
+  const party = page.locator('[data-safety-mode="party"]');
+  await expect(party.locator("select option[value='input_boolean.party']")).toHaveCount(1);
+  await expect(party.locator("select option[value='input_boolean.fremdmodus']")).toHaveCount(0);
+  await party.locator("input[data-mode-source-search]").fill("Fremd");
+  await expect(party.locator("select option[value='input_boolean.fremdmodus']")).toHaveCount(1);
+  await expect(party).toContainText("Empfehlung");
+});
+
 test("separates relevant rooms, other HA areas, and technical temperature sources", async ({ page }) => {
   await page.evaluate(() => {
     const panel = document.querySelector("smart-heating-backend-panel");
@@ -175,13 +193,14 @@ test("ignores and restores a contact without deleting the HA entity", async ({ p
 test("shows the graphical weekly planner with day, time, and target controls", async ({ page }) => {
   await expect(page.locator("[data-weekly-planner]")).toBeVisible();
   await expect(page.locator("[data-schedule-day]")).toHaveCount(7);
+  await page.locator("button[data-schedule-edit=monday]").click();
   await page.locator("button[data-schedule-add=monday]").click();
   await expect(page.locator("fieldset[data-schedule-day=monday] input[type=time]")).toHaveCount(2);
   await expect(page.locator("fieldset[data-schedule-day=monday] input[type=number]")).toHaveCount(1);
 });
 
 test("edits only the selected day and saves with visible confirmation", async ({ page }) => {
-  await page.locator("button[data-schedule-day-select=wednesday]").click();
+  await page.locator("button[data-schedule-edit=wednesday]").click();
   await expect(page.locator("[data-day-editor=wednesday]")).toBeVisible();
   await expect(page.locator("[data-day-editor=monday]")).toHaveCount(0);
   await page.locator("button[data-schedule-add=wednesday]").click();
@@ -192,7 +211,7 @@ test("edits only the selected day and saves with visible confirmation", async ({
   await page.locator("[data-schedule-save]").click();
   await expect(page.locator("[role=status]")).toContainText("erfolgreich gespeichert");
   await page.reload();
-  await expect(page.locator("[data-schedule-day=wednesday] [data-day-summary]")).toContainText("06:00 – 08:30");
+  await expect(page.locator("[data-schedule-day=wednesday] [data-day-summary]")).toContainText("06:00–08:30");
 });
 
 test("shows unsaved state before saving and stacks time fields on a narrow phone", async ({ page }) => {
@@ -200,6 +219,7 @@ test("shows unsaved state before saving and stacks time fields on a narrow phone
   await page.evaluate(() => { const meta = document.createElement("meta"); meta.name = "viewport"; meta.content = "width=device-width, initial-scale=1"; document.head.append(meta); });
   await page.waitForTimeout(50);
   await expect(page.locator("main.smart-heating-backend")).toBeVisible();
+  await page.locator("button[data-schedule-edit=monday]").click();
   await page.locator("button[data-schedule-add=monday]").click();
   await expect(page.locator("[data-weekly-planner] [role=status]")).toContainText("noch nicht gespeichert");
   const layout = await page.locator("[data-day-editor=monday] [data-schedule-row]").evaluate((row) => {
@@ -212,6 +232,7 @@ test("shows unsaved state before saving and stacks time fields on a narrow phone
 });
 
 test("shows an inline validation message and does not call save for invalid windows", async ({ page }) => {
+  await page.locator("button[data-schedule-edit=monday]").click();
   await page.locator("button[data-schedule-add=monday]").click();
   const row = page.locator("[data-day-editor=monday] [data-schedule-row]").last();
   await row.locator("input[data-schedule-input=start]").fill("20:00");
@@ -279,6 +300,7 @@ test("labels unavailable contact states as unavailable and explains passive spec
 });
 
 test("rejects overlapping windows before the websocket save", async ({ page }) => {
+  await page.locator("button[data-schedule-edit=monday]").click();
   await page.locator("button[data-schedule-add=monday]").click();
   await page.locator("button[data-schedule-add=monday]").click();
   const rows = page.locator("[data-day-editor=monday] [data-schedule-row]");
@@ -292,11 +314,12 @@ test("rejects overlapping windows before the websocket save", async ({ page }) =
 
 test("keeps a compact seven-day overview and copies a day without opening all editors", async ({ page }) => {
   await expect(page.locator("[data-schedule-day]")).toHaveCount(7);
-  await expect(page.locator("[data-day-editor]")).toHaveCount(1);
+  await expect(page.locator("[data-day-editor]")).toHaveCount(0);
+  await page.locator("button[data-schedule-edit=monday]").click();
   await page.locator("button[data-schedule-add=monday]").click();
   await page.evaluate(() => window.prompt = () => "friday");
   await page.locator("button[data-schedule-copy]").click();
-  await expect(page.locator("fieldset[data-schedule-day=friday] [data-day-summary]")).toContainText("06:00 – 22:00");
+  await expect(page.locator("fieldset[data-schedule-day=friday] [data-day-summary]")).toContainText("06:00–22:00");
   await expect(page.locator("[data-day-editor]")).toHaveCount(1);
 });
 
