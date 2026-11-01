@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.0-beta.36 – Phase 55 sichtbare Diagnosewerte / Visible diagnostic values
+
+### Deutsch
+
+- Konfigurierte Fensterkontakte erscheinen jetzt zuverlässig in der
+  Quellenprüfung, auch wenn ältere Daten kein `area_id` oder `zone_ids` tragen.
+- Fehlende Backend-Diagnosedaten werden sichtbar gemeldet, statt den gesamten
+  Bereich leer erscheinen zu lassen.
+- Die Korrektur ändert keine Speicherlogik, Entities oder produktive Werte und
+  bleibt im passiven Kompatibilitätsmodus.
+
+### English
+
+- Configured window contacts now reliably appear in source diagnostics even when
+  legacy data has no `area_id` or `zone_ids`.
+- Missing backend diagnostic data is reported visibly instead of making the
+  entire section appear empty.
+- The fix changes no persistence logic, entities, or production values and
+  remains in passive compatibility mode.
+
 ## 0.1.0-beta.35 – Phase 53 Fensterkontakt-Diagnose / Window role diagnostics
 
 ### Deutsch

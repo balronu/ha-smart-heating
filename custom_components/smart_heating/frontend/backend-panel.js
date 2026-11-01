@@ -31,7 +31,11 @@ class SmartHeatingBackendPanel extends HTMLElement {
   _windowRoleDiagnosticValue(value) { return value === null || value === undefined ? "Nicht vorhanden" : value; }
   _windowRoleDiagnostics() {
     const rows = this._data?.window_role_diagnostics || [];
-    if (!rows.length) return `<p class="empty-state" data-window-role-diagnostics>Keine zugeordneten Fensterkontakte mit Diagnosequelle.</p>`;
+    if (!rows.length) {
+      const contacts = (this._data?.window_contacts?.contacts || []).filter((item) => !item?.ignored);
+      if (!contacts.length) return `<p class="empty-state" data-window-role-diagnostics>Keine Fensterkontakte für die Quellenprüfung vorhanden.</p>`;
+      return `<p class="empty-state" data-window-role-diagnostics>Diagnosedaten nicht verfügbar: Das Backend hat für die vorhandenen Fensterkontakte keine getrennten Quellenwerte geliefert.</p>`;
+    }
     return `<div class="table-wrap" data-window-role-diagnostics><table><thead><tr><th>Entity-ID</th><th>ConfigEntry.options</th><th>Runtime</th><th>admin/get</th><th>Vergleich</th></tr></thead><tbody>${rows.map((row) => `<tr data-window-role-diagnostic="${this._esc(row.entity_id)}"><td><strong>${this._esc(row.name || row.entity_id)}</strong><br><code>${this._esc(row.entity_id)}</code></td><td>${this._esc(this._windowRoleDiagnosticValue(row.config_entry_role))}</td><td>${this._esc(this._windowRoleDiagnosticValue(row.runtime_role))}</td><td>${this._esc(this._windowRoleDiagnosticValue(row.readback_role))}</td><td>${this._esc(row.status || (row.matches ? "Übereinstimmung" : "Abweichung"))}</td></tr>`).join("")}</tbody></table></div>`;
   }
   _roomWindowContacts(area, contacts) {
