@@ -1,4 +1,11 @@
-# Smart Heating (Beta 37)
+# Smart Heating (Beta 38)
+
+## Phase 68 – Preserve room contact roles (Beta 38)
+
+The room administration now carries saved window-contact roles unchanged into
+the room projection. Roles such as `tilt` and `open` therefore survive loading
+and saving, while contacts without a stored role are not assigned an invented
+default. Operation remains passive.
 
 ## Phase 57 – Keep diagnostic values visible (Beta 37)
 

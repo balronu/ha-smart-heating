@@ -524,6 +524,10 @@ def area_suggestions(hass: Any, management: Mapping[str, Any] | None = None) -> 
                 contact["ha_area_name"] = discovered.get("area_name")
                 contact["assigned_area_id"] = assigned_area_id
                 contact["assigned_area_name"] = configured.get("area_name")
+                # Keep the saved Smart-Heating role with the room projection;
+                # the panel renders this structure before submitting a room.
+                if "contact_role" in configured:
+                    contact["contact_role"] = configured["contact_role"]
                 contacts.append(contact)
         climates = discover_climate_entities(hass, area["entity_ids"])
         temperatures = discover_temperature_entities(hass, area["entity_ids"])
