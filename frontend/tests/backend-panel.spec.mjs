@@ -203,6 +203,11 @@ test("keeps bathroom window status readable and separates saved assignment", asy
 test("keeps role changes local until room save and persists independent contact roles across reload", async ({ page }) => {
   await page.evaluate(() => {
     const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.climate_entities = [
+      { entity_id: "climate.badezimmer_one", name: "Badezimmer Heizkörper 1", state: "heat", available: true },
+      { entity_id: "climate.badezimmer_two", name: "Badezimmer Heizkörper 2", state: "heat", available: true },
+    ];
+    panel._data.temperature_entities = [{ entity_id: "sensor.badezimmer_temperatur", name: "Badezimmer Temperatur", temperature_role: "room", state: "20", available: true }];
     const contacts = [
       { id: "window-bathroom-tilt", name: "Badezimmer gekippt", entity_id: "binary_sensor.fensterkontakt_badezimmer_contact", area_name: "Badezimmer", assigned_area_id: "badezimmer", assigned_area_name: "Badezimmer", status: "closed", available: true, contact_role: "unassigned", review_required: false, review_flags: [] },
       { id: "window-bathroom-open", name: "Badezimmer offen", entity_id: "binary_sensor.fensterkontakt_badezimmer_1_2_contact", area_name: "Badezimmer", assigned_area_id: "badezimmer", assigned_area_name: "Badezimmer", status: "closed", available: true, contact_role: "unassigned", review_required: false, review_flags: [] },
@@ -222,11 +227,21 @@ test("keeps role changes local until room save and persists independent contact 
   await expect(room.locator("[data-room-window-contact]").nth(0).locator("select")).toHaveValue("tilt");
   await expect(room.locator("[data-room-window-contact]").nth(1).locator("select")).toHaveValue("open");
   await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel")._calls.filter((item) => item.type.endsWith("admin/sensor/set")).length)).toBe(0);
+  await room.locator("select[name=thermostat_entity]").selectOption(["climate.badezimmer_one", "climate.badezimmer_two"]);
+  await room.locator("select[name=temperature_entity]").selectOption("sensor.badezimmer_temperatur");
+  await page.evaluate(() => { document.querySelector("smart-heating-backend-panel")._roomWindowRoleDrafts = {}; });
   await room.locator("button[type=submit]").click();
   await expect(page.locator("details[data-room=room-badezimmer] [data-room-feedback]")).toContainText("Raumkonfiguration gespeichert");
   await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel")._data.window_contacts.contacts.filter((item) => item.assigned_area_id === "badezimmer").map((item) => item.contact_role))).toEqual(["tilt", "open"]);
   await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel")._calls.filter((item) => item.type.endsWith("admin/room/save")).length)).toBe(1);
   await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel")._calls.filter((item) => item.type.endsWith("admin/sensor/set")).length)).toBe(0);
+  const roomSave = await page.evaluate(() => document.querySelector("smart-heating-backend-panel")._calls.find((item) => item.type.endsWith("admin/room/save")));
+  expect(roomSave.item.thermostat_entities).toEqual(["climate.badezimmer_one", "climate.badezimmer_two"]);
+  expect(roomSave.item.temperature_entities).toEqual(["sensor.badezimmer_temperatur"]);
+  expect(Object.fromEntries(roomSave.contacts.map((item) => [item.entity_id, item.contact_role]))).toEqual({
+    "binary_sensor.fensterkontakt_badezimmer_contact": "tilt",
+    "binary_sensor.fensterkontakt_badezimmer_1_2_contact": "open",
+  });
   await page.reload();
   await page.locator("details[data-section=rooms] > summary").click();
   await page.locator("details[data-room=room-badezimmer] summary").click();

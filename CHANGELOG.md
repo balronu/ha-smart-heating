@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.1.0-beta.34 – Phase 48 Formularpersistenz / Form persistence
+
+### Deutsch
+
+- Fensterkontaktrollen werden beim Speichern direkt aus den sichtbaren
+  Raumformularfeldern je Entity-ID gelesen.
+- Der bestehende atomare `admin/room/save`-Pfad bleibt unverändert; die
+  Korrektur verhindert veraltete Draft-Werte bei mobilen Formularen.
+- Regression mit zwei Thermostaten, einem Raumtemperaturfühler und zwei
+  unabhängigen Fensterkontaktrollen ergänzt. Passivmodus und bestehende
+  Zuordnungen bleiben unverändert.
+
+### English
+
+- Window contact roles are read directly from the visible room form controls
+  by entity ID when saving.
+- The existing atomic `admin/room/save` path is unchanged; the fix prevents
+  stale draft values from replacing mobile form selections.
+- Added a regression with two thermostats, one room temperature sensor, and
+  two independent window contact roles. Passive mode and existing assignments
+  remain unchanged.
+
 ## 0.1.0-beta.33 – Phase 44 atomare Raumspeicherung / Atomic room save
 
 ### Deutsch

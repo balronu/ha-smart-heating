@@ -41,6 +41,9 @@ class RuntimeTests(unittest.TestCase):
                     hass.data.pop(loader.DATA_CUSTOM_COMPONENTS, None)
                     await loader.async_get_custom_components(hass)
                     hass.states.async_set("climate.esszimmer", "heat", {"friendly_name": "Esszimmer Heizung"})
+                    hass.states.async_set("climate.badezimmer_1", "heat", {"friendly_name": "Badezimmer Heizkörper 1"})
+                    hass.states.async_set("climate.badezimmer_2", "heat", {"friendly_name": "Badezimmer Heizkörper 2"})
+                    hass.states.async_set("sensor.badezimmer_temperatur", "20", {"friendly_name": "Badezimmer Temperatur", "device_class": "temperature"})
                     hass.states.async_set("input_boolean.heizung", "on", {"friendly_name": "Heizung"})
                     hass.states.async_set("input_boolean.heizung_freigabe", "on", {"friendly_name": "Heizungsfreigabe"})
                     hass.states.async_set("input_number.heiztemperatur", "20", {"friendly_name": "Heiztemperatur"})
@@ -88,8 +91,8 @@ class RuntimeTests(unittest.TestCase):
                         "name": "Badezimmer",
                         "enabled": True,
                         "area_ids": ["badezimmer"],
-                        "thermostat_entities": [],
-                        "temperature_entities": [],
+                        "thermostat_entities": ["climate.badezimmer_1", "climate.badezimmer_2"],
+                        "temperature_entities": ["sensor.badezimmer_temperatur"],
                         "window_entities": [],
                         "tilt_entities": [],
                         "comfort_temperature": 20,
