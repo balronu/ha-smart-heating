@@ -200,22 +200,37 @@ test("keeps bathroom window status readable and separates saved assignment", asy
   await expect(page.locator("tr[data-window-row]").filter({ hasText: "Badezimmer Fenster" })).toHaveCount(0);
 });
 
-test("offers one persisted role selector per room contact and keeps diagnostics visible", async ({ page }) => {
+test("keeps role changes local until room save and persists independent contact roles across reload", async ({ page }) => {
   await page.evaluate(() => {
     const panel = document.querySelector("smart-heating-backend-panel");
-    const contact = { id: "window-bathroom", name: "Badezimmer Fenster", entity_id: "binary_sensor.badezimmer_fenster", area_name: "Badezimmer", assigned_area_id: "badezimmer", assigned_area_name: "Badezimmer", status: "unavailable", available: false, contact_role: "open", review_required: true, review_flags: ["stale_or_unavailable"] };
-    panel._data.window_contacts.contacts.push(contact);
-    panel._data.areas.push({ area_id: "badezimmer", name: "Badezimmer", relevant: false, relevance_source: "unassigned", window_contacts: [contact], window_contact_count: 1 });
+    const contacts = [
+      { id: "window-bathroom-tilt", name: "Badezimmer gekippt", entity_id: "binary_sensor.fensterkontakt_badezimmer_contact", area_name: "Badezimmer", assigned_area_id: "badezimmer", assigned_area_name: "Badezimmer", status: "closed", available: true, contact_role: "unassigned", review_required: false, review_flags: [] },
+      { id: "window-bathroom-open", name: "Badezimmer offen", entity_id: "binary_sensor.fensterkontakt_badezimmer_1_2_contact", area_name: "Badezimmer", assigned_area_id: "badezimmer", assigned_area_name: "Badezimmer", status: "closed", available: true, contact_role: "unassigned", review_required: false, review_flags: [] },
+    ];
+    panel._data.window_contacts.contacts.push(...contacts);
+    panel._data.areas.push({ area_id: "badezimmer", name: "Badezimmer", relevant: false, relevance_source: "unassigned", window_contacts: contacts, window_contact_count: contacts.length });
     panel._render();
   });
   await page.locator("details[data-section=rooms] > summary").click();
   await page.locator("details[data-room=room-badezimmer] summary").click();
-  const contact = page.locator("details[data-room=room-badezimmer] [data-room-window-contact]");
-  await expect(contact.locator("select[data-room-window-role]")).toHaveValue("open");
-  await expect(contact).toContainText("binary_sensor.badezimmer_fenster");
-  await expect(contact).toContainText("Für Heizungsautomatik ignoriert");
-  await contact.locator("select[data-room-window-role]").selectOption("tilt");
-  await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel")._data.window_contacts.contacts.find((item) => item.entity_id === "binary_sensor.badezimmer_fenster")?.contact_role)).toBe("tilt");
+  const room = page.locator("details[data-room=room-badezimmer]");
+  await expect(room.locator("[data-room-window-contact]")).toHaveCount(2);
+  await expect(room.locator("[data-room-window-contact]").first()).toContainText("binary_sensor.fensterkontakt_badezimmer_contact");
+  await page.evaluate(() => { const panel = document.querySelector("smart-heating-backend-panel"); panel._calls = []; const original = panel._hass.callWS; panel._hass.callWS = async (message) => { panel._calls.push(message); return original(message); }; });
+  await room.locator("[data-room-window-contact]").nth(0).locator("select[data-room-window-role]").selectOption("tilt");
+  await room.locator("[data-room-window-contact]").nth(1).locator("select[data-room-window-role]").selectOption("open");
+  await expect(room.locator("[data-room-window-contact]").nth(0).locator("select")).toHaveValue("tilt");
+  await expect(room.locator("[data-room-window-contact]").nth(1).locator("select")).toHaveValue("open");
+  await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel")._calls.filter((item) => item.type.endsWith("admin/sensor/set")).length)).toBe(0);
+  await room.locator("button[type=submit]").click();
+  await expect(room.locator("[data-room-feedback]")).toContainText("Raumkonfiguration gespeichert");
+  await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel")._data.window_contacts.contacts.filter((item) => item.assigned_area_id === "badezimmer").map((item) => item.contact_role))).toEqual(["tilt", "open"]);
+  await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel")._calls.filter((item) => item.type.endsWith("admin/sensor/set")).length)).toBe(2);
+  await page.reload();
+  await page.locator("details[data-section=rooms] > summary").click();
+  await page.locator("details[data-room=room-badezimmer] summary").click();
+  await expect(page.locator("details[data-room=room-badezimmer] [data-room-window-contact]").nth(0).locator("select")).toHaveValue("tilt");
+  await expect(page.locator("details[data-room=room-badezimmer] [data-room-window-contact]").nth(1).locator("select")).toHaveValue("open");
 });
 
 test("ignores and restores a contact without deleting the HA entity", async ({ page }) => {
