@@ -3,7 +3,17 @@
 from datetime import datetime, timezone
 import unittest
 
-from custom_components.smart_heating.backend_engine import (
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
+import sys
+
+_SPEC = spec_from_file_location("smart_heating_backend_engine", Path(__file__).parents[1] / "custom_components" / "smart_heating" / "backend_engine.py")
+_ENGINE = module_from_spec(_SPEC)
+assert _SPEC and _SPEC.loader
+sys.modules["smart_heating_backend_engine"] = _ENGINE
+_SPEC.loader.exec_module(_ENGINE)
+
+from smart_heating_backend_engine import (
     aggregate_window_states,
     calculate_room_demand,
     evaluate_window_groups,
