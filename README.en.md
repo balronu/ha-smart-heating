@@ -1,4 +1,16 @@
-# Smart Heating (Beta 30)
+# Smart Heating (Beta 31)
+
+## Phase 40 – Window contact roles (Beta 31)
+
+Room management supports a manual role per window contact: **Tilt sensor**,
+**Open sensor**, or **Unassigned**. Multiple contacts per role are supported.
+**Open** takes precedence over **Tilted**. `unknown` and `unavailable` remain
+visible in diagnostics and are explicitly ignored for heating automation; with
+no valid signal, passive automation treats the room as closed. Existing
+assignments migrate backward-compatibly without guessing from names.
+
+This beta changes no Home Assistant entities, helpers, areas, Zigbee2MQTT data,
+or heating commands.
 
 ## Phase 38 backend boundary (Beta 29)
 

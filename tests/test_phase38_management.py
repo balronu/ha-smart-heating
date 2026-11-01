@@ -10,7 +10,17 @@ class Phase38ManagementTests(unittest.TestCase):
         second = normalize_management(first)
         self.assertEqual(first, second)
         self.assertEqual(first["zones"][0]["thermostat_entities"], ["climate.esszimmer"])
-        self.assertEqual(first["schema_version"], 4)
+        self.assertEqual(first["schema_version"], 5)
+
+    def test_window_contact_role_migration_is_idempotent_and_preserves_legacy_semantics(self):
+        legacy = {"sensors": {"window": [{"id": "w1", "entity_id": "binary_sensor.window", "state_semantics": "binary"}], "tilt": [{"id": "t1", "entity_id": "binary_sensor.tilt", "state_semantics": "tilt"}]}}
+        first = normalize_management(legacy)
+        second = normalize_management(first)
+        self.assertEqual(first, second)
+        self.assertEqual(first["sensors"]["window"][0]["contact_role"], "unassigned")
+        self.assertEqual(first["sensors"]["window"][0]["legacy_state_semantics"], "binary")
+        self.assertEqual(first["sensors"]["tilt"][0]["legacy_state_semantics"], "tilt")
+        self.assertEqual(validate_management(first), [])
 
     def test_three_thermostats_and_duplicate_conflict_are_visible(self):
         data = normalize_management({"zones": [

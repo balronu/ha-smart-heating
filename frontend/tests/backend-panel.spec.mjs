@@ -200,6 +200,24 @@ test("keeps bathroom window status readable and separates saved assignment", asy
   await expect(page.locator("tr[data-window-row]").filter({ hasText: "Badezimmer Fenster" })).toHaveCount(0);
 });
 
+test("offers one persisted role selector per room contact and keeps diagnostics visible", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    const contact = { id: "window-bathroom", name: "Badezimmer Fenster", entity_id: "binary_sensor.badezimmer_fenster", area_name: "Badezimmer", assigned_area_id: "badezimmer", assigned_area_name: "Badezimmer", status: "unavailable", available: false, contact_role: "open", review_required: true, review_flags: ["stale_or_unavailable"] };
+    panel._data.window_contacts.contacts.push(contact);
+    panel._data.areas.push({ area_id: "badezimmer", name: "Badezimmer", relevant: false, relevance_source: "unassigned", window_contacts: [contact], window_contact_count: 1 });
+    panel._render();
+  });
+  await page.locator("details[data-section=rooms] > summary").click();
+  await page.locator("details[data-room=room-badezimmer] summary").click();
+  const contact = page.locator("details[data-room=room-badezimmer] [data-room-window-contact]");
+  await expect(contact.locator("select[data-room-window-role]")).toHaveValue("open");
+  await expect(contact).toContainText("binary_sensor.badezimmer_fenster");
+  await expect(contact).toContainText("Für Heizungsautomatik ignoriert");
+  await contact.locator("select[data-room-window-role]").selectOption("tilt");
+  await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel")._data.window_contacts.contacts.find((item) => item.entity_id === "binary_sensor.badezimmer_fenster")?.contact_role)).toBe("tilt");
+});
+
 test("ignores and restores a contact without deleting the HA entity", async ({ page }) => {
   await page.locator("details[data-section=windows] summary").click();
   const row = page.locator('tr[data-window-row]').filter({ hasText: "Wohnzimmer Fenster" });

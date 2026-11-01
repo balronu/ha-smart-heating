@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.0-beta.31 – Phase 40 Fensterkontakt-Funktionen / Window contact roles
+
+### Deutsch
+
+- Fensterkontakte können pro Entity-ID als **Gekippt-Sensor**, **Offen-Sensor** oder **Nicht zugeordnet** gespeichert werden; mehrere Kontakte je Funktion bleiben zulässig.
+- Offen hat in der passiven Raumaggregation Vorrang vor Gekippt. `unknown` und `unavailable` bleiben sichtbar, werden für die Heizungsautomatik aber ignoriert; ohne gültiges Signal gilt der Raum dort als geschlossen.
+- Bestehende `window`-/`tilt`-Zuordnungen werden ohne automatische Vermutung migriert und behalten ihre Legacy-Semantik bis zur manuellen Auswahl.
+- Keine HA-Entities, Helper, Bereiche, Zigbee2MQTT-Daten oder Heizbefehle werden verändert. Der Kompatibilitätsmodus bleibt passiv.
+
+### English
+
+- Window contacts can be stored per entity ID as **Tilt sensor**, **Open sensor**, or **Unassigned**; multiple contacts per role remain supported.
+- Open takes precedence over tilted in passive aggregation. `unknown` and `unavailable` remain visible but are ignored by heating automation; with no valid signal, automation treats the room as closed.
+- Existing `window`/`tilt` assignments migrate without guessing and retain legacy semantics until manually assigned.
+- No HA entities, helpers, areas, Zigbee2MQTT data, or heating commands are changed. Compatibility mode remains passive.
+
 ## 0.1.0-beta.30 – Phase 39 Veröffentlichung / Release
 
 ### Deutsch
