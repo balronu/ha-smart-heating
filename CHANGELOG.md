@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.0-beta.17 – Beta 17
+
+### Deutsch
+
+- Smart-Heating-Seitenpanel als modernes, responsives Verwaltungsbackend überarbeitet.
+- Wochenplan auf kompakte Tagesübersicht mit aktivem Tageseditor, Zeitfensterverwaltung, optionaler Zieltemperatur, Validierung und sichtbarer Speicherbestätigung umgestellt.
+- Sieben Verwaltungsbereiche zeigen verständliche Leerzustände; Touchflächen, Hell-/Dunkelmodus und enge Viewports werden unterstützt.
+- Bestehende WebSocket-Verträge, Config-Entry-ID, passive Betriebsgrenze und Heizungsautomation bleiben unverändert.
+
+### English
+
+- Redesigned the Smart Heating sidebar as a modern, responsive administration backend.
+- Replaced the seven large schedule fieldsets with a compact day overview and one active day editor, including window management, optional target temperature, validation, and visible save feedback.
+- Added clear empty states across the seven administration areas and improved touch targets, light/dark mode, and narrow viewport behavior.
+- Preserved the existing WebSocket contracts, Config Entry ID, passive safety boundary, and heating automation.
+
 ## 0.1.0-beta.16 – Beta 16
 
 ### Deutsch
