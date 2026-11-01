@@ -2,6 +2,13 @@
 
 ## Phase 38 backend boundary (Beta 29)
 
+Die Raumverwaltung verwendet für Heizkörper und Thermostate ausschließlich die
+Mehrfachauswahl mit Häkchen. Gespeicherte Thermostate werden nach dem Öffnen
+wieder ausgewählt und kompakt mit Name, Entity-ID und Verfügbarkeit angezeigt;
+der Raumtemperaturfühler bleibt separat. Übernommen wird erst mit „Raum
+speichern“. Diese UX-Nachbesserung ist Teil der laufenden Phase 38 und erzeugt
+keine neue Release-Version.
+
 Rooms can retain multiple `climate.*` entities while room temperature sensors
 remain separate. Legacy single-thermostat data migrates losslessly and
 idempotently; duplicate ownership is reported. Window contacts use explicit

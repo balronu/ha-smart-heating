@@ -1,5 +1,29 @@
 # Changelog
 
+## Phase 38 UX-Nachbesserung – Thermostatauswahl vereinheitlicht
+
+### Deutsch
+
+- Die Raumverwaltung verwendet für Heizkörper/Thermostate jetzt ausschließlich
+  die Mehrfachauswahl mit Häkchen.
+- Der redundante Leit-/Einzelthermostat-Selektor wurde entfernt.
+- Gespeicherte Mehrfachzuordnungen werden nach dem Öffnen vollständig markiert
+  und darunter mit Name, Entity-ID und Verfügbarkeit angezeigt.
+- Raumtemperaturfühler bleiben eine getrennte Einzelauswahl; Änderungen werden
+  weiterhin erst mit „Raum speichern“ übernommen.
+- Keine neue Release-Version, keine Backups und keine produktiven HA-Änderungen.
+
+### English
+
+- Room management now uses only the checked multi-selection for radiators and
+  thermostats.
+- The redundant lead/single-thermostat selector was removed.
+- Saved thermostat assignments are restored as checked entries and shown below
+  with name, entity ID, and availability.
+- Room temperature sensors remain a separate single selection; changes are
+  applied only by “Save room”.
+- No new release version, backups, or productive Home Assistant changes.
+
 ## 0.1.0-beta.29 – Beta 29 / Phase 38 Backend Completion
 
 ### Deutsch

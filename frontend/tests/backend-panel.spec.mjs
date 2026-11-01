@@ -307,6 +307,28 @@ test("offers suitable bathroom devices outside the HA area and preserves the sel
   await expect(room.locator("[data-room-assignment-hint]")).toContainText("separat aktiviert");
 });
 
+test("uses one checked multi-thermostat selector and restores all saved entries", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.climate_entities = [
+      { entity_id: "climate.esszimmer_one", name: "Esszimmer Heizkörper 1", state: "heat", available: true },
+      { entity_id: "climate.esszimmer_two", name: "Esszimmer Heizkörper 2", state: "unavailable", available: false },
+    ];
+    panel._data.areas[0].thermostat_entities = panel._data.climate_entities;
+    panel._data.management.zones = [{ id: "dining-zone", name: "Esszimmer", area_ids: ["wohnzimmer"], thermostat_entities: ["climate.esszimmer_one", "climate.esszimmer_two"], temperature_entities: [], enabled: true }];
+    panel._render();
+  });
+  await page.getByText("Räume & Klimazonen", { exact: true }).click();
+  const room = page.locator("details[data-room=room-wohnzimmer]");
+  await room.locator("summary").click();
+  await expect(room.locator("select[name=thermostat_entity]")).toHaveCount(1);
+  await expect(room.locator("select[name=thermostat_entity]")).toHaveAttribute("multiple", "");
+  await expect(room.locator("select[data-lead-thermostat]")).toHaveCount(0);
+  await expect(room.locator("select[name=thermostat_entity] option:checked")).toHaveCount(2);
+  await expect(room.locator("[data-selected-thermostats]")).toContainText("Esszimmer Heizkörper 1");
+  await expect(room.locator("[data-selected-thermostats]")).toContainText("nicht verfügbar");
+});
+
 test("labels unavailable contact states as unavailable and explains passive special modes", async ({ page }) => {
   await page.evaluate(() => {
     const panel = document.querySelector("smart-heating-backend-panel");
