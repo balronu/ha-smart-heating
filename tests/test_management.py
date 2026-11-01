@@ -23,6 +23,7 @@ from custom_components.smart_heating.management import (  # noqa: E402
     normalize_special_modes,
     aggregate_window_status,
     is_eligible_window_entity,
+    OPERATING_STATES,
 )
 from custom_components.smart_heating.models import evaluate_decision  # noqa: E402
 from custom_components.smart_heating.storage import load_schedule  # noqa: E402
@@ -52,6 +53,63 @@ class Hass:
 
 
 class ManagementTests(unittest.TestCase):
+    def test_beta38_management_migrates_to_fenced_passive_control_plane(self):
+        data = normalize_management({
+            "schema_version": 5,
+            "zones": [{
+                "id": "bathroom", "name": "Badezimmer",
+                "thermostat_entities": ["climate.bathroom_a", "climate.bathroom_b"],
+                "temperature_entities": ["sensor.bathroom_temperature"],
+            }],
+            "sensors": {"window": [
+                {"id": "upper", "entity_id": "binary_sensor.upper", "contact_role": "tilt", "zone_ids": ["bathroom"]},
+                {"id": "lower", "entity_id": "binary_sensor.lower", "contact_role": "open", "zone_ids": ["bathroom"]},
+            ]},
+            "internal": {"zones": {"bathroom": {"comfort_temperature": 21, "night_temperature": 17}}},
+        })
+        self.assertEqual(data["schema_version"], 6)
+        self.assertEqual(data["control_plane"]["operating_state"], "LEGACY")
+        self.assertFalse(data["control_plane"]["switch_ready"])
+        self.assertTrue(data["control_plane"]["rollback_ready"])
+        self.assertEqual({item["contact_role"] for item in data["sensors"]["window"]}, {"tilt", "open"})
+        self.assertEqual(data["zones"][0]["thermostat_entities"], ["climate.bathroom_a", "climate.bathroom_b"])
+        self.assertEqual(data["zones"][0]["temperature_entities"], ["sensor.bathroom_temperature"])
+
+    def test_migration_never_activates_requested_smart_state(self):
+        data = normalize_management({"control_plane": {"operating_state": "SMART", "confirmed_control_ownership": "smart"}})
+        self.assertEqual(set(OPERATING_STATES), {"LEGACY", "TRANSITIONING", "SMART"})
+        self.assertEqual(data["control_plane"]["operating_state"], "LEGACY")
+        self.assertEqual(data["control_plane"]["requested_state"], "SMART")
+        self.assertEqual(data["control_plane"]["error"], "operating_state_not_enabled:SMART")
+        self.assertIn("active_control_state_not_allowed", validate_management({"control_plane": {"operating_state": "SMART"}}))
+
+    def test_special_mode_behavior_contract_is_structured_and_passive(self):
+        data = normalize_management({"special_modes": [{
+            "id": "party", "available": True, "active": True, "priority": 500,
+            "activation": {"type": "entity", "source": "input_boolean.party"},
+            "effect": {"action": "comfort", "target_reference": "comfort", "override_schedule": True},
+            "conditions": {"presence": "home"}, "exceptions": {"window": "respect"},
+            "deactivation": {"action": "return_to_normal"},
+        }]})
+        party = next(item for item in data["special_modes"] if item["id"] == "party")
+        self.assertEqual(party["activation"], {"type": "entity", "source": "input_boolean.party"})
+        self.assertTrue(party["effect"]["override_schedule"])
+        self.assertEqual(party["deactivation"]["action"], "return_to_normal")
+        self.assertFalse(party["controllable"])
+        self.assertFalse(validate_management(data))
+
+    def test_special_mode_normalization_preserves_future_schema_fields(self):
+        data = normalize_management({"special_modes": [{"id": "party", "effect": {"action": "comfort"}, "future_policy": {"source": "next-beta"}}]})
+        party = next(item for item in data["special_modes"] if item["id"] == "party")
+        self.assertEqual(party["future_policy"], {"source": "next-beta"})
+        self.assertEqual(party["effect"]["action"], "comfort")
+
+    def test_chimney_sweep_priority_is_immutable_in_model(self):
+        data = normalize_management({"special_modes": [{"id": "chimney_sweep", "priority": 1}]})
+        chimney = next(item for item in data["special_modes"] if item["id"] == "chimney_sweep")
+        self.assertEqual(chimney["priority"], 1000)
+        # User data cannot lower the absolute safety priority.
+        self.assertFalse(chimney["controllable"])
     def test_single_thermostat_migrates_to_list_and_lead(self):
         data = normalize_management({"zones": [{"id": "dining", "name": "Esszimmer", "thermostat_entity": "climate.radiator_one"}]})
         zone = data["zones"][0]

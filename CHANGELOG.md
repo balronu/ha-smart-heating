@@ -1,5 +1,222 @@
 # Changelog
 
+## 0.1.0-beta.39 – Phase 83 reale Shadow-Datenversorgung / Live shadow data
+
+### Deutsch
+
+- Die passive Shadow-Auswertung erhält einen begrenzten read-only Adapter für
+  bekannte Home-Assistant-Zustände, Climate-Ziele, Fensterkontakte und
+  Betriebs-Helper.
+- Legacy-Parität wird nur mit einem ausdrücklich nachgewiesenen und zeitnahen
+  Trace bewertet. Fehlende Trace- und Scheduler-Nachweise bleiben sichtbar
+  unvollständig und geben SMART nicht frei.
+- Keine Heizbefehle, Serviceaufrufe oder produktiven Konfigurationsänderungen.
+
+### English
+
+- Passive shadow evaluation now has a bounded read-only adapter for known Home
+  Assistant states, climate targets, window contacts, and operating helpers.
+- Legacy parity is accepted only with an explicitly proven and fresh trace.
+  Missing trace and scheduler evidence remains visibly incomplete and never
+  enables SMART takeover.
+- No heating commands, service calls, or productive configuration changes.
+
+## Unreleased – Phase 83 reale Shadow-Datenversorgung / Live shadow data
+
+### Deutsch
+
+- Eine begrenzte, rein lesende Datenadapter-Schicht stellt bekannte HA-Zustände,
+  Climate-Ziele, Fensterkontakte und Betriebs-Helper für die passive
+  Shadow-Diagnose bereit. Jeder Snapshot enthält Herkunft, Zeitstempel und
+  Verfügbarkeitsstatus; Serviceaufrufe bleiben ausgeschlossen.
+- Legacy-Entscheidungen werden nicht aus Thermostatwerten abgeleitet. Ohne
+  ausdrücklich nachgewiesenen Trace bleibt der Vergleich sichtbar
+  `comparison_not_possible`; nicht verifizierte Scheduler-Daten bleiben
+  unvollständig und blockieren SMART.
+- Begrenzte Timeout-/Fehlerbehandlung für optionale read-only Leser meldet nur
+  den technischen Fehlertyp und gibt keine sensiblen Inhalte aus.
+
+### English
+
+- A bounded, read-only data-adapter layer supplies known HA states, climate
+  targets, window contacts, and operating helpers to passive shadow
+  diagnostics. Snapshots include source, timestamp, and availability; service
+  calls remain excluded.
+- Legacy decisions are never inferred from thermostat values. Without an
+  explicitly proven trace, comparison remains visibly
+  `comparison_not_possible`; unverified scheduler data stays incomplete and
+  blocks SMART takeover.
+- Bounded timeout/error handling for optional read-only readers exposes only
+  the technical error type and no sensitive contents.
+
+## Unreleased – Phase 82 Shadow-Vergleich / Shadow parity
+
+### Deutsch
+
+- Legacy-Entscheidung, passive Smart-Heating-Entscheidung und beobachteter
+  Thermostatzustand werden in einem nachvollziehbaren Vergleichsmodell
+  zusammengeführt.
+- Parität wird nur mit frischem, ausdrücklich nachgewiesenem Legacy-Trace
+  gemeldet; fehlende oder veraltete Daten bleiben sichtbar und geben SMART
+  nicht frei.
+- Die bestehende passive Diagnosekarte zeigt Vergleichsergebnis, Sollwerte,
+  Begründung und den gesperrten SMART-Zustand.
+
+### English
+
+- Legacy decisions, passive Smart Heating decisions, and observed thermostat
+  state are exposed in an auditable comparison model.
+- Parity is reported only with a fresh, explicitly proven legacy trace; missing
+  or stale data stays visible and never enables SMART takeover.
+- The existing passive diagnostic card shows the comparison, setpoints,
+  rationale, and the locked SMART state.
+
+## Unreleased – Phase 81 passiver Aktorvertrag / Passive actuator contract
+
+### Deutsch
+
+- Passive Shadow-Entscheidungen enthalten jetzt einen strikt nicht
+  ausführenden Aktorplan mit Zielentität, Primary/Fallback-Auswahl,
+  Klima-Serviceparametern, Begründung, Datenqualität und fehlenden
+  Voraussetzungen.
+- Aktionen werden ausdrücklich als `not_executed` markiert. Unbekannte
+  Aktoren, fehlende Readbacks und der unbestätigte Kessel-Rückkanal blockieren
+  die Planung bzw. die SMART-Freigabe; es werden keine Heizbefehle gesendet.
+
+### English
+
+- Passive shadow decisions now include a strictly non-executing actuator plan
+  with target entity, deterministic primary/fallback selection, climate-service
+  parameters, rationale, data quality, and missing prerequisites.
+- Actions are explicitly marked `not_executed`. Unknown actors, missing
+  readback, and unverified boiler feedback block planning or SMART readiness;
+  no heating commands are sent.
+
+## Unreleased – Phase 78 Wochenzeitplan und Tages-/Nachtsteuerung
+
+### Deutsch
+
+- Der versionierte Wochenplan bewahrt bestehende Einstellungen und unterstützt
+  mehrere Komfortfenster pro Wochentag einschließlich Über-Mitternacht-Fenstern.
+- Die passive Auswertung meldet Komfort-/Absenkbetrieb, nächste Umschaltung und
+  optionale Fenster-Solltemperaturen. Fehlende Scheduler-Nachweise blockieren
+  weiterhin eine SMART-Umschaltung.
+- Die Verwaltung bietet Abbrechen ohne Schreibzugriff und bleibt auf kleinen
+  Bildschirmen bedienbar. Es werden keine Heizbefehle ausgelöst.
+
+### English
+
+- The versioned weekly schedule preserves existing settings and supports
+  multiple comfort windows per weekday, including windows crossing midnight.
+- Passive evaluation reports comfort/setback state, the next switch, and
+  optional window targets. Missing scheduler evidence still blocks SMART
+  cutover.
+- The editor provides a no-write cancel action and remains usable on narrow
+  screens. No heating commands are issued.
+
+## Unreleased – Phase 77 Sondermodus-Wirkungen
+
+### Deutsch
+
+- Built-in- und benutzerdefinierte Sondermodi erhalten eine gemeinsame,
+  mobil bedienbare Oberfläche für Räume, Temperaturverhalten, Zeitplan,
+  Fenster-/Anwesenheitsbedingungen, Dauer, Rückkehr zum Normalbetrieb und
+  Priorität.
+- Die Wirkung wird im Schema 6 gespeichert und in der passiven Vorschau
+  zusammengefasst. Bestehende unbekannte Felder bleiben bei der Normalisierung
+  erhalten; Schornsteinfeger bleibt unveränderlich auf Priorität 1000.
+- Keine Einstellung aktiviert Heizsteuerung, Helper oder Automationen.
+
+### English
+
+- Built-in and custom special modes now share a mobile-friendly editor for
+  rooms, temperature behavior, schedule, window/presence conditions, duration,
+  return to normal operation, and priority.
+- Effects are stored in schema 6 and summarized in the passive preview.
+  Unknown existing fields survive normalization; chimney-sweep remains fixed
+  at priority 1000.
+- No setting activates heating control, helpers, or automations.
+
+## Unreleased – Phase 76 passiver Sondermodus-Resolver
+
+### Deutsch
+
+- Der passive Resolver berechnet jetzt die Wirkung aktiver Built-in- und
+  Custom-Sondermodi je Raum: Zieltemperatur, Zeitplanübersteuerung,
+  Fenster-/Anwesenheitsregeln, Ablauf und Rückkehr zum Normalbetrieb.
+- Prioritäten werden deterministisch aufgelöst; Schornsteinfeger bleibt mit
+  Priorität 1000 absolut vorrangig. Unbekannte Statusquellen werden nicht als
+  aktiv angenommen.
+- Shadow-Ergebnisse enthalten Gewinner, unterdrückte Modi, Begründung,
+  Datenqualität, fehlende Scheduler-/Aktorvoraussetzungen und weiterhin keine
+  Befehle. Smart Heating bleibt passiv.
+
+### English
+
+- The passive resolver now calculates the per-room effect of active built-in
+  and custom special modes: target temperature, schedule override,
+  window/presence rules, expiry, and return to normal operation.
+- Priorities are resolved deterministically; chimney-sweep remains the absolute
+  winner at priority 1000. Unknown status sources are never treated as active.
+- Shadow results include the winner, suppressed modes, rationale, data quality,
+  missing scheduler/actuator prerequisites, and still no commands. Smart
+  Heating remains passive.
+
+## Unreleased – Phase 75 Migrationsdatenmodell
+
+### Deutsch
+
+- Das Management-Schema wird rückwärtskompatibel auf Version 6 normalisiert.
+  Räume, mehrere Thermostate, Raumtemperaturfühler, Fensterkontaktrollen,
+  Zeitpläne und Anwesenheitszuordnungen bleiben erhalten.
+- Sondermodi erhalten einen strukturierten passiven Vertrag für Aktivierung,
+  Bedingungen, Wirkung, Dauer und Rückkehr zum Normalbetrieb. Unbekannte
+  Entitäten werden nicht erraten; Helper werden weiterhin nicht erstellt.
+- Der neue `control_plane`-Block beschreibt `LEGACY`, `TRANSITIONING` und
+  `SMART`, aktiviert aber ausschließlich `LEGACY`. Umschaltbereitschaft,
+  Steuerungshoheit, Rückfallbereitschaft, Fehler und Blockierungsgrund bleiben
+  getrennt sichtbar. Heizbefehle bleiben gesperrt.
+- Ein angeforderter aktiver Zustand wird bei der passiven Migration nicht
+  aktiviert, sondern als blockierter Wunschzustand mit Validierungsfehler
+  dokumentiert. Schornsteinfeger behält unveränderlich Priorität 1000.
+
+### English
+
+- The management schema is backward-compatibly normalized to version 6.
+  Rooms, multiple thermostats, room-temperature sensors, window-contact roles,
+  schedules, and presence assignments are preserved.
+- Special modes now have a structured passive contract for activation,
+  conditions, effects, duration, and return to normal operation. Unknown
+  entities are not guessed and helpers are still never created.
+- The new `control_plane` block describes `LEGACY`, `TRANSITIONING`, and
+  `SMART`, but migration activates only `LEGACY`. Readiness, confirmed
+  ownership, rollback readiness, errors, and blocking reasons remain separate;
+  heating commands stay locked.
+- Requested active states are not activated during passive migration. They are
+  retained as blocked requested states with validation errors. Chimney-sweep
+  priority remains immutably 1000.
+
+## Unreleased – Phase 71 Sondermodi UX
+
+### Deutsch
+
+- Built-in- und benutzerdefinierte Sondermodi werden kompakt und standardmäßig
+  eingeklappt angezeigt; Verfügbarkeit und Aktivität bleiben getrennt.
+- Neue benutzerdefinierte Modi beginnen als lokaler Entwurf und werden erst mit
+  „Anlegen“ gespeichert. „Abbrechen“ erzeugt keinen Backend-Schreibzugriff.
+- Fehlende oder unbekannte externe Statusquellen werden ausdrücklich als
+  „Status unbekannt“ dargestellt. Helper-Erstellung bleibt deaktiviert und der
+  Betrieb passiv.
+
+### English
+
+- Built-in and custom special modes now use compact, collapsed entries while
+  keeping availability and activity separate.
+- New custom modes start as local drafts and are persisted only with “Create”;
+  “Cancel” performs no backend write.
+- Missing or unknown external status sources are shown explicitly as “Status
+  unknown”. Helper creation remains disabled and operation stays passive.
+
 ## 0.1.0-beta.38 – Phase 68 contact-role projection fix
 
 ### Deutsch

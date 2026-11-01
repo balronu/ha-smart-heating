@@ -26,9 +26,30 @@ class ScheduleTests(unittest.TestCase):
         with self.assertRaises(ScheduleValidationError):
             WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "08:00"}, {"start": "07:00", "end": "09:00"}]})
 
-    def test_invalid_and_midnight_window_rejected(self):
+    def test_equal_start_and_end_is_rejected(self):
         with self.assertRaises(ScheduleValidationError):
-            WeeklySchedule.from_mapping({"monday": [{"start": "22:00", "end": "05:00"}]})
+            WeeklySchedule.from_mapping({"monday": [{"start": "22:00", "end": "22:00"}]})
+
+    def test_overnight_window_crosses_midnight_and_week_boundary(self):
+        schedule = WeeklySchedule.from_mapping({"sunday": [{"start": "22:00", "end": "02:00", "target_temperature": 21.5}]})
+        self.assertTrue(schedule.active_at(datetime.fromisoformat("2026-11-01T23:30:00+01:00"), "Europe/Berlin"))
+        self.assertTrue(schedule.active_at(datetime.fromisoformat("2026-11-02T01:30:00+01:00"), "Europe/Berlin"))
+        self.assertFalse(schedule.active_at(datetime.fromisoformat("2026-11-02T02:00:00+01:00"), "Europe/Berlin"))
+        self.assertEqual(schedule.active_window_at(datetime.fromisoformat("2026-11-02T01:30:00+01:00"), "Europe/Berlin").target_temperature, 21.5)
+        next_switch, next_state = schedule.next_switch(datetime.fromisoformat("2026-11-02T01:30:00+01:00"), "Europe/Berlin")
+        self.assertEqual((next_switch.date().isoformat(), next_switch.hour, next_switch.minute, next_state), ("2026-11-02", 2, 0, False))
+
+    def test_window_target_is_used_by_passive_comfort_decision(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "08:00", "target_temperature": 21.5}]})
+        result = calculate_status(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T07:00:00+01:00"),
+            timezone="Europe/Berlin",
+            context={"comfort_temperature": 22, "night_temperature": 17, "heating_sources": {"primary_climate_entity": "climate.test"}, "schedule_source_verified": True},
+        )
+        self.assertEqual(result["target_temperature"], 21.5)
+        self.assertEqual(result["shadow"]["schedule_decision"]["active"], True)
+        self.assertEqual(result["shadow"]["schedule_decision"]["next_switch"], "2026-11-02T08:00:00+01:00")
 
     def test_week_boundary(self):
         schedule = WeeklySchedule.from_mapping({"sunday": [{"start": "23:00", "end": "23:59"}], "monday": [{"start": "06:00", "end": "07:00"}]})
@@ -46,6 +67,67 @@ class ScheduleTests(unittest.TestCase):
         result = calculate_status(schedule, now=datetime.fromisoformat("2026-11-02T07:00:00+01:00"), timezone="Europe/Berlin")
         self.assertTrue(result["simulated"])
         self.assertNotIn("service", result)
+
+    def test_shadow_contains_passive_actor_plan_without_execution(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "20:00"}]})
+        result = calculate_status(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T07:00:00+01:00"),
+            timezone="Europe/Berlin",
+            context={
+                "zone_id": "esszimmer",
+                "comfort_temperature": 22,
+                "night_temperature": 17,
+                "heating_sources": {
+                    "primary_climate_entity": "climate.esszimmer",
+                    "fallback_climate_entity": "climate.tado",
+                },
+                "actor_states": {
+                    "climate.esszimmer": {
+                        "state": "heat",
+                        "hvac_mode": "heat",
+                        "temperature": 20,
+                        "available": True,
+                    },
+                    "climate.tado": {
+                        "state": "heat",
+                        "hvac_mode": "heat",
+                        "temperature": 20,
+                        "available": True,
+                    },
+                },
+                "actor_service_evidence": {
+                    "climate.set_hvac_mode": True,
+                    "climate.set_temperature": True,
+                },
+                "schedule_source_verified": True,
+            },
+        )
+        plan = result["shadow"]["planned_actor_actions"]
+        self.assertEqual(plan["selected_entity"], "climate.esszimmer")
+        self.assertEqual([item["service"] for item in plan["planned_commands"]], ["climate.set_temperature"])
+        self.assertEqual(plan["executed_commands"], [])
+        self.assertTrue(plan["passive"])
+
+    def test_shadow_comparison_does_not_claim_parity_without_proven_legacy_trace(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "20:00"}]})
+        result = calculate_status(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T07:00:00+01:00"),
+            timezone="Europe/Berlin",
+            context={
+                "zone_id": "esszimmer",
+                "comfort_temperature": 22,
+                "night_temperature": 17,
+                "heating_sources": {"primary_climate_entity": "climate.esszimmer"},
+                "actor_states": {"climate.esszimmer": {"state": "heat", "temperature": 22, "available": True}},
+                "schedule_source_verified": True,
+            },
+        )
+        comparison = result["shadow"]["comparison"]
+        self.assertEqual(comparison["comparison"], "comparison_not_possible")
+        self.assertFalse(comparison["legacy_proven"])
+        self.assertFalse(comparison["smart_takeover_allowed"])
 
     def test_unknown_window_is_not_treated_as_closed(self):
         schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "20:00"}]})
@@ -148,3 +230,28 @@ class ScheduleTests(unittest.TestCase):
         )
         self.assertEqual(result["mode"], "chimney_sweep")
         self.assertEqual(result["target_hvac_mode"], "heat")
+
+    def test_shadow_status_reports_mode_effect_and_missing_migration_prerequisites(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "20:00"}]})
+        result = calculate_status(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T22:00:00+01:00"),
+            timezone="Europe/Berlin",
+            context={
+                "zone_id": "living",
+                "comfort_temperature": 22,
+                "night_temperature": 17,
+                "thermostats": [{"entity_id": "climate.living", "state": "heat", "available": True}],
+                "room_temperature": 19,
+                "special_modes": [{"id": "party", "mode_type": "party", "available": True, "active": True}],
+                "presence": {"status": "home"},
+                "heating_sources": {},
+            },
+        )
+        self.assertEqual(result["mode"], "party")
+        self.assertEqual(result["target_temperature"], 22.0)
+        self.assertTrue(result["shadow"]["schedule_decision"]["active"] is False)
+        self.assertIn("actor_path", result["shadow"]["missing_prerequisites"])
+        self.assertIn("scheduler_or_schedule_source", result["shadow"]["missing_prerequisites"])
+        self.assertEqual(result["shadow"]["commands"], [])
+        self.assertEqual(result["room_demand"]["commands"], [])

@@ -38,8 +38,8 @@ class TimeWindow:
             end = parse_time(value["end"])
         except (KeyError, TypeError, ValueError) as err:
             raise ScheduleValidationError("Each window needs valid start and end times") from err
-        if start >= end:
-            raise ScheduleValidationError("A window must start before it ends")
+        if start == end:
+            raise ScheduleValidationError("A window cannot start and end at the same time")
         target = value.get("target_temperature", value.get("target"))
         if target in (None, ""):
             target_temperature = None
@@ -75,10 +75,20 @@ class WeeklySchedule:
             if not isinstance(raw_windows, list):
                 raise ScheduleValidationError(f"{day} must contain a list of windows")
             parsed = sorted((TimeWindow.from_mapping(item) for item in raw_windows), key=lambda item: item.start)
-            for previous, current in zip(parsed, parsed[1:]):
-                if previous.end > current.start:
-                    raise ScheduleValidationError(f"Overlapping windows on {day}")
             result[day] = tuple(parsed)
+        segments: dict[int, list[tuple[time, time]]] = {index: [] for index in range(7)}
+        for day_index, day in enumerate(DAYS):
+            for window in result[day]:
+                if window.start < window.end:
+                    segments[day_index].append((window.start, window.end))
+                else:
+                    segments[day_index].append((window.start, time.max))
+                    if window.end > time.min:
+                        segments[(day_index + 1) % 7].append((time.min, window.end))
+        for day_index, day_segments in segments.items():
+            for previous, current in zip(sorted(day_segments), sorted(day_segments)[1:]):
+                if previous[1] > current[0]:
+                    raise ScheduleValidationError(f"Overlapping windows on {DAYS[day_index]}")
         return cls(result)
 
     def as_dict(self) -> dict[str, list[dict[str, str]]]:
@@ -87,22 +97,46 @@ class WeeklySchedule:
     def active_at(self, instant: datetime, timezone: str) -> bool:
         local = instant.astimezone(ZoneInfo(timezone))
         current = local.time().replace(tzinfo=None)
-        return any(window.start <= current < window.end for window in self.windows[DAYS[local.weekday()]])
+        return any(
+            (window.start <= current < window.end)
+            if window.start < window.end
+            else (current >= window.start or current < window.end)
+            for window in self.windows[DAYS[local.weekday()]]
+        ) or any(
+            window.start > window.end and current < window.end
+            for window in self.windows[DAYS[(local.weekday() - 1) % 7]]
+        )
+
+    def active_window_at(self, instant: datetime, timezone: str) -> TimeWindow | None:
+        """Return the configured comfort window covering ``instant``."""
+        local = instant.astimezone(ZoneInfo(timezone))
+        current = local.time().replace(tzinfo=None)
+        for day_index in (local.weekday(), (local.weekday() - 1) % 7):
+            for window in self.windows[DAYS[day_index]]:
+                matches = (
+                    (window.start <= current < window.end)
+                    if window.start < window.end
+                    else (current >= window.start or current < window.end)
+                ) if day_index == local.weekday() else window.start > window.end and current < window.end
+                if matches:
+                    return window
+        return None
 
     def next_switch(self, instant: datetime, timezone: str) -> tuple[datetime | None, bool | None]:
         """Return the next state change, using local calendar semantics."""
         zone = ZoneInfo(timezone)
         local = instant.astimezone(zone)
         active = self.active_at(instant, timezone)
-        for day_offset in range(0, 8):
+        for day_offset in range(-1, 8):
             current_date = local.date() + timedelta(days=day_offset)
             day_windows = self.windows[DAYS[current_date.weekday()]]
             candidates: list[tuple[datetime, bool]] = []
             for window in day_windows:
+                end_date = current_date + timedelta(days=1) if window.start > window.end else current_date
                 candidates.extend(
                     (
                         (datetime.combine(current_date, window.start, zone), True),
-                        (datetime.combine(current_date, window.end, zone), False),
+                        (datetime.combine(end_date, window.end, zone), False),
                     )
                 )
             for candidate, state in sorted(candidates):

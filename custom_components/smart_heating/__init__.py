@@ -49,6 +49,7 @@ from .management import (
     SAFETY_MODES,
 )
 from .storage import effective_config, load_schedule, normalized_options
+from .data_adapters import ReadOnlyShadowDataAdapter
 
 _LOGGER = logging.getLogger(__name__)
 _WS_REGISTERED = f"{DOMAIN}_ws_registered"
@@ -152,6 +153,60 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     context["comfort_temperature"] = settings.get("comfort_temperature", 20.0)
     context["night_temperature"] = settings.get("night_temperature", 17.0)
     context["special_modes"] = management.get("special_modes", [])
+    context["control_plane"] = deepcopy(management.get("control_plane", {}))
+    context["heating_sources"] = deepcopy(management.get("heating_sources", {}))
+    context["heating_sources"]["primary_climate_entity"] = context["heating_sources"].get("primary_climate_entity") or config.get("climate_entity")
+    context["heating_sources"]["fallback_climate_entity"] = context["heating_sources"].get("fallback_climate_entity") or config.get("tado_fallback")
+    context["actor_states"] = {}
+    context["actor_service_evidence"] = {
+        "climate.set_hvac_mode": True,
+        "climate.set_temperature": True,
+    }
+    context["physical_heat_demand_status"] = "not_proven"
+    for entity_id in (context["heating_sources"].get("primary_climate_entity"), context["heating_sources"].get("fallback_climate_entity")):
+        if not entity_id:
+            continue
+        state = hass.states.get(entity_id)
+        if not state:
+            context["actor_states"][entity_id] = {"state": "missing", "available": False}
+            continue
+        context["actor_states"][entity_id] = {
+            "state": str(state.state),
+            "hvac_mode": str(state.state),
+            "temperature": state.attributes.get("temperature"),
+            "hvac_action": state.attributes.get("hvac_action"),
+            "available": str(state.state) not in {"unknown", "unavailable"},
+            "hvac_modes": list(state.attributes.get("hvac_modes", [])),
+        }
+    configured_entities = tuple(
+        item.get("entity_id")
+        for kind in ("window", "tilt")
+        for item in management.get("sensors", {}).get(kind, [])
+        if isinstance(item, Mapping) and item.get("entity_id")
+    )
+    context["shadow_data_sources"] = ReadOnlyShadowDataAdapter(hass).snapshot(
+        primary_climate=context["heating_sources"].get("primary_climate_entity"),
+        fallback_climate=context["heating_sources"].get("fallback_climate_entity"),
+        configured_entities=configured_entities,
+        schedule_source_verified=bool(config.get("schedule_source_verified", False)),
+    )
+    # Only an explicitly proven trace may enter the parity comparator.  The
+    # current production adapter has no trace export, so this remains None;
+    # keeping the bridge here prevents a future adapter from bypassing the
+    # comparator's proof/freshness checks.
+    legacy_trace = context["shadow_data_sources"].get("legacy_trace", {})
+    if legacy_trace.get("proven") and isinstance(legacy_trace.get("decision"), Mapping):
+        context["legacy_decision"] = {
+            **legacy_trace["decision"],
+            "proven": True,
+            "source": legacy_trace.get("source"),
+            "timestamp": legacy_trace.get("timestamp"),
+            "simulated": bool(legacy_trace.get("simulated", False)),
+        }
+    else:
+        context["legacy_decision"] = None
+    context["presence"] = person_presence(hass, management["persons"])
+    context["schedule_source_verified"] = bool(config.get("schedule_source_verified", False))
     context["thermostats"] = []
     context["window_strategy"] = "none"
     context["window_groups"] = []
@@ -619,7 +674,20 @@ async def _ws_admin_safety_set(hass: HomeAssistant, connection: websocket_api.Ac
         if helper_entity and helper_entity not in helper_ids and helper_entity not in saved_helper_ids and not helper_entity.startswith("input_boolean."):
             connection.send_error(msg["id"], "invalid_configuration", "helper_entity_not_found")
             return
-    await _admin_mapping_set(hass, connection, msg, "safety")
+    entry, management = _admin_entry(hass, msg["entry_id"])
+    management["safety"] = {key: value for key, value in item.items() if key != "special_modes"}
+    submitted_modes = item.get("special_modes")
+    if isinstance(submitted_modes, list):
+        submitted_by_id = {str(mode.get("id")): mode for mode in submitted_modes if isinstance(mode, dict) and mode.get("id")}
+        existing_modes = [mode for mode in management.get("special_modes", []) if str(mode.get("id")) not in submitted_by_id]
+        management["special_modes"] = normalize_special_modes({"special_modes": existing_modes + list(submitted_by_id.values())}, management["safety"].get("modes", {}))
+    try:
+        _admin_save(hass, entry, management)
+        await _async_entry_updated(hass, entry)
+    except ValueError as err:
+        connection.send_error(msg["id"], "invalid_configuration", str(err))
+        return
+    connection.send_result(msg["id"], {"management": management, "validation": validate_management(management)})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/system/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})

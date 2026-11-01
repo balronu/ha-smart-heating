@@ -8,7 +8,10 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from .models import ScheduleValidationError, WeeklySchedule
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
+OPERATING_STATES = ("LEGACY", "TRANSITIONING", "SMART")
+CONTROL_OWNERS = ("legacy", "smart", "none")
+MODE_DEACTIVATION_ACTIONS = ("return_to_normal", "retain_last", "manual")
 COLLECTION_KEYS = ("persons", "zones", "sensors")
 SENSOR_TYPES = ("window", "tilt", "temperature", "thermostat")
 SAFETY_MODES = ("party", "visit", "return_home", "summer", "chimney_sweep", "frost_protection")
@@ -190,6 +193,19 @@ def default_management() -> dict[str, Any]:
         "sensors": {kind: [] for kind in SENSOR_TYPES},
         "controller": {},
         "outdoor_temperature": {},
+        # This contract is deliberately declarative.  Empty source fields are
+        # safer than guessing production entities during a future migration.
+        "heating_sources": {
+            "comfort_temperature_entity": None,
+            "setback_temperature_entity": None,
+            "schedule_entity": None,
+            "heating_permission_entity": None,
+            "presence_entities": [],
+            "primary_climate_entity": None,
+            "fallback_climate_entity": None,
+            "heat_demand_entity": None,
+        },
+        "control_plane": default_control_plane(),
         "safety": {"modes": {mode: {"enabled": False, "helper_entity": "", "temperature": None, "duration_minutes": None, "zone_ids": []} for mode in SAFETY_MODES}},
         "special_modes": default_special_modes(),
         "internal": {
@@ -203,6 +219,25 @@ def default_management() -> dict[str, Any]:
             "templates": {},
             "zones": {},
         },
+    }
+
+
+def default_control_plane() -> dict[str, Any]:
+    """Return the fenced, passive migration state.
+
+    LEGACY is the only state that can be obtained by default or by migration.
+    The fields describe readiness; they do not grant control and are not read
+    by any service-call path.
+    """
+    return {
+        "operating_state": "LEGACY",
+        "confirmed_control_ownership": "legacy",
+        "switch_ready": False,
+        "rollback_ready": True,
+        "error": None,
+        "blocked_reason": "Smart Heating ist passiv; eine Umschaltung ist nicht freigegeben.",
+        "last_verified_at": None,
+        "requested_state": None,
     }
 
 
@@ -253,7 +288,20 @@ def _normalize_special_mode(item: Mapping[str, Any], fallback: Mapping[str, Any]
         binding = "internal"
     if binding == "entity" and not helper_entity:
         binding = "internal"
-    return {
+    raw_effect = source.get("effect") if isinstance(source.get("effect"), Mapping) else {}
+    effect = {
+        "action": str(raw_effect.get("action") or "observe"),
+        "target_reference": raw_effect.get("target_reference"),
+        "target_temperature": raw_effect.get("target_temperature"),
+        "temperature_delta": raw_effect.get("temperature_delta"),
+        "override_schedule": bool(raw_effect.get("override_schedule", False)),
+        "respect_windows": bool(raw_effect.get("respect_windows", True)),
+        "respect_presence": bool(raw_effect.get("respect_presence", True)),
+    }
+    raw_activation = source.get("activation") if isinstance(source.get("activation"), Mapping) else {}
+    raw_deactivation = source.get("deactivation") if isinstance(source.get("deactivation"), Mapping) else {}
+    normalized = deepcopy(source)
+    normalized.update({
         "id": _special_mode_id(source, index),
         "name": str(source.get("name") or label).strip() or label,
         "description": str(source.get("description") or description).strip(),
@@ -267,15 +315,28 @@ def _normalize_special_mode(item: Mapping[str, Any], fallback: Mapping[str, Any]
         "binding_type": binding,
         "status_source": helper_entity,
         "helper_entity": helper_entity,
-            "controllable": False,
-            "origin": str(source.get("origin") or ("builtin" if mode_type in SPECIAL_MODE_DEFINITIONS else "user")),
-            "priority": int(source.get("priority", {"chimney_sweep": 1000, "frost_protection": 900}.get(mode_type, 500))),
-            "activation_type": str(source.get("activation_type") or ("entity" if helper_entity else "internal")),
-            "activation_source": str(source.get("activation_source") or helper_entity),
-            "expires_at": source.get("expires_at"),
-            "window_handling": str(source.get("window_handling") or "normal"),
-            "effect": deepcopy(source.get("effect") if isinstance(source.get("effect"), Mapping) else {"action": "observe"}),
-        }
+        "controllable": False,
+        "origin": str(source.get("origin") or ("builtin" if mode_type in SPECIAL_MODE_DEFINITIONS else "user")),
+        # The chimney-sweep branch is a safety invariant, not a user
+        # configurable ordering value.
+        "priority": 1000 if mode_type == "chimney_sweep" else int(source.get("priority", {"frost_protection": 900}.get(mode_type, 500))),
+        "activation_type": str(source.get("activation_type") or ("entity" if helper_entity else "internal")),
+        "activation_source": str(source.get("activation_source") or helper_entity),
+        "expires_at": source.get("expires_at"),
+        "window_handling": str(source.get("window_handling") or "normal"),
+        "activation": {
+            "type": str(raw_activation.get("type") or source.get("activation_type") or ("entity" if helper_entity else "internal")),
+            "source": str(raw_activation.get("source") or source.get("activation_source") or helper_entity),
+        },
+        "conditions": deepcopy(source.get("conditions")) if isinstance(source.get("conditions"), Mapping) else {},
+        "exceptions": deepcopy(source.get("exceptions")) if isinstance(source.get("exceptions"), Mapping) else {},
+        "duration": {"minutes": source.get("duration_minutes"), "expires_at": source.get("expires_at")},
+        "deactivation": {
+            "action": str(raw_deactivation.get("action") or "return_to_normal"),
+        },
+        "effect": effect,
+    })
+    return normalized
 
 
 def normalize_special_modes(source: Mapping[str, Any] | None, safety_modes: Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
@@ -311,6 +372,33 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
         }
     result["controller"] = deepcopy(source.get("controller", {})) if isinstance(source.get("controller", {}), Mapping) else {}
     result["outdoor_temperature"] = deepcopy(source.get("outdoor_temperature", {})) if isinstance(source.get("outdoor_temperature", {}), Mapping) else {}
+    sources = source.get("heating_sources", {})
+    result["heating_sources"] = deepcopy(result["heating_sources"])
+    if isinstance(sources, Mapping):
+        for key in result["heating_sources"]:
+            if key == "presence_entities":
+                result["heating_sources"][key] = [str(item) for item in sources.get(key, []) if str(item)]
+            elif sources.get(key) is not None:
+                result["heating_sources"][key] = str(sources[key])
+    control = source.get("control_plane", {})
+    result["control_plane"] = default_control_plane()
+    if isinstance(control, Mapping):
+        requested = str(control.get("operating_state") or "LEGACY").upper()
+        if requested not in OPERATING_STATES:
+            result["control_plane"]["error"] = f"unknown_operating_state:{requested}"
+            result["control_plane"]["requested_state"] = requested
+        elif requested != "LEGACY":
+            result["control_plane"]["error"] = f"operating_state_not_enabled:{requested}"
+            result["control_plane"]["requested_state"] = requested
+        # Never activate a state during normalization or migration.
+        result["control_plane"].update({
+            "confirmed_control_ownership": str(control.get("confirmed_control_ownership") or "legacy") if str(control.get("confirmed_control_ownership") or "legacy") in CONTROL_OWNERS else "legacy",
+            "switch_ready": bool(control.get("switch_ready", False)) and requested == "LEGACY",
+            "rollback_ready": bool(control.get("rollback_ready", True)),
+            "last_verified_at": control.get("last_verified_at"),
+        })
+        if control.get("blocked_reason"):
+            result["control_plane"]["blocked_reason"] = str(control["blocked_reason"])
     result["safety"] = deepcopy(source.get("safety", {})) if isinstance(source.get("safety", {}), Mapping) else {}
     raw_modes = result["safety"].get("modes", {})
     result["safety"]["modes"] = {
@@ -383,6 +471,7 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
 
 
 def validate_management(value: Mapping[str, Any] | None) -> list[str]:
+    raw_control = value.get("control_plane", {}) if isinstance(value, Mapping) else {}
     data = normalize_management(value)
     errors: list[str] = []
     mode_ids: set[str] = set()
@@ -400,6 +489,16 @@ def validate_management(value: Mapping[str, Any] | None) -> list[str]:
         effect = mode.get("effect", {})
         if not isinstance(effect, Mapping) or effect.get("action", "observe") not in {"observe", "comfort", "setback", "fixed_temperature", "relative_temperature", "pause_demand", "override_windows"}:
             errors.append(f"invalid_special_mode_effect:{mode_id}")
+        if mode.get("activation", {}).get("type") not in SPECIAL_MODE_ACTIVATION_TYPES:
+            errors.append(f"invalid_special_mode_activation_contract:{mode_id}")
+        if mode.get("deactivation", {}).get("action") not in MODE_DEACTIVATION_ACTIONS:
+            errors.append(f"invalid_special_mode_deactivation:{mode_id}")
+        if mode.get("duration_minutes") is not None:
+            try:
+                if int(mode["duration_minutes"]) < 0:
+                    errors.append(f"invalid_special_mode_duration:{mode_id}")
+            except (TypeError, ValueError):
+                errors.append(f"invalid_special_mode_duration:{mode_id}")
         if mode.get("mode_type") == "custom" and mode.get("behavior") not in SUPPORTED_CUSTOM_BEHAVIORS:
             errors.append(f"unsupported_special_mode_behavior:{mode_id}")
         if mode.get("binding_type") == "helper_create":
@@ -465,6 +564,15 @@ def validate_management(value: Mapping[str, Any] | None) -> list[str]:
     outdoor = data.get("outdoor_temperature", {})
     if outdoor and not str(outdoor.get("entity_id", "")).startswith("sensor."):
         errors.append("invalid_outdoor_temperature_entity")
+    control = data.get("control_plane", {})
+    if isinstance(raw_control, Mapping) and str(raw_control.get("operating_state") or "LEGACY").upper() != "LEGACY":
+        errors.append("active_control_state_not_allowed")
+    if control.get("operating_state") != "LEGACY":
+        errors.append("active_control_state_not_allowed")
+    if control.get("confirmed_control_ownership") not in CONTROL_OWNERS:
+        errors.append("invalid_confirmed_control_ownership")
+    if not isinstance(data.get("heating_sources", {}), Mapping):
+        errors.append("invalid_heating_sources")
     return sorted(set(errors))
 
 

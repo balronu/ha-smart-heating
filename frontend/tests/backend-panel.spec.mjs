@@ -55,8 +55,9 @@ test("edits a Smart-Heating room internally and leaves the HA area contract inta
 });
 
 test("persists passive special-mode configuration with a helper status source", async ({ page }) => {
-  await page.locator("details[data-section=safety] summary").click();
+  await page.locator("details[data-section=safety] > summary").click();
   const party = page.locator('[data-safety-mode="party"]');
+  await party.locator(":scope > summary").click();
   await party.locator("input[name=enabled]").check();
   await party.locator("select[name=helper_entity]").selectOption("input_boolean.party");
   await party.locator("input[name=temperature]").fill("22");
@@ -108,8 +109,9 @@ test("offers only boolean status helpers and separates availability from activit
     ];
     panel._render();
   });
-  await page.locator("details[data-section=safety] summary").click();
+  await page.locator("details[data-section=safety] > summary").click();
   const party = page.locator('[data-safety-mode="party"]');
+  await party.locator(":scope > summary").click();
   await expect(party.locator("select option[value='input_boolean.party']")).toHaveCount(1);
   await expect(party.locator("select option[value='input_number.temperature']")).toHaveCount(0);
   await expect(party).toContainText("Verfügbarkeit");
@@ -126,8 +128,9 @@ test("keeps special-mode defaults compact and reveals extra Boolean helpers thro
     ];
     panel._render();
   });
-  await page.locator("details[data-section=safety] summary").click();
+  await page.locator("details[data-section=safety] > summary").click();
   const party = page.locator('[data-safety-mode="party"]');
+  await party.locator(":scope > summary").click();
   await expect(party.locator("select option[value='input_boolean.party']")).toHaveCount(1);
   await expect(party.locator("select option[value='input_boolean.fremdmodus']")).toHaveCount(0);
   await party.locator("input[data-mode-source-search]").fill("Fremd");
@@ -141,13 +144,87 @@ test("manages an internal custom special mode without exposing helper creation",
     panel._data.management.special_modes = [{ id: "quiet-hours", name: "Ruhezeit", description: "Passiv anzeigen", mode_type: "custom", behavior: "passive_only", available: false, active: false, binding_type: "internal", helper_entity: "", origin: "user" }];
     panel._render();
   });
-  await page.locator("details[data-section=safety] summary").click();
+  await page.locator("details[data-section=safety] > summary").click();
   const mode = page.locator('[data-special-mode="quiet-hours"]');
+  await mode.locator(":scope > summary").click();
   await expect(mode).toContainText("Steuerbar: nein");
   await expect(mode.locator("option:disabled")).toContainText("nicht verfügbar");
   await expect(page.locator("[data-special-mode-add]")).toBeVisible();
   await expect(mode.locator("[data-special-mode-duplicate]")).toBeVisible();
   await expect(mode.locator("[data-special-mode-delete]")).toBeVisible();
+});
+
+test("edits schema-6 special-mode effects and keeps the chimney-sweep guard", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.management.zones = [{ id: "zone-1", name: "Wohnzimmer", area_ids: ["wohnzimmer"] }];
+    panel._data.management.special_modes = [{ id: "quiet-hours", name: "Ruhezeit", description: "Passiv", mode_type: "custom", behavior: "passive_only", available: true, active: false, binding_type: "internal", helper_entity: "", origin: "user", zone_ids: ["zone-1"], priority: 450, effect: { action: "comfort", override_schedule: false, respect_windows: true, respect_presence: true }, deactivation: { action: "return_to_normal" } }];
+    panel.__phase77Calls = [];
+    panel._hass.callWS = async (message) => { panel.__phase77Calls.push(message); return message.type.endsWith("admin/get") ? structuredClone(panel._data) : {}; };
+    panel._render();
+  });
+  await page.locator("details[data-section=safety] > summary").click();
+  const mode = page.locator('[data-special-mode="quiet-hours"]');
+  await mode.locator(":scope > summary").click();
+  await expect(mode).toContainText("Verhalten bei Aktivierung");
+  await mode.locator("[name=effect_action]").selectOption("fixed_temperature");
+  await mode.locator("[name=target_temperature]").fill("21.5");
+  await mode.locator("[name=override_schedule]").check();
+  await mode.locator("[name=zone_ids]").selectOption("zone-1");
+  await mode.locator("[name=effect_scope][value=selected]").check();
+  await mode.getByRole("button", { name: "Speichern" }).click();
+  await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel").__phase77Calls.find((item) => item.type.endsWith("admin/special_mode/set"))?.item?.effect?.target_temperature)).toBe(21.5);
+  await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel").__phase77Calls.find((item) => item.type.endsWith("admin/special_mode/set"))?.item?.effect?.override_schedule)).toBe(true);
+});
+
+test("keeps the built-in chimney-sweep priority and passive protection visible", async ({ page }) => {
+  await page.locator("details[data-section=safety] > summary").click();
+  const chimney = page.locator('[data-safety-mode="chimney_sweep"]');
+  await chimney.locator(":scope > summary").click();
+  await expect(chimney).toContainText("unveränderliche Priorität 1000");
+  await expect(chimney.locator("[name=priority]")).toHaveValue("1000");
+  await expect(chimney.locator("[name=priority]")).toBeDisabled();
+  await expect(chimney.locator("[name=respect_windows]")).toBeDisabled();
+  await expect(chimney.locator("[name=respect_presence]")).toBeDisabled();
+  await expect(chimney).toContainText("passiv");
+});
+
+test("keeps a new special mode local until create and lets cancel avoid backend writes", async ({ page }) => {
+  await page.locator("details[data-section=safety] > summary").click();
+  const calls = await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel.__phase71Calls = [];
+    const original = panel._hass.callWS;
+    panel._hass.callWS = async (message) => { panel.__phase71Calls.push(message); return message.type.endsWith("admin/get") ? structuredClone(panel._data) : original(message); };
+    return panel.__phase71Calls;
+  });
+  await page.getByRole("button", { name: "Sondermodus hinzufügen" }).click();
+  await expect(page.locator("[data-special-mode-draft]")).toBeVisible();
+  expect(calls).toHaveLength(0);
+  await page.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(page.locator("[data-special-mode-draft]")).toHaveCount(0);
+  expect(await page.evaluate(() => document.querySelector("smart-heating-backend-panel").__phase71Calls)).toHaveLength(0);
+  await page.getByRole("button", { name: "Sondermodus hinzufügen" }).click();
+  await page.locator("[data-special-mode-draft] input[name=name]").fill("Testentwurf");
+  await page.getByRole("button", { name: "Anlegen" }).click();
+  await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel").__phase71Calls.map((item) => item.type))).toContain("smart_heating/admin/special_mode/set");
+});
+
+test("keeps built-in modes collapsed and separates an unavailable custom source from activity", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.management.special_modes = [{ id: "remote", name: "Remote", description: "Passiv", mode_type: "custom", behavior: "passive_only", available: true, active: true, binding_type: "entity", helper_entity: "input_boolean.missing", origin: "user" }];
+    panel._data.helper_entities = [];
+    panel._render();
+  });
+  await page.locator("details[data-section=safety] > summary").click();
+  await expect(page.locator("[data-safety-mode]")).toHaveCount(6);
+  await expect(page.locator("[data-safety-mode]").first()).toHaveJSProperty("open", false);
+  await expect(page.locator("[data-safety-mode]").first().locator(".mode-description")).toHaveCount(1);
+  const mode = page.locator('[data-special-mode="remote"]');
+  await expect(mode).toContainText("Status unbekannt");
+  await expect(mode).toContainText("input_boolean.missing");
+  await expect(mode).toContainText("nicht verfügbar");
 });
 
 test("centralizes global settings and keeps active control locked", async ({ page }) => {
@@ -361,12 +438,34 @@ test("shows unsaved state before saving and stacks time fields on a narrow phone
   expect(layout[1].right).toBeLessThanOrEqual(320);
 });
 
+test("supports an overnight window and explicitly cancels local edits", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel.__phase78Calls = [];
+    const callWS = panel._hass.callWS;
+    panel._hass.callWS = async (message) => { panel.__phase78Calls.push(message); return callWS(message); };
+  });
+  await page.locator("button[data-schedule-edit=monday]").click();
+  await page.locator("button[data-schedule-add=monday]").click();
+  const row = page.locator("[data-day-editor=monday] [data-schedule-row]").last();
+  await row.locator("input[data-schedule-input=start]").fill("22:00");
+  await row.locator("input[data-schedule-input=end]").fill("02:00");
+  await page.locator("button[data-schedule-close]").click();
+  await expect(page.locator("[data-schedule-day=monday] [data-day-summary]")).toContainText("über Mitternacht");
+  const callsBeforeCancel = await page.evaluate(() => document.querySelector("smart-heating-backend-panel").__phase78Calls.filter((item) => item.type.endsWith("plan/set")).length);
+  await page.locator("button[data-schedule-edit=monday]").click();
+  await page.locator("button[data-schedule-cancel]").click();
+  await expect(page.locator("[data-schedule-day=monday] [data-day-summary]")).not.toContainText("über Mitternacht");
+  const callsAfterCancel = await page.evaluate(() => document.querySelector("smart-heating-backend-panel").__phase78Calls.filter((item) => item.type.endsWith("plan/set")).length);
+  expect(callsAfterCancel).toBe(callsBeforeCancel);
+});
+
 test("shows an inline validation message and does not call save for invalid windows", async ({ page }) => {
   await page.locator("button[data-schedule-edit=monday]").click();
   await page.locator("button[data-schedule-add=monday]").click();
   const row = page.locator("[data-day-editor=monday] [data-schedule-row]").last();
   await row.locator("input[data-schedule-input=start]").fill("20:00");
-  await row.locator("input[data-schedule-input=end]").fill("08:00");
+  await row.locator("input[data-schedule-input=end]").fill("20:00");
   await page.locator("[data-schedule-save]").click();
   await expect(page.locator("[role=status]")).toContainText("Zeitfenster");
   await expect(page.locator("[role=alert]")).toHaveCount(0);
@@ -445,8 +544,9 @@ test("labels unavailable contact states as unavailable and explains passive spec
   });
   await page.locator("details[data-section=windows] summary").click();
   await expect(page.locator("tr[data-window-row]").filter({ hasText: "Keller Sensor" })).toContainText("nicht verfügbar");
-  await page.locator("details[data-section=safety] summary").click();
+  await page.locator("details[data-section=safety] > summary").click();
   const mode = page.locator('[data-safety-mode="party"]');
+  await mode.locator(":scope > summary").click();
   await expect(mode).toContainText("Statusquelle");
   await expect(mode).toContainText("Kontrollkästchen aktiviert keinen Modus");
 });

@@ -1,4 +1,174 @@
-# Smart Heating (Beta 38)
+# Smart Heating (Beta 39)
+
+## Phase 83 – Reale Shadow-Datenversorgung
+
+Die passive Shadow-Auswertung liest ausschließlich bekannte Home-Assistant-
+Zustände über `hass.states` und dokumentiert Quelle und Zeitstempel. Der
+Adapter erfasst die zentrale Legacy-Automation, die bekannten Betriebs-Helper,
+die nachgewiesenen Climate-Ziele sowie konfigurierte Fensterkontakte. Er führt
+keine Home-Assistant-Services aus und besitzt keine Schreibschnittstelle.
+
+Legacy-Entscheidungen werden nur aus einem ausdrücklich nachgewiesenen Trace
+übernommen. Ein beobachteter Thermostatstatus ist kein Legacy-Trace. Da ein
+allgemeiner read-only Trace-Export derzeit nicht verfügbar ist, bleibt der
+Vergleich `comparison_not_possible`; ein nicht verifizierter Scheduler wird als
+unvollständig ausgewiesen. Timeouts und Fehler in optionalen Diagnose-Lesern
+werden begrenzt und ohne sensible Inhalte zurückgegeben. SMART bleibt bis zu
+unabhängigen Nachweisen von Trace-, Scheduler-, Aktor- und Kesselpfad gesperrt.
+
+## Phase 83 – Live shadow data (English)
+
+The passive shadow evaluation reads only known Home Assistant states through
+`hass.states` and records source and timestamp. The adapter covers the known
+legacy automation, operating helpers, verified climate targets, and configured
+window contacts. It has no service-call or write interface.
+
+Legacy decisions are accepted only from an explicitly proven trace; an
+observed thermostat state is not a legacy decision. No general read-only trace
+export is currently available, so comparison remains `comparison_not_possible`.
+An unverified scheduler is reported as incomplete. Optional diagnostic readers
+are bounded and sanitize timeout/error results. SMART remains locked until
+independent trace, scheduler, actuator, and boiler-path evidence exists.
+
+## Phase 82 – Passiver Shadow-Vergleich
+
+Der Shadow-Status vergleicht jetzt Legacy-Nachweise, die passive Smart-
+Heating-Entscheidung und den beobachteten Climate-Zustand. Gleiche Sollwerte
+gelten nur mit einem zeitnahen, als nachgewiesen markierten Legacy-Trace als
+Parität. Ohne Trace wird „Vergleich nicht möglich“, bei zu alten Daten
+„Daten veraltet“ und bei unterschiedlichen nachgewiesenen Sollwerten
+„Abweichung nachgewiesen“ angezeigt. Simulationen bleiben als Simulation
+gekennzeichnet.
+
+Die Diagnose zeigt außerdem geplante Aktoraktionen ausschließlich als Daten,
+Datenqualität und offene Freigabeblocker. SMART bleibt unabhängig von einem
+grünen Einzelvergleich gesperrt; es werden keine Heizbefehle oder
+Automationstrigger ausgeführt.
+
+## Phase 82 – Passive shadow comparison (English)
+
+The shadow status now compares legacy evidence, the passive Smart Heating
+decision, and the observed climate state. Equal setpoints count as parity only
+when a fresh, explicitly proven legacy trace exists. Missing traces produce
+“comparison not possible”; old traces produce “stale data”; differing proven
+values produce “divergence proven”. Synthetic fixtures remain marked as
+simulation.
+
+The diagnostic also exposes planned actuator actions as data, data quality, and
+open takeover blockers. SMART remains locked regardless of one green comparison;
+no heating commands or automation triggers are executed.
+
+## Phase 81 – Passiver Aktorvertrag
+
+Die passive Shadow-Auswertung erzeugt jetzt je Raum einen strikt nicht
+ausführenden Aktorplan. Er dokumentiert Zielentität, Fallback-Auswahl,
+`climate.set_hvac_mode`/`climate.set_temperature`, Parameter, Entscheidung,
+Sondermodus, Priorität, Begründung, Datenqualität und fehlende Nachweise.
+Primary und Fallback werden nicht gleichzeitig geplant; der Fallback wird nur
+bei nicht verfügbarer Primary-Entität gewählt. Geplante Aktionen bleiben als
+Daten mit `execution_status: not_executed` sichtbar und können keine
+Home-Assistant-Services auslösen. Eine beobachtete Climate-
+`hvac_action` oder ein Tado-Heizbedarf ersetzt weiterhin keinen unabhängigen
+Brötje-/Kessel-Rückkanal.
+
+The passive shadow evaluation now emits a strictly non-executing actuator plan
+per room. It records the target, deterministic primary/fallback selection,
+known climate services, parameters, decision, special mode, priority,
+rationale, data quality, and missing evidence. Primary and fallback are never
+planned together; fallback is selected only when primary is unavailable.
+Planned actions remain data with `execution_status: not_executed` and cannot
+call Home Assistant services. Observed `hvac_action` or Tado demand still do
+not replace independent boiler/burner feedback.
+
+## Phase 78 – Wochenzeitplan passiv auswerten
+
+Der Wochenplan unterstützt Montag bis Sonntag, mehrere Komfortfenster pro Tag
+und Fenster über Mitternacht. Außerhalb der Fenster gilt passiv die
+Absenktemperatur; optionale Fenster-Solltemperaturen werden nur in der
+Shadow-Entscheidung berücksichtigt. Der Resolver meldet Tages-/Nachtstatus und
+die nächste lokale Umschaltung einschließlich Zeitzone/DST. Ein fehlender oder
+nicht verifizierter Scheduler blockiert weiterhin die SMART-Umschaltung; es
+werden keine Heizbefehle gesendet.
+
+## Phase 78 – Passive weekly schedule evaluation
+
+The weekly plan supports Monday through Sunday, multiple comfort windows per
+day, and windows crossing midnight. Outside those windows the passive
+setback-temperature decision applies; optional window targets are used only by
+the shadow decision. The resolver reports day/night state and the next local
+switch including timezone/DST. A missing or unverified scheduler still blocks
+SMART cutover, and no heating command is sent.
+
+## Phase 77 – Sondermodus-Wirkungen passiv konfigurieren
+
+Die Verwaltung bietet für Built-in- und benutzerdefinierte Sondermodi ein
+gemeinsames, responsives Formular. Räume, Temperaturverhalten, Zeitplan-
+Übersteuerung, Fenster-/Anwesenheitsbedingungen, Dauer, Rückkehr zum
+Normalbetrieb und zulässige Prioritäten werden im Schema 6 gespeichert und
+nach dem erneuten Laden wieder angezeigt. Eine Zusammenfassung und die
+passive Resolver-Vorschau zeigen die erwartete Wirkung, ohne Heizbefehle zu
+erzeugen. Der Schornsteinfeger bleibt unveränderlich auf Priorität 1000;
+Helper und Automationen werden nicht erstellt oder geschaltet.
+
+## Phase 77 – Passive special-mode effects
+
+Built-in and custom special modes share a responsive editor for rooms,
+temperature behavior, schedule override, window/presence conditions, duration,
+return to normal operation, and allowed priorities. Schema-6 values survive
+reload and are summarized with the passive resolver preview; no heating command
+is issued. Chimney-sweep remains fixed at priority 1000, and helpers or
+automations are never created or switched.
+
+## Phase 76 – passiver Sondermodus-Resolver
+
+Die passive Engine berechnet je Raum, welcher Sondermodus wirksam wäre und
+welche Zieltemperatur bzw. Wirkung daraus folgt. Unterstützt werden
+Komfort-/Absenk-/feste/relative Temperaturen, Zeitplanübersteuerung,
+Fenster- und Anwesenheitsbedingungen, Ablauf und Rückkehr zum Normalbetrieb.
+Prioritäten werden deterministisch aufgelöst; Schornsteinfeger bleibt mit
+Priorität 1000 absolut vorrangig. Fehlende oder unbekannte Statusquellen
+blockieren die Wirkung und werden sichtbar begründet.
+
+Das Ergebnis ist eine Shadow-Entscheidung mit Datenqualität und fehlenden
+Scheduler-/Aktorvoraussetzungen. Es werden keine Heizbefehle, Helper- oder
+Automationsänderungen ausgeführt; die bestehende Heizungsautomation bleibt
+alleinige produktive Steuerungsinstanz.
+
+## Phase 75 – passives Migrationsdatenmodell
+
+Das Management-Modell wird intern als Schema 6 rückwärtskompatibel aus älteren
+Konfigurationen normalisiert. Bestehende Räume, Thermostate, Raumfühler,
+Fensterkontaktrollen, Wochenpläne und Anwesenheitszuordnungen werden nicht
+verworfen. Sondermodi besitzen zusätzlich einen strukturierten passiven
+Wirkungsvertrag für Aktivierung, Bedingungen, Zieltemperatur, Zeitplan-
+Übersteuerung, Dauer und Rückkehr zum Normalbetrieb.
+
+Der `control_plane`-Zustand ist sicher eingezäunt: `LEGACY` ist der einzige
+durch Migration erreichbare Zustand; `TRANSITIONING` und `SMART` bleiben bis zu
+einer späteren, separat geprüften Umschaltung blockiert. Das Modell beschreibt
+Steuerungshoheit, Bereitschaft, Fehler und Rückfall, führt aber keine
+Heizbefehle aus und verändert keine produktiven Home-Assistant-Komponenten.
+Unbekannte Entitäten werden nicht automatisch ergänzt. Der Schornsteinfeger-
+Modus behält die unveränderliche höchste Priorität.
+
+## Phase 71 – Sondermodus-Draft und mobile UX
+
+Die Verwaltung zeigt vordefinierte und benutzerdefinierte Sondermodi kompakt
+und standardmäßig eingeklappt. Verfügbarkeit („zur Verwendung angeboten“) und
+der tatsächliche Aktivzustand bleiben getrennt. Neue benutzerdefinierte Modi
+werden zunächst nur als lokaler Entwurf erstellt; erst „Anlegen“ speichert sie,
+„Abbrechen“ verwirft sie ohne Backend-Schreibzugriff. Fehlende oder unbekannte
+Statusquellen werden sichtbar gekennzeichnet. Die Integration bleibt passiv,
+erstellt keine Helper und verändert keine Prioritäten.
+
+## Phase 71 – Special-mode drafts and mobile UX
+
+The administration presents built-in and custom special modes as compact,
+collapsed entries. Availability (“offered for use”) remains separate from the
+actual active state. New custom modes start as local drafts; only “Create”
+persists them and “Cancel” performs no backend write. Missing or unknown status
+sources are shown explicitly. The integration remains passive, creates no
+helpers, and does not change priorities.
 
 ## Phase 68 – Raumkontaktrollen erhalten (Beta 38)
 

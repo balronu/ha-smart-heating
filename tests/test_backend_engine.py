@@ -20,6 +20,7 @@ from smart_heating_backend_engine import (
     evaluate_window_groups,
     evaluate_window_strategy,
     normalize_window_state,
+    resolve_passive_decision,
     resolve_special_modes,
 )
 
@@ -89,6 +90,48 @@ class BackendEngineTests(unittest.TestCase):
         self.assertEqual(result["winner"]["id"], "chimney")
         self.assertEqual(result["expired"], ["expired"])
         self.assertEqual(result["suppressed"][0]["id"], "party")
+
+    def test_built_in_effects_are_passive_and_conditions_are_explicit(self):
+        now = datetime(2026, 11, 1, tzinfo=timezone.utc)
+        result = resolve_special_modes([
+            {"id": "party", "mode_type": "party", "available": True, "active": True},
+            {"id": "conditional", "mode_type": "custom", "available": True, "active": True, "priority": 900, "conditions": {"presence": "home"}},
+            {"id": "unknown", "mode_type": "custom", "available": True, "active": True, "status_state": "unknown"},
+        ], now=now, presence_status="away")
+        self.assertEqual(result["winner"]["id"], "party")
+        self.assertEqual(result["winner"]["effect"]["action"], "comfort")
+        self.assertEqual(result["blocked"], [{"id": "conditional", "reason": "Anwesenheitsbedingung nicht erfüllt"}, {"id": "unknown", "reason": "Statusquelle unbekannt"}])
+        self.assertTrue(result["passive"])
+
+    def test_mode_effects_apply_target_references_and_return_to_normal(self):
+        base = type("Decision", (), {"mode": "night", "reason": "night", "source": "reference", "target_temperature": 17, "target_hvac_mode": "heat"})()
+        party = resolve_special_modes([{"id": "party", "mode_type": "party", "available": True, "active": True}], now=datetime(2026, 11, 1, tzinfo=timezone.utc))
+        applied = resolve_passive_decision(base, party, comfort_temperature=22, setback_temperature=17)
+        self.assertEqual(applied["mode"], "party")
+        self.assertEqual(applied["target_temperature"], 22.0)
+        self.assertTrue(applied["schedule_overridden"])
+        self.assertTrue(applied["passive"])
+        expired = resolve_special_modes([{"id": "party", "mode_type": "party", "available": True, "active": True, "expires_at": "2026-10-31T23:00:00+00:00"}], now=datetime(2026, 11, 1, tzinfo=timezone.utc))
+        self.assertTrue(resolve_passive_decision(base, expired)["returned_to_normal"])
+
+    def test_chimney_sweep_overrides_windows_presence_and_schedule_without_commands(self):
+        base = type("Decision", (), {"mode": "summer", "reason": "summer", "source": "reference", "target_temperature": 17, "target_hvac_mode": "off"})()
+        modes = resolve_special_modes([{"id": "chimney", "mode_type": "chimney_sweep", "available": True, "active": True, "priority": 1}], now=datetime(2026, 11, 1, tzinfo=timezone.utc), presence_status="away", window_state="open")
+        applied = resolve_passive_decision(base, modes, chimney_temperature=25)
+        self.assertEqual(applied["priority"], 1000)
+        self.assertEqual(applied["target_temperature"], 25.0)
+        self.assertEqual(applied["target_hvac_mode"], "heat")
+        self.assertTrue(applied["window_override"])
+        self.assertTrue(applied["presence_override"])
+        self.assertIsNone(applied["heat_demand_override"])
+
+    def test_configured_mode_respects_window_and_presence_constraints(self):
+        base = type("Decision", (), {"mode": "window_open", "reason": "window", "source": "reference", "target_temperature": 5, "target_hvac_mode": "heat"})()
+        modes = resolve_special_modes([{"id": "party", "mode_type": "party", "available": True, "active": True}], now=datetime(2026, 11, 1, tzinfo=timezone.utc))
+        applied = resolve_passive_decision(base, modes, comfort_temperature=22, window_state="open", presence_status="away")
+        self.assertEqual(applied["mode"], "window_open")
+        self.assertTrue(applied["blocked_by_window"])
+        self.assertEqual(applied["target_temperature"], 5)
 
     def test_room_demand_unknown_never_becomes_heat_demand(self):
         result = calculate_room_demand(

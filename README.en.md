@@ -1,4 +1,70 @@
-# Smart Heating (Beta 38)
+# Smart Heating (Beta 39)
+
+## Phase 83 – Live shadow data supply
+
+The passive shadow evaluation now reads only known Home Assistant states via
+`hass.states` and records their source and timestamp. The bounded adapter
+covers the known legacy automation, operating helpers, verified climate
+targets, and configured window contacts. It has no service-call or write
+interface.
+
+Legacy decisions are accepted only from an explicitly proven trace; an
+observed thermostat state is never promoted to a legacy decision. Because no
+general read-only trace export is currently available, the comparison remains
+`comparison_not_possible`. An unverified scheduler is reported as incomplete,
+and bounded diagnostic-reader failures are sanitized. SMART remains locked
+until independent trace, scheduler, actuator, and boiler-path evidence exists.
+
+## Phase 81 – passive actuator contract
+
+The shadow result now contains a strictly descriptive actuator plan. It uses
+the verified legacy rule: the available `climate.esszimmer` entity is selected
+first and `climate.tado_smart_thermostat_ru0765140480` is selected only as a
+fallback; both are never targeted automatically. Planned `climate.set_hvac_mode`
+and `climate.set_temperature` actions include their reason, priority, evidence,
+and `not_executed` status. No Home Assistant service is called by this plan.
+Independent boiler or burner feedback is still required before physical heat
+demand can be considered proven, and missing actor, scheduler, capability, or
+read-back evidence keeps SMART takeover blocked.
+
+## Phase 76 – passive special-mode resolver
+
+The passive engine now calculates which special mode would be effective per
+room and which target temperature or effect would follow. It supports comfort,
+setback, fixed and relative temperatures, schedule overrides, window and
+presence conditions, expiry, and return to normal operation. Priorities are
+deterministic; chimney-sweep remains the absolute winner at priority 1000.
+Missing or unknown status sources block the effect with an explicit reason.
+
+The result is a shadow decision with data quality and missing
+scheduler/actuator prerequisites. No heating commands, helper changes, or
+automation changes are performed; the existing heating automation remains the
+sole productive control path.
+
+## Phase 75 – passive migration data model
+
+The management model is backward-compatibly normalized internally to schema 6.
+Existing rooms, thermostats, room-temperature sensors, window-contact roles,
+weekly schedules, and presence assignments are preserved. Special modes also
+have a structured passive behavior contract for activation, conditions, target
+temperature, schedule override, duration, and return to normal operation.
+
+The `control_plane` is fenced safely: migration can reach only `LEGACY`;
+`TRANSITIONING` and `SMART` remain blocked until a separately verified future
+cutover. The model describes ownership, readiness, errors, and rollback
+readiness but sends no heating commands and changes no productive Home
+Assistant components. Unknown entities are never guessed. Chimney-sweep keeps
+its immutable highest priority.
+
+## Phase 71 – Special-mode drafts and mobile UX
+
+The administration presents built-in and custom special modes as compact,
+collapsed entries by default. Availability ("offered for use") remains
+separate from the actual active state, with the status source shown where
+relevant. New custom modes start as local drafts: only **Create** persists the
+mode, while **Cancel** discards it without a backend write. Missing or unknown
+status sources are shown explicitly. Helper creation remains disabled,
+priorities and control logic are unchanged, and operation stays passive.
 
 ## Phase 68 – Preserve room contact roles (Beta 38)
 
