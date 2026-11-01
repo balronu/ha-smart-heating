@@ -1,4 +1,4 @@
-# Smart Heating (Beta 38)
+# Smart Heating (Beta 39)
 
 ## Phase 83 – Live shadow data supply
 

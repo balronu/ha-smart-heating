@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.1.0-beta.39 – Phase 83 reale Shadow-Datenversorgung / Live shadow data
+
+### Deutsch
+
+- Die passive Shadow-Auswertung erhält einen begrenzten read-only Adapter für
+  bekannte Home-Assistant-Zustände, Climate-Ziele, Fensterkontakte und
+  Betriebs-Helper.
+- Legacy-Parität wird nur mit einem ausdrücklich nachgewiesenen und zeitnahen
+  Trace bewertet. Fehlende Trace- und Scheduler-Nachweise bleiben sichtbar
+  unvollständig und geben SMART nicht frei.
+- Keine Heizbefehle, Serviceaufrufe oder produktiven Konfigurationsänderungen.
+
+### English
+
+- Passive shadow evaluation now has a bounded read-only adapter for known Home
+  Assistant states, climate targets, window contacts, and operating helpers.
+- Legacy parity is accepted only with an explicitly proven and fresh trace.
+  Missing trace and scheduler evidence remains visibly incomplete and never
+  enables SMART takeover.
+- No heating commands, service calls, or productive configuration changes.
+
 ## Unreleased – Phase 83 reale Shadow-Datenversorgung / Live shadow data
 
 ### Deutsch
