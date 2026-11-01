@@ -68,7 +68,7 @@ unter `frontend/test-results/`; es wurde kein produktiver Screenshot verändert.
 
 ## Commit und offene Punkte
 
-Lokaler Commit: `16b36bf` (`feat: add window contact roles and passive diagnostics`).
+Lokaler Commit: `3257cd6eed0de8f9ddd4096e50d763ffa882c13c` (`feat: add window contact roles and passive diagnostics`).
 Eine produktive Abnahme auf VM 104 ist ausdrücklich nicht Bestandteil dieser
 Phase. Lovelace, Release und aktive Heizungssteuerung bleiben offen für eine
 spätere, separat freizugebende Phase.
