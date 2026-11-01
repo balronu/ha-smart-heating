@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.1.0-beta.22 – Beta 22
+
+### Deutsch
+
+- Verwaltungsoberfläche auf kompakte mobile Navigation ohne redundanten
+  Panel-Zurück-/Doppeltitel reduziert.
+- Wochenplan auf Komfortfenster mit nativen Zeitfeldern, Tageskopie,
+  Überlappungsprüfung und nachvollziehbarer Speicherbestätigung verbessert.
+- Thermostate und geeignete Raumtemperaturfühler werden auch ohne HA-Bereich
+  unter „Weitere geeignete Geräte“ angeboten; technische Messwerte bleiben
+  ausgeschlossen.
+- Bestehende Zuordnungen bleiben erhalten und werden bei fehlender aktueller
+  Verfügbarkeit sichtbar zur Prüfung markiert. HA-Bereiche werden nicht verändert.
+
+### English
+
+- Reduced mobile administration navigation to a compact header without a
+  redundant panel back button or duplicate title.
+- Improved weekly-plan editing with native time inputs, day copying,
+  overlap validation, and explicit save feedback for comfort windows.
+- Offered thermostats and suitable room-temperature sensors without an HA area
+  under “Other suitable devices”; technical measurements remain excluded.
+- Preserved existing mappings and visibly flagged currently unavailable saved
+  mappings for review. Home Assistant areas are never modified.
+
+The integration remains passive; no heating command or productive automation
+was changed.
+
 ## 0.1.0-beta.20 – Beta 20
 
 ### Deutsch

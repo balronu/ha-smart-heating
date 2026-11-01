@@ -33,16 +33,15 @@ test("uses the full mobile width and keeps technical UI separate", async ({ page
 
 test("provides a Home Assistant navigation escape hatch", async ({ page }) => {
   await expect(page.locator("[data-ha-menu-button]")).toBeVisible();
-  await expect(page.locator("[data-nav-back]")).toBeVisible();
-  await expect(page.locator(".ha-navigation-header")).toContainText("Smart Heating");
+  await expect(page.locator("[data-nav-back]")).toHaveCount(0);
+  await expect(page.locator(".ha-navigation-header")).toContainText("Verwaltung");
 });
 
 test("keeps mobile navigation compact without title wrapping or overflow", async ({ page }) => {
-  const metrics = await page.evaluate(() => ({ body: document.body.scrollWidth, viewport: innerWidth, menu: document.querySelector("[data-ha-menu-button]").getBoundingClientRect().width, back: document.querySelector("[data-nav-back]").getBoundingClientRect().width, title: getComputedStyle(document.querySelector(".nav-title")).whiteSpace }));
+  const metrics = await page.evaluate(() => ({ body: document.body.scrollWidth, viewport: innerWidth, menu: document.querySelector("[data-ha-menu-button]").getBoundingClientRect().width, context: document.querySelector(".nav-context").textContent }));
   expect(metrics.body).toBeLessThanOrEqual(metrics.viewport + 1);
   expect(metrics.menu).toBeLessThanOrEqual(56);
-  expect(metrics.back).toBeLessThan(metrics.viewport * 0.55);
-  expect(metrics.title).toBe("nowrap");
+  expect(metrics.context).toBe("Verwaltung");
 });
 
 test("edits a Smart-Heating room internally and leaves the HA area contract intact", async ({ page }) => {
@@ -146,7 +145,7 @@ test("edits only the selected day and saves with visible confirmation", async ({
   await page.locator("[data-schedule-save]").click();
   await expect(page.locator("[role=status]")).toContainText("erfolgreich gespeichert");
   await page.reload();
-  await expect(page.locator("[data-schedule-day=wednesday] [data-day-summary]")).toContainText("06:00–08:30");
+  await expect(page.locator("[data-schedule-day=wednesday] [data-day-summary]")).toContainText("06:00 – 08:30");
 });
 
 test("shows an inline validation message and does not call save for invalid windows", async ({ page }) => {
@@ -180,4 +179,34 @@ test("filters many window contacts without treating battery sensors as eligible"
   await page.locator("[data-window-filter]").selectOption("review");
   await expect(page.locator("tr[data-window-row]:not([hidden])")).toHaveCount(1);
   await expect(page.locator("tr[data-window-row]:not([hidden])")).toContainText("manuell prüfen");
+});
+
+test("offers suitable bathroom devices outside the HA area and preserves the selected values", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.climate_entities = [{ entity_id: "climate.heizthermostat_badezimmer", name: "Badezimmer Thermostat", state: "heat" }];
+    panel._data.temperature_entities = [{ entity_id: "sensor.badezimmer_temperatur", name: "Badezimmer Temperatur", temperature_role: "room", state: "20" }, { entity_id: "sensor.gefrierschrank_temperatur", name: "Gefrierschrank", temperature_role: "technical", state: "-18" }];
+    panel._data.areas.push({ area_id: "badezimmer", name: "Badezimmer", relevant: false, relevance_source: "unassigned", thermostat_entities: [], temperature_entities: [] });
+    panel._data.management.zones = [{ id: "bathroom-zone", name: "Badezimmer", area_ids: ["badezimmer"], thermostat_entities: ["climate.heizthermostat_badezimmer"], temperature_entities: ["sensor.badezimmer_temperatur"], enabled: true }];
+    panel._render();
+  });
+  await page.getByText("Räume & Klimazonen", { exact: true }).click();
+  const room = page.locator("details[data-room=room-badezimmer]");
+  await room.locator("summary").click();
+  await expect(room.locator("select[name=thermostat_entity] option[value='climate.heizthermostat_badezimmer']")).toHaveCount(1);
+  await expect(room.locator("select[name=temperature_entity] option[value='sensor.badezimmer_temperatur']")).toHaveCount(1);
+  await expect(room.locator("select[name=temperature_entity] option[value='sensor.gefrierschrank_temperatur']")).toHaveCount(0);
+  await expect(room.locator("[data-room-assignment-hint]")).toContainText("separat aktiviert");
+});
+
+test("rejects overlapping windows before the websocket save", async ({ page }) => {
+  await page.locator("button[data-schedule-add=monday]").click();
+  await page.locator("button[data-schedule-add=monday]").click();
+  const rows = page.locator("[data-day-editor=monday] [data-schedule-row]");
+  await rows.nth(0).locator("input[data-schedule-input=start]").fill("06:00");
+  await rows.nth(0).locator("input[data-schedule-input=end]").fill("10:00");
+  await rows.nth(1).locator("input[data-schedule-input=start]").fill("09:00");
+  await rows.nth(1).locator("input[data-schedule-input=end]").fill("12:00");
+  await page.locator("[data-schedule-save]").click();
+  await expect(page.locator("[role=status]")).toContainText("überlappen");
 });

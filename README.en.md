@@ -1,4 +1,17 @@
-# Smart Heating (Beta 19)
+# Smart Heating (Beta 22)
+
+## Beta 22 administration UI
+
+The administration UI now provides compact mobile weekly-plan editing with
+native time inputs, non-overlapping comfort windows, day copying, and visible
+save/validation feedback. Room thermostats and suitable room-temperature
+sensors are listed from the HA area first and additionally under “Other
+suitable devices”, so devices without an HA area remain manually selectable.
+Technical temperature sources are not proposed as room sensors, and saved
+currently unavailable mappings remain visible for review.
+
+HA-area relevance is separate from Smart Heating room activation. The UI does
+not modify HA areas and remains in passive compatibility mode.
 
 ## Required terms and surfaces
 
