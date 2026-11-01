@@ -11,12 +11,17 @@ from .models import ScheduleValidationError, WeeklySchedule
 SCHEMA_VERSION = 2
 COLLECTION_KEYS = ("persons", "zones", "sensors")
 SENSOR_TYPES = ("window", "tilt", "temperature", "thermostat")
+SAFETY_MODES = ("party", "visit", "return_home", "summer", "chimney_sweep", "frost_protection")
 OPERATING_MODES = ("automatic", "manual_heat", "manual_setback")
 WINDOW_DEVICE_CLASSES = {"window", "door", "opening"}
 WINDOW_OPEN_STATES = {"on", "open", "opened", "offen", "true"}
 WINDOW_TILT_STATES = {"tilt", "tilted", "gekippt", "gekipp", "gekippte"}
 WINDOW_CLOSED_STATES = {"off", "closed", "close", "geschlossen", "false"}
 TEMPERATURE_UNITS = {"°c", "°f", "c", "f"}
+# Name hints are retained only as explanatory metadata.  They must never make
+# an HA area heating-relevant by themselves: a house room and a camper area
+# are both neutral until an explicit Smart-Heating choice or a real local
+# heating device provides evidence.
 INDOOR_AREA_HINTS = ("wohn", "zimmer", "küche", "kueche", "bad", "schlaf", "büro", "buero", "flur", "diele", "ess", "living", "bed", "bath", "office", "hall")
 TECHNICAL_TEMPERATURE_HINTS = (
     "battery", "batterie", "cpu", "gpu", "disk", "filament", "drucker", "pve", "nas", "nvme",
@@ -37,6 +42,22 @@ def discover_persons(hass: Any) -> list[dict[str, Any]]:
         }
         for state in sorted(states, key=lambda item: item.entity_id)
     ]
+
+
+def discover_helper_entities(hass: Any) -> list[dict[str, Any]]:
+    """Return existing helper entities as passive, selectable status sources."""
+    states = getattr(getattr(hass, "states", None), "async_all", lambda _domain: [])
+    result = []
+    for domain in ("input_boolean", "input_number", "input_select", "input_datetime"):
+        for state in states(domain):
+            result.append({
+                "entity_id": state.entity_id,
+                "name": _entity_name(state, state.entity_id),
+                "state": str(state.state),
+                "domain": domain,
+                "passive": True,
+            })
+    return sorted(result, key=lambda item: (item["name"].lower(), item["entity_id"]))
 
 
 def person_presence(hass: Any, persons: list[Mapping[str, Any]]) -> dict[str, Any]:
@@ -89,7 +110,7 @@ def default_management() -> dict[str, Any]:
         "sensors": {kind: [] for kind in SENSOR_TYPES},
         "controller": {},
         "outdoor_temperature": {},
-        "safety": {},
+        "safety": {"modes": {mode: {"enabled": False, "helper_entity": "", "temperature": None, "duration_minutes": None, "zone_ids": []} for mode in SAFETY_MODES}},
         "internal": {
             "enabled": True,
             "operating_mode": "automatic",
@@ -121,6 +142,18 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
     result["controller"] = deepcopy(source.get("controller", {})) if isinstance(source.get("controller", {}), Mapping) else {}
     result["outdoor_temperature"] = deepcopy(source.get("outdoor_temperature", {})) if isinstance(source.get("outdoor_temperature", {}), Mapping) else {}
     result["safety"] = deepcopy(source.get("safety", {})) if isinstance(source.get("safety", {}), Mapping) else {}
+    raw_modes = result["safety"].get("modes", {})
+    result["safety"]["modes"] = {
+        mode: {
+            "enabled": bool((raw_modes.get(mode, {}) if isinstance(raw_modes, Mapping) else {}).get("enabled", False)),
+            "helper_entity": str((raw_modes.get(mode, {}) if isinstance(raw_modes, Mapping) else {}).get("helper_entity", "") or ""),
+            "temperature": (raw_modes.get(mode, {}) if isinstance(raw_modes, Mapping) else {}).get("temperature"),
+            "duration_minutes": (raw_modes.get(mode, {}) if isinstance(raw_modes, Mapping) else {}).get("duration_minutes"),
+            "zone_ids": list((raw_modes.get(mode, {}) if isinstance(raw_modes, Mapping) else {}).get("zone_ids", []) or []),
+        }
+        for mode in SAFETY_MODES
+    }
+    result["safety"].setdefault("priority", ["chimney_sweep", "frost_protection", "party", "visit", "return_home", "summer"])
     internal = source.get("internal", {})
     result["internal"].update(deepcopy(internal) if isinstance(internal, Mapping) else {})
     if result["internal"].get("operating_mode") not in OPERATING_MODES:
@@ -209,17 +242,41 @@ def discover_areas(hass: Any) -> list[dict[str, Any]]:
 
 
 def area_suggestions(hass: Any, management: Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
-    """Add read-only domain suggestions to discovered areas."""
+    """Add read-only, evidence-based suggestions to discovered areas.
+
+    HA area names are deliberately neutral.  Relevance comes from an explicit
+    Smart-Heating selection or a climate entity actually assigned to that HA
+    area; a name such as ``Wohnzimmer`` or ``Wohnmobil`` is not evidence.
+    """
     result = []
+    management = management or {}
+    explicit_ids = set(management.get("relevant_area_ids", []))
+    configured_area_ids = {
+        area_id
+        for zone in management.get("zones", [])
+        for area_id in zone.get("area_ids", [])
+        if area_id
+    }
     for area in discover_areas(hass):
         area = dict(area)
         contacts = [item for item in discover_window_contacts(hass) if item.get("area_id") == area["area_id"]]
         climates = discover_climate_entities(hass, area["entity_ids"])
         temperatures = discover_temperature_entities(hass, area["entity_ids"])
         room_temperatures = [item for item in temperatures if item.get("temperature_role") == "room"]
-        area["suggested_indoor"] = is_suggested_indoor_area(area["name"])
-        explicit_ids = set((management or {}).get("relevant_area_ids", []))
-        area["relevant"] = area["area_id"] in explicit_ids or area["suggested_indoor"]
+        explicit = area["area_id"] in explicit_ids
+        local_heating_device = bool(climates)
+        area["suggested_indoor"] = False
+        area["relevant"] = explicit or local_heating_device or area["area_id"] in configured_area_ids
+        area["relevance_source"] = (
+            "confirmed" if explicit or area["area_id"] in configured_area_ids
+            else "local_heating_device" if local_heating_device
+            else "unassigned"
+        )
+        area["relevance_label"] = {
+            "confirmed": "bestätigt",
+            "local_heating_device": "Gerätehinweis – Bestätigung empfohlen",
+            "unassigned": "nicht zugeordnet",
+        }[area["relevance_source"]]
         area["suggestions"] = {
             "thermostat_entities": [entity["entity_id"] for entity in climates],
             "temperature_entities": [entity["entity_id"] for entity in room_temperatures],
@@ -288,7 +345,7 @@ def is_eligible_temperature_entity(hass: Any, entity_id: str) -> bool:
 def discover_temperature_entities(hass: Any, entity_ids: list[str] | tuple[str, ...] | None = None) -> list[dict[str, Any]]:
     """Discover temperature sensors and classify room versus technical sources."""
     ids = list(entity_ids or [])
-    if not ids:
+    if entity_ids is None:
         states = getattr(getattr(hass, "states", None), "async_all", lambda _domain: [])("sensor")
         ids = [state.entity_id for state in states]
     result = []
@@ -307,7 +364,7 @@ def discover_temperature_entities(hass: Any, entity_ids: list[str] | tuple[str, 
 def discover_climate_entities(hass: Any, entity_ids: list[str] | tuple[str, ...] | None = None) -> list[dict[str, Any]]:
     """Discover climate entities, including Tado climates, read-only."""
     ids = list(entity_ids or [])
-    if not ids:
+    if entity_ids is None:
         states = getattr(getattr(hass, "states", None), "async_all", lambda _domain: [])("climate")
         ids = [state.entity_id for state in states]
     return sorted((_entity_record(hass, entity_id, "climate") for entity_id in ids if entity_id.startswith("climate.")), key=lambda item: (item["name"].lower(), item["entity_id"]))
@@ -478,6 +535,10 @@ def upsert_item(data: dict[str, Any], collection: str, item: Mapping[str, Any]) 
         normalized.setdefault("comfort_temperature", None)
         normalized.setdefault("night_temperature", None)
         normalized.setdefault("schedule", {})
+        zone_settings = data.setdefault("internal", {}).setdefault("zones", {}).setdefault(normalized["id"], {})
+        for key in ("comfort_temperature", "night_temperature", "frost_temperature"):
+            if normalized.get(key) is not None:
+                zone_settings[key] = normalized[key]
     elif collection == "sensors":
         kind = str(normalized.get("type", ""))
         if kind not in SENSOR_TYPES:
@@ -518,4 +579,6 @@ def remove_item(data: dict[str, Any], collection: str, item_id: str) -> bool:
         before = len(data.get(key, []))
         data[key] = [item for item in data.get(key, []) if item.get("id") != item_id]
         removed = removed or len(data[key]) != before
+    if collection == "zones":
+        removed = data.setdefault("internal", {}).setdefault("zones", {}).pop(item_id, None) is not None or removed
     return removed

@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.1.0-beta.20 – Beta 20
+
+### Deutsch
+
+- Mobile Navigation für iPhone-Safe-Areas, kompakte Menü-/Zurück-Aktionen und
+  nicht umbrechenden Titel korrigiert.
+- HA-Bereiche bleiben neutral; Haus und Wohnmobil werden nicht mehr allein aus
+  Namen als Heizräume klassifiziert. Heizungsrelevanz basiert auf expliziter
+  Smart-Heating-Auswahl oder lokalem Climate-Gerät.
+- Raumtemperatur- und Thermostatvorschläge auf lokal zugeordnete Geräte
+  begrenzt; technische und fachfremde Sensoren bleiben getrennt.
+- Räume/Klimazonen und Sondermodi sind jetzt passiv persistent konfigurierbar.
+  Helper werden nur als Statusquellen gelesen.
+- Fensterkontakt-Zuordnungen unterscheiden gespeicherte Räume,
+  HA-Bereichsvorschläge und noch nicht zugeordnete Kontakte.
+
+### English
+
+- Fixed compact mobile navigation, safe-area handling, and non-wrapping header
+  title on iPhone.
+- Kept HA areas neutral and separated house/camper classification; relevance
+  now requires explicit Smart Heating configuration or local climate evidence.
+- Limited room suggestions to locally assigned thermostats and temperature
+  sensors while keeping technical sources separate.
+- Added passive persistent room/zone and special-mode configuration. Existing
+  helpers are read-only status sources.
+- Clarified saved, suggested, and unassigned window-contact assignments.
+
+Control mode remains locked and no productive heating service is called.
+
 ## 0.1.0-beta.19 – Beta 19
 
 ### Deutsch

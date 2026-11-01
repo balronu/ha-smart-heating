@@ -30,6 +30,7 @@ from .management import (
     area_suggestions,
     discover_climate_entities,
     discover_controller_entities,
+    discover_helper_entities,
     discover_temperature_entities,
     is_eligible_temperature_entity,
     discover_persons,
@@ -84,6 +85,10 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
     for mode in ("party", "visit", "return_home", "summer", "chimney_sweep"):
         if internal.get(mode):
             result[mode] = True
+    for mode, settings in management.get("safety", {}).get("modes", {}).items():
+        helper_entity = settings.get("helper_entity") if isinstance(settings, dict) else ""
+        if isinstance(helper_entity, str) and helper_entity and settings.get("enabled", False):
+            result[mode] = hass.states.is_state(helper_entity, "on")
     presence = person_presence(hass, management["persons"])
     if presence["home"]:
         result["someone_home"] = True
@@ -130,6 +135,14 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     settings = next(iter(management["internal"]["zones"].values()), {})
     context["comfort_temperature"] = settings.get("comfort_temperature", 20.0)
     context["night_temperature"] = settings.get("night_temperature", 17.0)
+    safety_modes = management.get("safety", {}).get("modes", {})
+    if isinstance(safety_modes, dict):
+        chimney = safety_modes.get("chimney_sweep", {})
+        frost = safety_modes.get("frost_protection", {})
+        if chimney.get("temperature") not in (None, ""):
+            context["chimney_temperature"] = float(chimney["temperature"])
+        if frost.get("temperature") not in (None, ""):
+            context["frost_temperature"] = float(frost["temperature"])
     for key, config_key in (("comfort_temperature", "comfort_setpoint"), ("night_temperature", "night_setpoint")):
         entity_id = config.get(config_key)
         state = hass.states.get(entity_id) if isinstance(entity_id, str) else None
@@ -370,7 +383,7 @@ async def _admin_mutation(hass: HomeAssistant, connection: websocket_api.ActiveC
 @websocket_api.async_response
 async def _ws_admin_get(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "schedule": load_schedule(effective_config(entry)).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "window_contacts": window_contact_summary(hass, management), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "validation": validate_management(management)})
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "schedule": load_schedule(effective_config(entry)).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contact_summary(hass, management), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "preview": hass.data.get(DOMAIN, {}).get(entry.entry_id).data if hass.data.get(DOMAIN, {}).get(entry.entry_id) else {}, "validation": validate_management(management)})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/person/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
@@ -474,6 +487,13 @@ async def _ws_admin_outdoor_set(hass: HomeAssistant, connection: websocket_api.A
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/safety/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
 @websocket_api.async_response
 async def _ws_admin_safety_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    item = msg["item"]
+    helper_ids = {helper["entity_id"] for helper in discover_helper_entities(hass)}
+    for settings in item.get("modes", {}).values() if isinstance(item, dict) else ():
+        helper_entity = settings.get("helper_entity", "") if isinstance(settings, dict) else ""
+        if helper_entity and helper_entity not in helper_ids:
+            connection.send_error(msg["id"], "invalid_configuration", "helper_entity_not_found")
+            return
     await _admin_mapping_set(hass, connection, msg, "safety")
 
 
