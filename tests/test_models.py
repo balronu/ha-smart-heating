@@ -68,6 +68,47 @@ class ScheduleTests(unittest.TestCase):
         self.assertTrue(result["simulated"])
         self.assertNotIn("service", result)
 
+    def test_shadow_contains_passive_actor_plan_without_execution(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "20:00"}]})
+        result = calculate_status(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T07:00:00+01:00"),
+            timezone="Europe/Berlin",
+            context={
+                "zone_id": "esszimmer",
+                "comfort_temperature": 22,
+                "night_temperature": 17,
+                "heating_sources": {
+                    "primary_climate_entity": "climate.esszimmer",
+                    "fallback_climate_entity": "climate.tado",
+                },
+                "actor_states": {
+                    "climate.esszimmer": {
+                        "state": "heat",
+                        "hvac_mode": "heat",
+                        "temperature": 20,
+                        "available": True,
+                    },
+                    "climate.tado": {
+                        "state": "heat",
+                        "hvac_mode": "heat",
+                        "temperature": 20,
+                        "available": True,
+                    },
+                },
+                "actor_service_evidence": {
+                    "climate.set_hvac_mode": True,
+                    "climate.set_temperature": True,
+                },
+                "schedule_source_verified": True,
+            },
+        )
+        plan = result["shadow"]["planned_actor_actions"]
+        self.assertEqual(plan["selected_entity"], "climate.esszimmer")
+        self.assertEqual([item["service"] for item in plan["planned_commands"]], ["climate.set_temperature"])
+        self.assertEqual(plan["executed_commands"], [])
+        self.assertTrue(plan["passive"])
+
     def test_unknown_window_is_not_treated_as_closed(self):
         schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "20:00"}]})
         result = calculate_status(

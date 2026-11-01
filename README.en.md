@@ -1,5 +1,17 @@
 # Smart Heating (Beta 38)
 
+## Phase 81 – passive actuator contract
+
+The shadow result now contains a strictly descriptive actuator plan. It uses
+the verified legacy rule: the available `climate.esszimmer` entity is selected
+first and `climate.tado_smart_thermostat_ru0765140480` is selected only as a
+fallback; both are never targeted automatically. Planned `climate.set_hvac_mode`
+and `climate.set_temperature` actions include their reason, priority, evidence,
+and `not_executed` status. No Home Assistant service is called by this plan.
+Independent boiler or burner feedback is still required before physical heat
+demand can be considered proven, and missing actor, scheduler, capability, or
+read-back evidence keeps SMART takeover blocked.
+
 ## Phase 76 – passive special-mode resolver
 
 The passive engine now calculates which special mode would be effective per

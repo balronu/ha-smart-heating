@@ -156,6 +156,27 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     context["heating_sources"] = deepcopy(management.get("heating_sources", {}))
     context["heating_sources"]["primary_climate_entity"] = context["heating_sources"].get("primary_climate_entity") or config.get("climate_entity")
     context["heating_sources"]["fallback_climate_entity"] = context["heating_sources"].get("fallback_climate_entity") or config.get("tado_fallback")
+    context["actor_states"] = {}
+    context["actor_service_evidence"] = {
+        "climate.set_hvac_mode": True,
+        "climate.set_temperature": True,
+    }
+    context["physical_heat_demand_status"] = "not_proven"
+    for entity_id in (context["heating_sources"].get("primary_climate_entity"), context["heating_sources"].get("fallback_climate_entity")):
+        if not entity_id:
+            continue
+        state = hass.states.get(entity_id)
+        if not state:
+            context["actor_states"][entity_id] = {"state": "missing", "available": False}
+            continue
+        context["actor_states"][entity_id] = {
+            "state": str(state.state),
+            "hvac_mode": str(state.state),
+            "temperature": state.attributes.get("temperature"),
+            "hvac_action": state.attributes.get("hvac_action"),
+            "available": str(state.state) not in {"unknown", "unavailable"},
+            "hvac_modes": list(state.attributes.get("hvac_modes", [])),
+        }
     context["presence"] = person_presence(hass, management["persons"])
     context["schedule_source_verified"] = bool(config.get("schedule_source_verified", False))
     context["thermostats"] = []

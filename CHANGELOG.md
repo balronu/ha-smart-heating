@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased – Phase 81 passiver Aktorvertrag / Passive actuator contract
+
+### Deutsch
+
+- Passive Shadow-Entscheidungen enthalten jetzt einen strikt nicht
+  ausführenden Aktorplan mit Zielentität, Primary/Fallback-Auswahl,
+  Klima-Serviceparametern, Begründung, Datenqualität und fehlenden
+  Voraussetzungen.
+- Aktionen werden ausdrücklich als `not_executed` markiert. Unbekannte
+  Aktoren, fehlende Readbacks und der unbestätigte Kessel-Rückkanal blockieren
+  die Planung bzw. die SMART-Freigabe; es werden keine Heizbefehle gesendet.
+
+### English
+
+- Passive shadow decisions now include a strictly non-executing actuator plan
+  with target entity, deterministic primary/fallback selection, climate-service
+  parameters, rationale, data quality, and missing prerequisites.
+- Actions are explicitly marked `not_executed`. Unknown actors, missing
+  readback, and unverified boiler feedback block planning or SMART readiness;
+  no heating commands are sent.
+
 ## Unreleased – Phase 78 Wochenzeitplan und Tages-/Nachtsteuerung
 
 ### Deutsch

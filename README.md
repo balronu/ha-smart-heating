@@ -1,5 +1,27 @@
 # Smart Heating (Beta 38)
 
+## Phase 81 – Passiver Aktorvertrag
+
+Die passive Shadow-Auswertung erzeugt jetzt je Raum einen strikt nicht
+ausführenden Aktorplan. Er dokumentiert Zielentität, Fallback-Auswahl,
+`climate.set_hvac_mode`/`climate.set_temperature`, Parameter, Entscheidung,
+Sondermodus, Priorität, Begründung, Datenqualität und fehlende Nachweise.
+Primary und Fallback werden nicht gleichzeitig geplant; der Fallback wird nur
+bei nicht verfügbarer Primary-Entität gewählt. Geplante Aktionen bleiben als
+Daten mit `execution_status: not_executed` sichtbar und können keine
+Home-Assistant-Services auslösen. Eine beobachtete Climate-
+`hvac_action` oder ein Tado-Heizbedarf ersetzt weiterhin keinen unabhängigen
+Brötje-/Kessel-Rückkanal.
+
+The passive shadow evaluation now emits a strictly non-executing actuator plan
+per room. It records the target, deterministic primary/fallback selection,
+known climate services, parameters, decision, special mode, priority,
+rationale, data quality, and missing evidence. Primary and fallback are never
+planned together; fallback is selected only when primary is unavailable.
+Planned actions remain data with `execution_status: not_executed` and cannot
+call Home Assistant services. Observed `hvac_action` or Tado demand still do
+not replace independent boiler/burner feedback.
+
 ## Phase 78 – Wochenzeitplan passiv auswerten
 
 Der Wochenplan unterstützt Montag bis Sonntag, mehrere Komfortfenster pro Tag

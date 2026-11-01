@@ -8,6 +8,7 @@ from typing import Any, Mapping
 
 from .models import WeeklySchedule, evaluate_decision
 from .backend_engine import calculate_room_demand, evaluate_window_groups, evaluate_window_strategy, resolve_passive_decision, resolve_special_modes
+from .actuator import build_passive_actor_plan
 
 
 def calculate_status(
@@ -82,6 +83,21 @@ def calculate_status(
     if not context.get("schedule_source_verified", False):
         missing_prerequisites.append("scheduler_or_schedule_source")
     data_quality = "complete" if not missing_prerequisites else "incomplete"
+    actor_plan = build_passive_actor_plan(
+        zone_id=context.get("zone_id"),
+        heating_sources=sources,
+        decision=passive_decision,
+        active_special_mode=mode_result.get("winner"),
+        priority=passive_decision.get("priority"),
+        reason=passive_decision.get("reason"),
+        data_quality=data_quality,
+        missing_prerequisites=missing_prerequisites,
+        actor_states=context.get("actor_states", {}),
+        service_evidence=context.get("actor_service_evidence", {}),
+        physical_heat_demand_status=context.get("physical_heat_demand_status", "not_proven"),
+    )
+    missing_prerequisites = sorted(set(missing_prerequisites) | set(actor_plan["missing_prerequisites"]))
+    data_quality = "complete" if not missing_prerequisites else "incomplete"
     return {
         "schedule_active": active,
         "next_switch": next_switch.isoformat() if next_switch else None,
@@ -132,5 +148,6 @@ def calculate_status(
             "missing_prerequisites": sorted(set(missing_prerequisites)),
             "passive": True,
             "commands": [],
+            "planned_actor_actions": actor_plan,
         },
     }
