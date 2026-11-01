@@ -31,6 +31,31 @@ test("uses the full mobile width and keeps technical UI separate", async ({ page
   await page.screenshot({ path: `test-results/${test.info().project.name}-backend.png`, fullPage: true });
 });
 
+test("provides a Home Assistant navigation escape hatch", async ({ page }) => {
+  await expect(page.locator("[data-ha-menu-button]")).toBeVisible();
+  await expect(page.locator("[data-nav-back]")).toBeVisible();
+  await expect(page.locator(".ha-navigation-header")).toContainText("Smart Heating");
+});
+
+test("keeps temperature and controller choices explicit and passive", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.temperature_entities = [{ entity_id: "sensor.outdoor", name: "Außen", state: "unknown" }];
+    panel._data.controller_entities = [{ entity_id: "input_boolean.heizung", name: "Heizung", state: "off", passive: true, description: "Beobachtbares Steuersignal; keine Schaltung" }];
+    panel._render();
+  });
+  await page.locator("details[data-section=outdoor] summary").click();
+  await expect(page.locator("form[data-outdoor-form] select option[value='sensor.outdoor']")).toHaveCount(1);
+  await page.locator("details[data-section=controller] summary").click();
+  await expect(page.locator("form[data-controller-form] select option[value='input_boolean.heizung']")).toHaveCount(1);
+  await expect(page.locator("details[data-section=controller]")).toContainText("keine Befehle");
+});
+
+test("uses contact cards on small displays", async ({ page }) => {
+  await page.locator("details[data-section=windows] summary").click();
+  await expect(page.locator(".contact-cards article")).toHaveCount(3);
+});
+
 test("shows the graphical weekly planner with day, time, and target controls", async ({ page }) => {
   await expect(page.locator("[data-weekly-planner]")).toBeVisible();
   await expect(page.locator("[data-schedule-day]")).toHaveCount(7);

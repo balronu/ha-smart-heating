@@ -166,6 +166,15 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_settings(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
         if user_input is not None:
+            # The value remains in the schema for backwards-compatible reads,
+            # but productive takeover is not an available operation yet. Keep
+            # this guard server-side so forged form data cannot arm control.
+            if user_input.get(CONF_OPERATION_MODE) == MODE_FULL:
+                return self.async_show_form(
+                    step_id="settings",
+                    data_schema=self._schema(),
+                    errors={"base": "active_control_unavailable"},
+                )
             options = dict(self._entry.options)
             options.update(user_input)
             special_modes = dict(options.get(CONF_SPECIAL_MODES, self._entry.data.get(CONF_SPECIAL_MODES, {})) or {})

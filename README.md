@@ -1,4 +1,13 @@
-# Smart Heating (Beta 17)
+# Smart Heating (Beta 18)
+
+## Verbindliche Begriffe und Oberflächen
+
+- **Frontend – Lovelace-Karte:** Heizungsstatus, Visualisierung und passive Wochenplanvorschau.
+- **Verwaltungsoberfläche – Smart Heating im HA-Seitenmenü:** Wochenpläne, Klimazonen, Räume, Temperaturfühler, Fensterkontakte, Personen und beobachtbare Steuerungssignale.
+- **Integrationskonfiguration – HA-Optionsdialog:** technische Optionen wie Betriebsmodus, Sommerstrategie sowie Schornsteinfeger- und Frostschutzwerte.
+- **Backend – Python-Integration:** Datenhaltung, Validierung, Zustandsberechnung, WebSocket-APIs und Heizungslogik.
+
+Im Optionsdialog ist **Nur beobachten (aktuell)** voreingestellt. Smart Heating berechnet Heizbedarf und Empfehlungen, ohne Thermostate, Automationen oder andere Geräte zu verändern. **Heizung aktiv steuern** ist noch nicht verfügbar und serverseitig gesperrt. Die Sommerstrategie ist davon getrennt und schaltet im Beobachtungsmodus keine Thermostate aus.
 
 **Smart Heating** ist eine HACS-kompatible Home-Assistant-Integration für
 Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.

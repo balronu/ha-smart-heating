@@ -28,6 +28,10 @@ from .control import analyze_control_plane
 from .cleanup import build_cleanup_plan
 from .management import (
     area_suggestions,
+    discover_climate_entities,
+    discover_controller_entities,
+    discover_temperature_entities,
+    is_eligible_temperature_entity,
     discover_persons,
     normalize_management,
     person_presence,
@@ -365,7 +369,7 @@ async def _admin_mutation(hass: HomeAssistant, connection: websocket_api.ActiveC
 @websocket_api.async_response
 async def _ws_admin_get(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "schedule": load_schedule(effective_config(entry)).as_dict(), "management": management, "areas": area_suggestions(hass), "window_contacts": window_contact_summary(hass, management), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "validation": validate_management(management)})
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "schedule": load_schedule(effective_config(entry)).as_dict(), "management": management, "areas": area_suggestions(hass), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "window_contacts": window_contact_summary(hass, management), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "validation": validate_management(management)})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/person/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
@@ -408,6 +412,11 @@ async def _ws_admin_sensor_delete(hass: HomeAssistant, connection: websocket_api
 @websocket_api.async_response
 async def _ws_admin_controller_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])
+    entity_id = msg["item"].get("entity_id")
+    eligible = {item["entity_id"] for item in discover_controller_entities(hass)}
+    if entity_id and entity_id not in eligible:
+        connection.send_error(msg["id"], "invalid_configuration", "controller_not_observable")
+        return
     management["controller"] = dict(msg["item"])
     try:
         _admin_save(hass, entry, management)
@@ -433,6 +442,10 @@ async def _admin_mapping_set(hass: HomeAssistant, connection: websocket_api.Acti
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/outdoor/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
 @websocket_api.async_response
 async def _ws_admin_outdoor_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    entity_id = msg["item"].get("entity_id")
+    if entity_id and not is_eligible_temperature_entity(hass, entity_id):
+        connection.send_error(msg["id"], "invalid_configuration", "temperature_entity_not_eligible")
+        return
     await _admin_mapping_set(hass, connection, msg, "outdoor_temperature")
 
 
