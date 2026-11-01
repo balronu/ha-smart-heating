@@ -1,4 +1,13 @@
-# Smart Heating (Beta 36)
+# Smart Heating (Beta 37)
+
+## Phase 57 – Keep diagnostic values visible (Beta 37)
+
+Window-contact diagnostics continue to show configured contacts when the
+diagnostic field is missing or empty. Missing values from ConfigEntry.options,
+runtime, and admin/get are explicitly shown as “Not present”, with a visible
+missing-data notice. Administrative readback also accepts wrapped responses.
+Persistence, entities, and production values remain unchanged; operation stays
+passive.
 
 ## Phase 55 – Visible window diagnostic values (Beta 36)
 

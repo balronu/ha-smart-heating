@@ -234,6 +234,31 @@ test("shows an explicit diagnostic-unavailable state instead of hiding existing 
   await expect(section.locator("button,select,input")).toHaveCount(0);
 });
 
+test("renders every configured contact and all three missing sources from a wrapped admin response", async ({ page }) => {
+  await page.evaluate(async () => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    const payload = structuredClone(panel._data);
+    payload.window_contacts.contacts = [
+      { entity_id: "binary_sensor.fensterkontakt_badezimmer_contact", name: "Fenster Badezimmer", ignored: false },
+      { entity_id: "binary_sensor.fensterkontakt_badezimmer_1_2_contact", name: "Fensterkontakt Badezimmer 1 2", ignored: false },
+    ];
+    delete payload.window_role_diagnostics;
+    const original = panel._hass.callWS;
+    panel._hass.callWS = async (message) => message.type.endsWith("admin/get") ? { result: payload } : original(message);
+    panel._loaded = false;
+    panel._data = null;
+    await panel._load();
+  });
+  const section = page.locator("details[data-section=diagnostics]");
+  await section.locator(":scope > summary").click();
+  await expect(section.locator("[data-window-role-diagnostic]")).toHaveCount(2);
+  await expect(section).toContainText("binary_sensor.fensterkontakt_badezimmer_contact");
+  await expect(section).toContainText("binary_sensor.fensterkontakt_badezimmer_1_2_contact");
+  await expect(section.locator("[data-window-role-diagnostic]").first()).toContainText("Nicht vorhanden");
+  await expect(section).toContainText("Diagnosedaten nicht verfügbar");
+  await expect(section.locator("th")).toHaveCount(5);
+});
+
 test("keeps role changes local until room save and persists independent contact roles across reload", async ({ page }) => {
   await page.evaluate(() => {
     const panel = document.querySelector("smart-heating-backend-panel");

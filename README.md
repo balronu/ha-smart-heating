@@ -1,4 +1,13 @@
-# Smart Heating (Beta 36)
+# Smart Heating (Beta 37)
+
+## Phase 57 – Diagnosewerte bleiben sichtbar (Beta 37)
+
+Die Fensterkontakt-Diagnose zeigt vorhandene Kontakte auch dann weiter an,
+wenn das Diagnosefeld fehlt oder leer ist. Für ConfigEntry.options, Runtime und
+admin/get werden fehlende Werte ausdrücklich als „Nicht vorhanden“ dargestellt;
+die Diagnose meldet die fehlende Datenquelle sichtbar. Der Readback akzeptiert
+auch verschachtelte Verwaltungsantworten. Speicherlogik, Entities und
+produktive Werte bleiben unverändert; der Betrieb bleibt passiv.
 
 ## Phase 55 – Diagnosewerte für Fensterkontakte (Beta 36)
 
