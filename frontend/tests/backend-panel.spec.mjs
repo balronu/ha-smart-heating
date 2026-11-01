@@ -171,7 +171,7 @@ test("edits schema-6 special-mode effects and keeps the chimney-sweep guard", as
   await mode.locator("[name=target_temperature]").fill("21.5");
   await mode.locator("[name=override_schedule]").check();
   await mode.locator("[name=zone_ids]").selectOption("zone-1");
-  await mode.locator("[name=effect_scope][value=selected]").check();
+  await mode.locator("[data-effect-scope][value=selected]").check();
   await mode.getByRole("button", { name: "Speichern" }).click();
   await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel").__phase77Calls.find((item) => item.type.endsWith("admin/special_mode/set"))?.item?.effect?.target_temperature)).toBe(21.5);
   await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel").__phase77Calls.find((item) => item.type.endsWith("admin/special_mode/set"))?.item?.effect?.override_schedule)).toBe(true);
@@ -383,6 +383,34 @@ test("keeps role changes local until room save and persists independent contact 
   await page.locator("details[data-room=room-badezimmer] summary").click();
   await expect(page.locator("details[data-room=room-badezimmer] [data-room-window-contact]").nth(0).locator("select")).toHaveValue("tilt");
   await expect(page.locator("details[data-room=room-badezimmer] [data-room-window-contact]").nth(1).locator("select")).toHaveValue("open");
+});
+
+test("renders compact weekly rows with copy only inside the open editor", async ({ page }) => {
+  const planner = page.locator("[data-weekly-planner]");
+  await expect(planner.locator("[data-schedule-day]")).toHaveCount(7);
+  await expect(planner.locator("[data-schedule-day] [data-schedule-copy-day]")).toHaveCount(0);
+  await planner.locator("[data-schedule-day=monday] [data-schedule-edit]").click();
+  await expect(planner.locator("[data-day-editor=monday] [data-schedule-copy]")).toBeVisible();
+  await expect(planner.locator("[data-schedule-day=monday] .day-button")).toHaveAttribute("aria-expanded", "true");
+});
+
+test("shows the passive operational overview and shadow blockers", async ({ page }) => {
+  await expect(page.locator("[data-operational-overview]")).toContainText("Geladene Version");
+  await expect(page.locator("[data-operational-overview]")).toContainText("passiv");
+  await page.locator("details[data-section=diagnostics] > summary").click();
+  await expect(page.locator("[data-shadow-diagnostics]")).toContainText("Aktuelle Heizungssteuerung");
+  await expect(page.locator("[data-shadow-diagnostics]")).toContainText("SMART");
+});
+
+test("keeps room-scope radios readable and disables room selection for all rooms", async ({ page }) => {
+  await page.locator("details[data-section=safety] > summary").click();
+  const party = page.locator('[data-safety-mode="party"]');
+  await party.locator(":scope > summary").click();
+  const all = party.locator("[data-effect-scope][value=all]");
+  await expect(all).toBeChecked();
+  await expect(party.locator("[name=zone_ids]")).toBeDisabled();
+  await party.locator("[data-effect-scope][value=selected]").check();
+  await expect(party.locator("[name=zone_ids]")).toBeEnabled();
 });
 
 test("ignores and restores a contact without deleting the HA entity", async ({ page }) => {

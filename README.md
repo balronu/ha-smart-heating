@@ -1,5 +1,77 @@
 # Smart Heating (Beta 39)
 
+## Beta.40 – Lovelace-Integration und Release-Reife (passiv)
+
+Die Karte wird über `StaticPathConfig` und den öffentlichen
+`frontend.add_extra_js_url`-Pfad registriert. Die versionierte URL
+`/smart_heating/smart-heating-card.js?v=<Integrationsversion>` verhindert alte
+Browser-Ressourcen nach einem Update; eine manuelle Dashboard-Ressource ist
+nicht erforderlich. Registrierung und Kartenpicker sind idempotent.
+
+Der grafische Karteneditor unterstützt Darstellung, Raumfilter, Sortierung,
+Bereichsreihenfolge, sichtbare Bereiche sowie Ist-/Solltemperatur-,
+Fensterstatus- und Sondermodusoptionen. Die Karte liest nur
+`smart_heating/plan/get`, dedupliziert parallele Abrufe gleicher Instanzen und
+aktualisiert sich bei einer neuen HA-Zustandsübergabe. Es gibt kein Polling.
+
+Über HACS kann der exakte Beta.40-Tag installiert und eine Karte
+`custom:smart-heating-card` über den grafischen Editor hinzugefügt werden. Die
+Karte aktiviert keine Sondermodi, verändert
+keine Thermostate oder Legacy-Automationen, schaltet SMART nicht um und nutzt
+keine schreibenden Endpunkte. Fehlendes Backend sowie unbekannte oder nicht
+verfügbare Sensor-/Schedulerdaten werden sichtbar dargestellt.
+
+## Phase 86 – Native Lovelace-Karte (lokal, passiv)
+
+Die lokale Weiterentwicklung enthält eine native `smart-heating-card`. Sie
+liest einmalig den bestehenden `smart_heating/plan/get`-Vertrag und zeigt
+Betriebsmodus, Räume, Temperaturen, Fensterstatus, Sondermodi, Wochenplan,
+Shadow-Status und offene SMART-Sperren. Ausführliche, kompakte und individuell
+konfigurierbare Bereiche werden über den grafischen Karteneditor unterstützt;
+mehrere Karteninstanzen bleiben unabhängig.
+
+Die Karte ist ausschließlich lesend: Sie sendet keine Heiz-, Thermostat-,
+Scheduler- oder Sondermodus-Befehle. Unbekannte und nicht verfügbare Werte
+werden sichtbar als unbekannt/nicht vorhanden dargestellt. Die Integration
+registriert das Modul weiterhin über den bestehenden versionierten
+`frontend.add_extra_js_url`-Pfad. Die Karte ist lokal vorbereitet und noch
+nicht veröffentlicht oder auf VM 104 installiert.
+
+### Local installation/use
+
+After a later approved release, add a Lovelace card of type
+`custom:smart-heating-card`, select the Smart-Heating Config Entry, and use
+the visual editor for the display mode and visible sections. Until then this
+Phase-86 implementation remains local and passive.
+
+## Phase 85 – UX-Konsolidierung (lokal, nicht veröffentlicht)
+
+Die lokale Weiterentwicklung auf Beta.39 verdichtet den Wochenplan zu
+mobilen Tageszeilen, verlagert das Kopieren in den jeweiligen Tageseditor und
+trennt bestätigte Speicherstände von ungespeicherten Änderungen. Sondermodus-
+Wirkungen haben touch-freundliche Auswahlfelder mit verständlicher
+Zusammenfassung; abhängige Eingaben erscheinen nur, wenn sie relevant sind.
+
+Die Verwaltungsübersicht und „Diagnose & Migration“ zeigen außerdem die
+aktuelle Steuerungshoheit, den passiven Betrieb, Shadow-Datenqualität und
+offene SMART-Sperrgründe. Manifest, Backend und Frontend weisen lokal dieselbe
+Beta.39-Version aus. Die Änderungen sind bewusst noch nicht veröffentlicht
+und nicht auf VM 104 installiert; die Heizungsautomatik und alle produktiven
+Konfigurationen bleiben unverändert.
+
+## Phase 85 – UX consolidation (local, unreleased)
+
+The local Beta.39 work condenses the weekly schedule into mobile day rows,
+moves copying into the selected day editor, and separates confirmed saves from
+unsaved edits. Special-mode effects use touch-friendly choices and show
+dependent fields only when relevant, with a readable passive summary.
+
+The administration overview and “Diagnostics & Migration” also expose control
+ownership, passive operation, shadow data quality, and open SMART blockers.
+Manifest, backend, and frontend report the same Beta.39 version locally. This
+work is intentionally unreleased and not installed on VM 104; the legacy
+heating automation and productive configuration remain unchanged.
+
 ## Phase 83 – Reale Shadow-Datenversorgung
 
 Die passive Shadow-Auswertung liest ausschließlich bekannte Home-Assistant-

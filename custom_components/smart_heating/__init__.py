@@ -320,7 +320,9 @@ async def _register_frontend(hass: HomeAssistant) -> None:
     try:
         from homeassistant.components.http import StaticPathConfig
 
-        result = hass.http.async_register_static_paths([StaticPathConfig("/smart_heating", str(Path(__file__).parent / "frontend"), cache_headers=False)])
+        # The module URL is versioned below, so HA/browser caches can retain a
+        # static asset safely until the integration version changes.
+        result = hass.http.async_register_static_paths([StaticPathConfig("/smart_heating", str(Path(__file__).parent / "frontend"), cache_headers=True)])
         if inspect.isawaitable(result):
             await result
         frontend.add_extra_js_url(hass, f"/smart_heating/smart-heating-card.js?v={VERSION}")

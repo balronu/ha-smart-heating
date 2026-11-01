@@ -2,40 +2,63 @@ import { test, expect } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/frontend/fixtures/harness.html");
-  await expect(page.getByTestId("status")).toContainText("compatibility");
-  await expect(page.getByTestId("observed")).toContainText("unbekannt");
-  await expect(page.getByTestId("version")).toContainText("0.1.0-beta.11");
-  await expect(page.locator(".backend-menu")).toHaveCount(0);
-  await expect(page.getByText("Räume & Klimazonen", { exact: true })).toHaveCount(0);
+  await expect(page.getByTestId("status").first()).toContainText("Kompatibilitätsmodus");
+  await expect(page.getByTestId("version").first()).toContainText("0.1.0-beta.40");
+  await expect(page.getByText("Diese Karte zeigt ausschließlich passive Daten.").first()).toBeVisible();
 });
 
-test("renders all days and edits a window through the operational card", async ({ page }, testInfo) => {
-  await expect(page.locator("section[data-day]")).toHaveCount(7);
-  const monday = page.locator("section[data-day=monday]");
-  await monday.locator("input[data-part=start]").fill("06:00");
-  await expect(monday.locator("input[data-part=start]")).toHaveValue("06:00");
-  await monday.getByRole("button", { name: "+ Zeit" }).click();
-  await expect(monday.locator("input[data-part=start]")).toHaveCount(2);
-  await monday.locator("button[data-remove]").nth(1).click();
-  await expect(monday.locator("input[data-part=start]")).toHaveCount(1);
-  await page.screenshot({ path: `test-results/${testInfo.project.name}-frontend.png`, fullPage: true });
+test("renders detailed passive overview and all weekdays", async ({ page }, testInfo) => {
+  await expect(page.locator("[data-display-mode=detailed]").first()).toBeVisible();
+  await expect(page.locator("smart-heating-card").first().locator("section[data-section=schedule] .day-row")).toHaveCount(7);
+  await expect(page.locator("smart-heating-card").first().locator("section[data-section=rooms] .room strong").first()).toHaveText("Badezimmer");
+  await page.screenshot({ path: `test-results/${testInfo.project.name}-lovelace-detailed.png`, fullPage: true });
 });
 
-test("copies a day and keeps technical administration out of the card", async ({ page }) => {
-  const monday = page.locator("section[data-day=monday]");
-  await monday.locator("select[data-copy-target]").selectOption("tuesday");
-  await monday.getByRole("button", { name: "Tag kopieren" }).click();
-  await expect(page.locator("section[data-day=tuesday] input[data-part=start]")).toHaveCount(1);
-  await expect(page.locator(".hint").last()).toContainText("Seitenmenü");
+test("supports compact and individual configuration modes without writes", async ({ page }) => {
+  await page.evaluate(() => { const card = document.querySelector("smart-heating-card"); card.setConfig({ entry_id: "fixture-compact", display_mode: "compact" }); card.hass = window.hass; });
+  await expect(page.locator("[data-display-mode=compact]")).toBeVisible();
+  await expect(page.locator("smart-heating-card").first().locator("section[data-section=schedule]")).toHaveCount(0);
+  await page.evaluate(() => { const card = document.querySelector("smart-heating-card"); card.setConfig({ entry_id: "fixture-custom", display_mode: "custom", visible_sections: ["rooms", "diagnostics"] }); card.hass = window.hass; });
+  await expect(page.locator("[data-display-mode=custom]").first().locator("section[data-section=rooms]")).toBeVisible();
+  await expect(page.locator("[data-display-mode=custom]").first().locator("section[data-section=schedule]")).toHaveCount(0);
+  const calls = await page.evaluate(() => window.__calls);
+  expect(calls.every((call) => call.type === "smart_heating/plan/get")).toBeTruthy();
 });
 
-test("shows a rendered validation error and remains usable", async ({ page }) => {
-  await page.locator("section[data-day=monday] input[data-part=start]").fill("22:00");
-  await expect(page.getByTestId("error")).toContainText("Ungültiger");
-  await expect(page.locator("section[data-day=monday]")).toBeVisible();
+test("editor emits the complete visual configuration", async ({ page }) => {
+  const result = await page.evaluate(async () => { await customElements.whenDefined("smart-heating-card-editor"); const editor = document.createElement("smart-heating-card-editor"); document.body.append(editor); editor.setConfig({ entry_id: "fixture" }); return await new Promise((resolve) => { editor.addEventListener("config-changed", (event) => resolve(event.detail.config), { once: true }); editor.querySelector("[data-mode]").value = "compact"; editor.querySelector("[data-mode]").dispatchEvent(new Event("change", { bubbles: true })); }); });
+  expect(result.display_mode).toBe("compact"); expect(result.entry_id).toBe("fixture"); expect(result.visible_sections).toContain("rooms");
 });
 
-test("uses the full narrow viewport without horizontal overflow", async ({ page }) => {
-  const widths = await page.evaluate(() => ({ body: document.body.scrollWidth, viewport: window.innerWidth }));
-  expect(widths.body).toBeLessThanOrEqual(widths.viewport + 1);
+test("editor persists filter, order, sorting, visibility, and display options", async ({ page }) => {
+  const result = await page.evaluate(async () => { const editor = document.createElement("smart-heating-card-editor"); document.body.append(editor); editor.setConfig({ entry_id: "fixture", visible_sections: ["rooms", "operation"] }); return await new Promise((resolve) => { editor.addEventListener("config-changed", event => resolve(event.detail.config), { once: true }); editor.querySelector("[data-room-filter]").value = "bathroom, Küche"; editor.querySelector("[data-order]").value = "rooms, operation"; editor.querySelector("[data-sort]").value = "name"; editor.querySelector("[data-windows]").checked = false; editor.querySelector("[data-windows]").dispatchEvent(new Event("change", { bubbles: true })); }); });
+  expect(result.room_filter).toEqual(["bathroom", "Küche"]); expect(result.visible_sections.slice(0, 2)).toEqual(["rooms", "operation"]); expect(result.sort).toBe("name"); expect(result.show_windows).toBeFalsy();
 });
+
+test("deduplicates read-only calls for two cards using the same entry", async ({ page }) => {
+  await page.evaluate(() => { const card = document.querySelector("smart-heating-card"); const second = document.createElement("smart-heating-card"); document.body.append(second); second.setConfig({ entry_id: "shared-entry" }); second.hass = window.hass; card.setConfig({ entry_id: "shared-entry" }); card.hass = window.hass; });
+  await page.waitForTimeout(50); const entries = await page.evaluate(() => window.__calls.filter(call => call.entry_id === "shared-entry")); expect(entries).toHaveLength(1); expect(entries[0].type).toBe("smart_heating/plan/get");
+});
+
+test("refreshes only after a new HA state object and never writes", async ({ page }) => {
+  const before = await page.evaluate(() => window.__calls.length);
+  await page.evaluate(() => { const card = document.querySelector("smart-heating-card"); card.hass = { ...window.hass }; });
+  await expect.poll(async () => page.evaluate(() => window.__calls.length)).toBeGreaterThan(before);
+  const calls = await page.evaluate(() => window.__calls); expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
+
+test("updates live data without a polling loop", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  await page.evaluate(() => { window.__fixtureState.status.zones[0].window_state = "open"; window.__fixtureState.status.observed.window_status = "open_or_tilted"; document.querySelector("smart-heating-card")._data = structuredClone(window.__fixtureState); document.querySelector("smart-heating-card")._render(); });
+  await expect(card.locator("section[data-section=windows]")).toContainText("offen");
+  const calls = await page.evaluate(() => window.__calls); expect(calls.every((call) => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
+
+test("shows missing data instead of inventing temperatures", async ({ page }) => {
+  await page.evaluate(() => { const card = document.querySelector("smart-heating-card"); card._data.status.zones[0].temperatures = [{ entity_id: "sensor.missing", state: "unavailable" }]; card._data.status.zones[0].target_temperature = null; card._render(); });
+  await expect(page.locator("smart-heating-card").first().locator("section[data-section=rooms]")).toContainText("nicht vorhanden"); await expect(page.locator("smart-heating-card").first().locator("section[data-section=rooms]")).toContainText("Daten teilweise nicht verfügbar");
+});
+
+test("keeps multiple card instances independent", async ({ page }) => { await expect(page.locator("smart-heating-card")).toHaveCount(2); const entries = await page.evaluate(() => window.__calls.map((call) => call.entry_id)); expect(entries).toContain("fixture-0"); expect(entries).toContain("fixture-1"); });
+
+test("uses the full narrow viewport without horizontal overflow", async ({ page }) => { const widths = await page.evaluate(() => ({ body: document.body.scrollWidth, viewport: window.innerWidth })); expect(widths.body).toBeLessThanOrEqual(widths.viewport + 1); });

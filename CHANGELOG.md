@@ -1,5 +1,86 @@
 # Changelog
 
+## 0.1.0-beta.40 – Lovelace-Integration und Release-Reife / Lovelace integration and release readiness
+
+### Deutsch
+
+- Versionierter Integrationspfad sowie idempotente statische Ressourcen- und
+  Kartenpicker-Registrierung für eine spätere HACS-Installation ergänzt.
+- Der grafische Editor unterstützt Raumfilter, Sortierung, Reihenfolge,
+  sichtbare Bereiche sowie Temperatur-, Fenster- und Sondermodusoptionen.
+- Read-only `smart_heating/plan/get` wird für gleiche Karteninstanzen
+  dedupliziert und bei neuen HA-Zustandsübergaben aktualisiert; kein Polling
+  und keine Schreibschnittstelle.
+- Die Arbeiten bleiben lokal, passiv und nicht auf VM 104 installiert.
+
+### English
+
+- Added the versioned integration resource path plus idempotent static-resource
+  and card-picker registration for a future HACS installation.
+- The visual editor supports room filters, sorting, ordering, visible sections,
+  and temperature, window, and special-mode options.
+- Read-only `smart_heating/plan/get` is deduplicated for identical card
+  instances and refreshed on new HA state handoffs; there is no polling or
+  write interface.
+- The work remains local, passive, and not installed on VM 104.
+
+## Unreleased – Phase 86 native Lovelace card / native Lovelace card
+
+### Deutsch
+
+- Eine native `smart-heating-card` mit ausführlicher, kompakter und individuell
+  konfigurierbarer Darstellung wurde lokal vorbereitet.
+- Die Karte liest ausschließlich `smart_heating/plan/get`, aktualisiert sich
+  bei erneuter HA-Zustandsübergabe, unterstützt mehrere Instanzen und zeigt
+  unbekannte Daten ausdrücklich an.
+- Räume, Temperaturen, Fensterkontakte, Sondermodi, Wochenplan,
+  Shadow-Vergleich und SMART-Sperren werden passiv dargestellt. Es gibt keine
+  Karten-Schreiboperationen oder Heizbefehle.
+- Ein grafischer Editor für Titel, Darstellung und sichtbare Bereiche ist
+  enthalten. Die Änderung ist lokal, unreleased und nicht auf VM 104 installiert.
+
+### English
+
+- A native `smart-heating-card` with detailed, compact, and individually
+  configurable views is prepared locally.
+- The card reads only `smart_heating/plan/get`, supports independent multiple
+  instances, and renders unknown data explicitly.
+- Rooms, temperatures, window contacts, special modes, weekly schedule, shadow
+  comparison, and SMART blockers are passive read-only views. No card write or
+  heating operation is available.
+- A visual editor covers title, display mode, and visible sections. This work
+  is local, unreleased, and not installed on VM 104.
+
+## Unreleased – Phase 85 UX-Konsolidierung / UX consolidation
+
+### Deutsch
+
+- Der Wochenplan wird auf mobilen Geräten als kompakte Tageszeilen mit einem
+  Editor pro Tag dargestellt; Kopieren bleibt im geöffneten Editor, und
+  ungespeicherte Änderungen werden vom bestätigten Speicherstatus getrennt.
+- Sondermodus-Wirkungen verwenden jetzt klar getrennte, touch-freundliche
+  Auswahlfelder. Abhängige Eingaben werden nur bei relevanter Auswahl gezeigt;
+  passive Vorschau, SMART-Sperren und Schornsteinfeger-Priorität bleiben
+  erhalten.
+- Die Startübersicht und „Diagnose & Migration“ zeigen Steuerungshoheit,
+  Passivmodus, Shadow-Status und offene SMART-Voraussetzungen kompakt an.
+- Die lokale Versionsanzeige ist auf Beta.39 zwischen Manifest, Backend und
+  Frontend vereinheitlicht. Diese Änderung ist noch nicht veröffentlicht und
+  nicht auf VM 104 installiert.
+
+### English
+
+- The weekly schedule now uses compact mobile day rows with one editor per day;
+  copying remains inside the open editor and unsaved changes are distinct from
+  confirmed save status.
+- Special-mode effects use clearly separated, touch-friendly choices.
+  Dependent inputs appear only when relevant; passive previews, SMART locks,
+  and chimney-sweep priority remain unchanged.
+- The overview and “Diagnostics & Migration” now summarize control ownership,
+  passive operation, shadow status, and open SMART prerequisites.
+- The local displayed version is aligned to Beta.39 across the manifest,
+  backend, and frontend. This change is not released or installed on VM 104.
+
 ## 0.1.0-beta.39 – Phase 83 reale Shadow-Datenversorgung / Live shadow data
 
 ### Deutsch

@@ -1,5 +1,38 @@
 # Smart Heating (Beta 39)
 
+## Beta.40 – Lovelace integration and release readiness (passive)
+
+The card is registered through `StaticPathConfig` and the public
+`frontend.add_extra_js_url` API. The versioned URL
+`/smart_heating/smart-heating-card.js?v=<integration-version>` prevents stale
+browser assets after an update; no manual Dashboard Resource is required.
+Registration and the card-picker entry are idempotent.
+
+The visual editor supports display mode, room filters, sorting, section order,
+visible sections, and actual/target temperature, window, and special-mode
+options. The card reads only `smart_heating/plan/get`, deduplicates parallel
+requests for identical instances, and refreshes on a new HA state handoff. It
+has no polling loop.
+
+Install the exact Beta.40 tag through HACS and add `custom:smart-heating-card`
+using the visual editor. The card cannot activate special modes,
+change thermostats or Legacy automations, switch SMART, or call write
+endpoints. Missing backend and unknown/unavailable sensor or scheduler data
+remain visible.
+
+## Phase 85 – UX consolidation (local, unreleased)
+
+The local Beta.39 work condenses the weekly schedule into mobile day rows,
+moves copying into the selected day editor, and separates confirmed saves from
+unsaved edits. Special-mode effects use touch-friendly choices and show
+dependent fields only when relevant, with a readable passive summary.
+
+The administration overview and “Diagnostics & Migration” also expose control
+ownership, passive operation, shadow data quality, and open SMART blockers.
+Manifest, backend, and frontend report the same Beta.39 version locally. This
+work is intentionally unreleased and not installed on VM 104; the legacy
+heating automation and productive configuration remain unchanged.
+
 ## Phase 83 – Live shadow data supply
 
 The passive shadow evaluation now reads only known Home Assistant states via
