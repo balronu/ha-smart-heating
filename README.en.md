@@ -1,4 +1,13 @@
-# Smart Heating (Beta 17)
+# Smart Heating (Beta 18)
+
+## Required terms and surfaces
+
+- **Frontend – Lovelace card:** heating status, visualization, and passive weekly-plan preview.
+- **Administration UI – Smart Heating in the HA sidebar:** weekly plans, zones, rooms, temperature sensors, window contacts, people, and observable control signals.
+- **Integration configuration – HA Options dialog:** technical options such as operating mode, summer strategy, and chimney-sweep/frost-protection values.
+- **Backend – Python integration:** persistence, validation, state calculation, WebSocket APIs, and heating logic.
+
+The Options dialog defaults to **Observe only (current)**. Smart Heating calculates demand and recommendations without changing thermostats, automations, or other devices. **Actively control heating** is not available yet and is server-side locked. Summer strategy is independent and never switches thermostats off in observe-only mode.
 
 **Smart Heating** is a HACS-compatible Home Assistant integration for weekly
 schedules, status, simulation, and a compact Lovelace card.

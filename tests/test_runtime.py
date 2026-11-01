@@ -104,6 +104,18 @@ class RuntimeTests(unittest.TestCase):
                     serialized_schema = to_field_list(options["data_schema"], custom_serializer=cv.custom_serializer)
                     self.assertEqual({field["name"] for field in serialized_schema}, {"summer_mode", "operation_mode", "chimney_temperature", "frost_temperature"})
                     self.assertNotIn("schedule", {field["name"] for field in serialized_schema})
+                    blocked = await hass.config_entries.options.async_configure(
+                        options["flow_id"],
+                        {
+                            "summer_mode": "compatibility",
+                            "operation_mode": "full",
+                            "chimney_temperature": 25,
+                            "frost_temperature": 5,
+                        },
+                    )
+                    self.assertEqual(blocked["type"], "form")
+                    self.assertEqual(blocked["errors"]["base"], "active_control_unavailable")
+                    options = await hass.config_entries.options.async_init(entry.entry_id)
                     valid = await hass.config_entries.options.async_configure(
                         options["flow_id"],
                         {

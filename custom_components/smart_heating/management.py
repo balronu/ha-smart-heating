@@ -16,6 +16,8 @@ WINDOW_DEVICE_CLASSES = {"window", "door", "opening"}
 WINDOW_OPEN_STATES = {"on", "open", "opened", "offen", "true"}
 WINDOW_TILT_STATES = {"tilt", "tilted", "gekippt", "gekipp", "gekippte"}
 WINDOW_CLOSED_STATES = {"off", "closed", "close", "geschlossen", "false"}
+TEMPERATURE_UNITS = {"°c", "°f", "c", "f"}
+INDOOR_AREA_HINTS = ("wohn", "zimmer", "küche", "kueche", "bad", "schlaf", "büro", "buero", "flur", "diele", "ess", "living", "bed", "bath", "office", "hall")
 
 
 def discover_persons(hass: Any) -> list[dict[str, Any]]:
@@ -205,15 +207,107 @@ def area_suggestions(hass: Any) -> list[dict[str, Any]]:
     for area in discover_areas(hass):
         area = dict(area)
         contacts = [item for item in discover_window_contacts(hass) if item.get("area_id") == area["area_id"]]
+        climates = discover_climate_entities(hass, area["entity_ids"])
+        temperatures = discover_temperature_entities(hass, area["entity_ids"])
+        area["suggested_indoor"] = is_suggested_indoor_area(area["name"])
         area["suggestions"] = {
-            "thermostat_entities": [entity for entity in area["entity_ids"] if entity.startswith("climate.")],
-            "temperature_entities": [entity for entity in area["entity_ids"] if entity.startswith("sensor.")],
+            "thermostat_entities": [entity["entity_id"] for entity in climates],
+            "temperature_entities": [entity["entity_id"] for entity in temperatures],
             "window_entities": [item["entity_id"] for item in contacts],
         }
+        area["thermostat_entities"] = climates
+        area["temperature_entities"] = temperatures
         area["window_contacts"] = contacts
         area["window_contact_count"] = len(contacts)
         result.append(area)
     return result
+
+
+def _entity_state(hass: Any, entity_id: str) -> Any:
+    return getattr(getattr(hass, "states", None), "get", lambda _entity_id: None)(entity_id)
+
+
+def _entity_name(state: Any, entity_id: str) -> str:
+    attrs = getattr(state, "attributes", {}) if state else {}
+    return str(attrs.get("friendly_name") or getattr(state, "name", None) or entity_id)
+
+
+def _entity_record(hass: Any, entity_id: str, role: str) -> dict[str, Any]:
+    state = _entity_state(hass, entity_id)
+    attrs = getattr(state, "attributes", {}) if state else {}
+    value = str(getattr(state, "state", "missing")) if state else "missing"
+    available = value not in {"unknown", "unavailable", "missing"}
+    numeric = None
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        pass
+    return {
+        "entity_id": entity_id,
+        "name": _entity_name(state, entity_id),
+        "state": value,
+        "unit": attrs.get("unit_of_measurement"),
+        "device_class": attrs.get("device_class"),
+        "available": available,
+        "numeric_state": numeric,
+        "role": role,
+    }
+
+
+def _registry_device_class(hass: Any, entity_id: str) -> str:
+    try:
+        from homeassistant.helpers import entity_registry
+        item = entity_registry.async_get(hass).async_get(entity_id)
+        return str(getattr(item, "device_class", "") or "")
+    except (AttributeError, ImportError):
+        return ""
+
+
+def is_eligible_temperature_entity(hass: Any, entity_id: str) -> bool:
+    """Accept only real temperature sensors; unknown values stay selectable."""
+    if not entity_id.startswith("sensor."):
+        return False
+    state = _entity_state(hass, entity_id)
+    attrs = getattr(state, "attributes", {}) if state else {}
+    device_class = str(attrs.get("device_class") or _registry_device_class(hass, entity_id)).lower()
+    unit = str(attrs.get("unit_of_measurement") or "").strip().lower()
+    return device_class == "temperature" and unit in TEMPERATURE_UNITS
+
+
+def discover_temperature_entities(hass: Any, entity_ids: list[str] | tuple[str, ...] | None = None) -> list[dict[str, Any]]:
+    """Discover °C/°F temperature sensors without guessing from names."""
+    ids = list(entity_ids or [])
+    if not ids:
+        states = getattr(getattr(hass, "states", None), "async_all", lambda _domain: [])("sensor")
+        ids = [state.entity_id for state in states]
+    return sorted((_entity_record(hass, entity_id, "temperature") for entity_id in ids if is_eligible_temperature_entity(hass, entity_id)), key=lambda item: (item["name"].lower(), item["entity_id"]))
+
+
+def discover_climate_entities(hass: Any, entity_ids: list[str] | tuple[str, ...] | None = None) -> list[dict[str, Any]]:
+    """Discover climate entities, including Tado climates, read-only."""
+    ids = list(entity_ids or [])
+    if not ids:
+        states = getattr(getattr(hass, "states", None), "async_all", lambda _domain: [])("climate")
+        ids = [state.entity_id for state in states]
+    return sorted((_entity_record(hass, entity_id, "climate") for entity_id in ids if entity_id.startswith("climate.")), key=lambda item: (item["name"].lower(), item["entity_id"]))
+
+
+def discover_controller_entities(hass: Any, configured_entity_id: str | None = None) -> list[dict[str, Any]]:
+    """Return observable controller signals separately from active control."""
+    states = getattr(getattr(hass, "states", None), "async_all", lambda _domain: [])
+    ids = [state.entity_id for state in states("input_boolean")] + [state.entity_id for state in states("climate")]
+    records = [_entity_record(hass, entity_id, "observed_controller" if entity_id.startswith("input_boolean.") else "climate") for entity_id in ids]
+    for item in records:
+        item["passive"] = True
+        item["configured"] = item["entity_id"] == configured_entity_id
+        item["description"] = "Beobachtbares Steuersignal; keine Schaltung" if item["entity_id"].startswith("input_boolean.") else "Thermostatstatus; keine Befehle"
+    return sorted(records, key=lambda item: (not item["configured"], item["name"].lower(), item["entity_id"]))
+
+
+def is_suggested_indoor_area(name: str) -> bool:
+    """Transparent suggestion only; HA Areas remain manually selectable."""
+    value = str(name).strip().lower()
+    return any(token in value for token in INDOOR_AREA_HINTS)
 
 
 def _window_status(state: Any) -> str:

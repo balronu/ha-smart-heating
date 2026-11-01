@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.0-beta.18 – Beta 18
+
+### Deutsch
+
+- Verwaltungsoberfläche mit HA-kompatibler Menü-/Zurück-Navigation und mobilen Karten für Fensterkontakte und Personen erweitert.
+- Temperatur-, Climate- und Controller-Erkennung fachlich gefiltert; beobachtbare `input_boolean`-Signale bleiben strikt passiv.
+- Räume, Klimazonen, Zuordnungen, Sondermodi und ungültige gespeicherte Werte transparenter dargestellt.
+- Optionsdialog begrifflich als Betriebsmodus, Sommerstrategie sowie Sicherheit strukturiert; aktive Steuerung bleibt serverseitig gesperrt.
+
+### English
+
+- Added HA-compatible menu/back navigation and mobile cards for window contacts and people.
+- Added strict temperature, climate, and controller discovery; observable `input_boolean` signals remain passive.
+- Made rooms, zones, mappings, special modes, and invalid stored values more transparent.
+- Clarified the Options dialog as operating mode, summer strategy, and safety; active control remains server-side locked.
+
 ## 0.1.0-beta.17 – Beta 17
 
 ### Deutsch

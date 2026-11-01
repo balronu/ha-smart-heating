@@ -10,6 +10,8 @@ sys.modules.setdefault("custom_components.smart_heating", package)
 
 from custom_components.smart_heating.management import (  # noqa: E402
     default_management,
+    discover_controller_entities,
+    discover_temperature_entities,
     is_eligible_window_entity,
     person_presence,
     upsert_item,
@@ -21,8 +23,10 @@ from custom_components.smart_heating.storage import load_schedule  # noqa: E402
 
 
 class State:
-    def __init__(self, state):
+    def __init__(self, state, attributes=None, entity_id=None):
         self.state = state
+        self.attributes = attributes or {}
+        self.entity_id = entity_id or "sensor.test"
 
 
 class States:
@@ -31,6 +35,9 @@ class States:
 
     def get(self, entity_id):
         return self.values.get(entity_id)
+
+    def async_all(self, domain):
+        return [state for entity_id, state in self.values.items() if entity_id.startswith(f"{domain}.")]
 
 
 class Hass:
@@ -81,6 +88,26 @@ class ManagementTests(unittest.TestCase):
         self.assertTrue(is_eligible_window_entity("binary_sensor.tuer", "door"))
         self.assertFalse(is_eligible_window_entity("sensor.fenster_wohnzimmer_battery", "window"))
         self.assertFalse(is_eligible_window_entity("binary_sensor.fenster_temperatur", "temperature"))
+
+    def test_temperature_discovery_requires_device_class_and_c_or_f_unit(self):
+        hass = Hass({
+            "sensor.outside": State("unknown", {"device_class": "temperature", "unit_of_measurement": "°C", "friendly_name": "Außen"}, "sensor.outside"),
+            "sensor.battery": State("85", {"device_class": "battery", "unit_of_measurement": "%"}, "sensor.battery"),
+            "sensor.humidity": State("50", {"device_class": "humidity", "unit_of_measurement": "%"}, "sensor.humidity"),
+            "sensor.voltage": State("12", {"device_class": "voltage", "unit_of_measurement": "V"}, "sensor.voltage"),
+        })
+        result = discover_temperature_entities(hass)
+        self.assertEqual([item["entity_id"] for item in result], ["sensor.outside"])
+        self.assertEqual(result[0]["state"], "unknown")
+
+    def test_controller_discovery_is_observable_and_includes_input_boolean(self):
+        hass = Hass({
+            "input_boolean.heizung": State("off", {"friendly_name": "Heizung"}, "input_boolean.heizung"),
+            "climate.esszimmer": State("heat", {"friendly_name": "Esszimmer"}, "climate.esszimmer"),
+        })
+        result = discover_controller_entities(hass)
+        self.assertEqual({item["entity_id"] for item in result}, {"input_boolean.heizung", "climate.esszimmer"})
+        self.assertTrue(all(item["passive"] for item in result))
 
     def test_many_contacts_keep_room_and_review_metadata_without_deletion(self):
         data = default_management()
