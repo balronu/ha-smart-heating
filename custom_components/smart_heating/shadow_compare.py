@@ -52,6 +52,9 @@ def compare_shadow_decision(
     source = _get(legacy, "source", "missing") if legacy else "missing"
     proven = bool(_get(legacy, "proven", False)) if legacy else False
     simulated = bool(_get(legacy, "simulated", False)) if legacy else False
+    legacy_age_seconds = None
+    if legacy_timestamp is not None:
+        legacy_age_seconds = (timestamp - legacy_timestamp).total_seconds()
     if not proven or legacy_target is None:
         result = "comparison_not_possible"
         reason = "Keine nachgewiesene Legacy-Entscheidung oder kein Legacy-Sollwert verfügbar."
@@ -92,6 +95,7 @@ def compare_shadow_decision(
         "reason": reason,
         "legacy_source": source,
         "legacy_proven": proven,
+        "legacy_age_seconds": legacy_age_seconds,
         "simulated": simulated,
         "passive": True,
         "smart_takeover_allowed": False,

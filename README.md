@@ -1,5 +1,35 @@
 # Smart Heating (Beta 38)
 
+## Phase 83 – Reale Shadow-Datenversorgung
+
+Die passive Shadow-Auswertung liest ausschließlich bekannte Home-Assistant-
+Zustände über `hass.states` und dokumentiert Quelle und Zeitstempel. Der
+Adapter erfasst die zentrale Legacy-Automation, die bekannten Betriebs-Helper,
+die nachgewiesenen Climate-Ziele sowie konfigurierte Fensterkontakte. Er führt
+keine Home-Assistant-Services aus und besitzt keine Schreibschnittstelle.
+
+Legacy-Entscheidungen werden nur aus einem ausdrücklich nachgewiesenen Trace
+übernommen. Ein beobachteter Thermostatstatus ist kein Legacy-Trace. Da ein
+allgemeiner read-only Trace-Export derzeit nicht verfügbar ist, bleibt der
+Vergleich `comparison_not_possible`; ein nicht verifizierter Scheduler wird als
+unvollständig ausgewiesen. Timeouts und Fehler in optionalen Diagnose-Lesern
+werden begrenzt und ohne sensible Inhalte zurückgegeben. SMART bleibt bis zu
+unabhängigen Nachweisen von Trace-, Scheduler-, Aktor- und Kesselpfad gesperrt.
+
+## Phase 83 – Live shadow data (English)
+
+The passive shadow evaluation reads only known Home Assistant states through
+`hass.states` and records source and timestamp. The adapter covers the known
+legacy automation, operating helpers, verified climate targets, and configured
+window contacts. It has no service-call or write interface.
+
+Legacy decisions are accepted only from an explicitly proven trace; an
+observed thermostat state is not a legacy decision. No general read-only trace
+export is currently available, so comparison remains `comparison_not_possible`.
+An unverified scheduler is reported as incomplete. Optional diagnostic readers
+are bounded and sanitize timeout/error results. SMART remains locked until
+independent trace, scheduler, actuator, and boiler-path evidence exists.
+
 ## Phase 82 – Passiver Shadow-Vergleich
 
 Der Shadow-Status vergleicht jetzt Legacy-Nachweise, die passive Smart-

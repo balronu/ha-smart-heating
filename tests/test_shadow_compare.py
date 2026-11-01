@@ -36,6 +36,7 @@ class ShadowComparisonTests(unittest.TestCase):
         old = (self.NOW - timedelta(minutes=16)).isoformat()
         result = self.compare({"target_temperature": 22, "proven": True, "source": "trace", "timestamp": old})
         self.assertEqual(result["comparison"], "stale_data")
+        self.assertEqual(result["legacy_age_seconds"], 16 * 60)
 
     def test_simulated_trace_remains_marked_simulated(self):
         result = self.compare({"target_temperature": 22, "proven": True, "source": "fixture", "simulated": True, "timestamp": self.NOW.isoformat()})

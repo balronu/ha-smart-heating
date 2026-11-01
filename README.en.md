@@ -1,5 +1,20 @@
 # Smart Heating (Beta 38)
 
+## Phase 83 – Live shadow data supply
+
+The passive shadow evaluation now reads only known Home Assistant states via
+`hass.states` and records their source and timestamp. The bounded adapter
+covers the known legacy automation, operating helpers, verified climate
+targets, and configured window contacts. It has no service-call or write
+interface.
+
+Legacy decisions are accepted only from an explicitly proven trace; an
+observed thermostat state is never promoted to a legacy decision. Because no
+general read-only trace export is currently available, the comparison remains
+`comparison_not_possible`. An unverified scheduler is reported as incomplete,
+and bounded diagnostic-reader failures are sanitized. SMART remains locked
+until independent trace, scheduler, actuator, and boiler-path evidence exists.
+
 ## Phase 81 – passive actuator contract
 
 The shadow result now contains a strictly descriptive actuator plan. It uses

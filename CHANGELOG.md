@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased – Phase 83 reale Shadow-Datenversorgung / Live shadow data
+
+### Deutsch
+
+- Eine begrenzte, rein lesende Datenadapter-Schicht stellt bekannte HA-Zustände,
+  Climate-Ziele, Fensterkontakte und Betriebs-Helper für die passive
+  Shadow-Diagnose bereit. Jeder Snapshot enthält Herkunft, Zeitstempel und
+  Verfügbarkeitsstatus; Serviceaufrufe bleiben ausgeschlossen.
+- Legacy-Entscheidungen werden nicht aus Thermostatwerten abgeleitet. Ohne
+  ausdrücklich nachgewiesenen Trace bleibt der Vergleich sichtbar
+  `comparison_not_possible`; nicht verifizierte Scheduler-Daten bleiben
+  unvollständig und blockieren SMART.
+- Begrenzte Timeout-/Fehlerbehandlung für optionale read-only Leser meldet nur
+  den technischen Fehlertyp und gibt keine sensiblen Inhalte aus.
+
+### English
+
+- A bounded, read-only data-adapter layer supplies known HA states, climate
+  targets, window contacts, and operating helpers to passive shadow
+  diagnostics. Snapshots include source, timestamp, and availability; service
+  calls remain excluded.
+- Legacy decisions are never inferred from thermostat values. Without an
+  explicitly proven trace, comparison remains visibly
+  `comparison_not_possible`; unverified scheduler data stays incomplete and
+  blocks SMART takeover.
+- Bounded timeout/error handling for optional read-only readers exposes only
+  the technical error type and no sensitive contents.
+
 ## Unreleased – Phase 82 Shadow-Vergleich / Shadow parity
 
 ### Deutsch

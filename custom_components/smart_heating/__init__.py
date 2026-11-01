@@ -49,6 +49,7 @@ from .management import (
     SAFETY_MODES,
 )
 from .storage import effective_config, load_schedule, normalized_options
+from .data_adapters import ReadOnlyShadowDataAdapter
 
 _LOGGER = logging.getLogger(__name__)
 _WS_REGISTERED = f"{DOMAIN}_ws_registered"
@@ -177,6 +178,33 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             "available": str(state.state) not in {"unknown", "unavailable"},
             "hvac_modes": list(state.attributes.get("hvac_modes", [])),
         }
+    configured_entities = tuple(
+        item.get("entity_id")
+        for kind in ("window", "tilt")
+        for item in management.get("sensors", {}).get(kind, [])
+        if isinstance(item, Mapping) and item.get("entity_id")
+    )
+    context["shadow_data_sources"] = ReadOnlyShadowDataAdapter(hass).snapshot(
+        primary_climate=context["heating_sources"].get("primary_climate_entity"),
+        fallback_climate=context["heating_sources"].get("fallback_climate_entity"),
+        configured_entities=configured_entities,
+        schedule_source_verified=bool(config.get("schedule_source_verified", False)),
+    )
+    # Only an explicitly proven trace may enter the parity comparator.  The
+    # current production adapter has no trace export, so this remains None;
+    # keeping the bridge here prevents a future adapter from bypassing the
+    # comparator's proof/freshness checks.
+    legacy_trace = context["shadow_data_sources"].get("legacy_trace", {})
+    if legacy_trace.get("proven") and isinstance(legacy_trace.get("decision"), Mapping):
+        context["legacy_decision"] = {
+            **legacy_trace["decision"],
+            "proven": True,
+            "source": legacy_trace.get("source"),
+            "timestamp": legacy_trace.get("timestamp"),
+            "simulated": bool(legacy_trace.get("simulated", False)),
+        }
+    else:
+        context["legacy_decision"] = None
     context["presence"] = person_presence(hass, management["persons"])
     context["schedule_source_verified"] = bool(config.get("schedule_source_verified", False))
     context["thermostats"] = []

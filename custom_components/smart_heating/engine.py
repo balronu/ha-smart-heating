@@ -166,5 +166,6 @@ def calculate_status(
             "commands": [],
             "planned_actor_actions": actor_plan,
             "comparison": comparison,
+            "data_sources": context.get("shadow_data_sources", {}),
         },
     }
