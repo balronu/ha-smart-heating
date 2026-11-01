@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.0-beta.37 – Phase 57 sichtbare Diagnosewerte / Visible diagnostic values
+
+### Deutsch
+
+- Vorhandene Fensterkontakte bleiben in der Diagnose sichtbar, auch wenn
+  `window_role_diagnostics` fehlt oder leer ist.
+- Die drei Quellen ConfigEntry.options, Runtime und `admin/get` werden mit
+  tatsächlichen oder ausdrücklich fehlenden Werten dargestellt.
+- Verschachtelte Verwaltungsantworten werden sicher ausgelesen; Speicherlogik,
+  Entities und produktive Werte bleiben unverändert.
+
+### English
+
+- Existing window contacts remain visible when `window_role_diagnostics` is
+  missing or empty.
+- ConfigEntry.options, runtime, and `admin/get` are shown with actual values or
+  an explicit missing-value marker.
+- Wrapped administrative responses are handled safely; persistence, entities,
+  and production values remain unchanged.
+
 ## 0.1.0-beta.36 – Phase 55 sichtbare Diagnosewerte / Visible diagnostic values
 
 ### Deutsch
