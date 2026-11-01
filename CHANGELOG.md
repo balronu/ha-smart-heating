@@ -1,5 +1,51 @@
 # Changelog
 
+## 0.1.0-beta.30 – Phase 39 Veröffentlichung / Release
+
+### Deutsch
+
+- Veröffentlicht den vollständigen passiven Phase-38-Backendstand einschließlich
+  der vereinheitlichten Thermostat-Mehrfachauswahl.
+- Bestehende Einzelthermostate werden verlustfrei in Listen übernommen;
+  gespeicherte Mehrfachauswahlen erscheinen nach dem Reload wieder markiert.
+- Der Release bleibt im passiven Kompatibilitätsmodus und verändert keine
+  produktiven Heizungswege, Helper, Automationen oder Thermostate.
+- Die Lovelace-Steuerkarte ist weiterhin nicht Bestandteil dieses Releases.
+
+### English
+
+- Publishes the complete passive Phase 38 backend, including the unified
+  multi-thermostat room selector.
+- Existing single-thermostat assignments migrate losslessly to lists, and
+  saved multi-selections are restored after reload.
+- The release remains in passive compatibility mode and changes no productive
+  heating paths, helpers, automations, or thermostats.
+- The Lovelace control card remains outside this release.
+
+## Phase 38 UX-Nachbesserung – Thermostatauswahl vereinheitlicht
+
+### Deutsch
+
+- Die Raumverwaltung verwendet für Heizkörper/Thermostate jetzt ausschließlich
+  die Mehrfachauswahl mit Häkchen.
+- Der redundante Leit-/Einzelthermostat-Selektor wurde entfernt.
+- Gespeicherte Mehrfachzuordnungen werden nach dem Öffnen vollständig markiert
+  und darunter mit Name, Entity-ID und Verfügbarkeit angezeigt.
+- Raumtemperaturfühler bleiben eine getrennte Einzelauswahl; Änderungen werden
+  weiterhin erst mit „Raum speichern“ übernommen.
+- Keine neue Release-Version, keine Backups und keine produktiven HA-Änderungen.
+
+### English
+
+- Room management now uses only the checked multi-selection for radiators and
+  thermostats.
+- The redundant lead/single-thermostat selector was removed.
+- Saved thermostat assignments are restored as checked entries and shown below
+  with name, entity ID, and availability.
+- Room temperature sensors remain a separate single selection; changes are
+  applied only by “Save room”.
+- No new release version, backups, or productive Home Assistant changes.
+
 ## 0.1.0-beta.29 – Beta 29 / Phase 38 Backend Completion
 
 ### Deutsch

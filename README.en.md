@@ -1,6 +1,13 @@
-# Smart Heating (Beta 28)
+# Smart Heating (Beta 30)
 
 ## Phase 38 backend boundary (Beta 29)
+
+Room management uses only the checked multi-selection for radiators and
+thermostats. Saved thermostats are restored as selected entries and shown
+compactly with name, entity ID, and availability; the room temperature sensor
+remains a separate single selection. Changes are applied only with “Save room”.
+This UX correction is part of the ongoing Phase 38 work and does not create a
+new release version.
 
 Rooms can retain multiple `climate.*` entities while room temperature sensors
 remain separate. Legacy single-thermostat data migrates losslessly and
