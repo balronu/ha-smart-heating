@@ -1,5 +1,25 @@
 # Smart Heating (Beta 38)
 
+## Phase 77 – Sondermodus-Wirkungen passiv konfigurieren
+
+Die Verwaltung bietet für Built-in- und benutzerdefinierte Sondermodi ein
+gemeinsames, responsives Formular. Räume, Temperaturverhalten, Zeitplan-
+Übersteuerung, Fenster-/Anwesenheitsbedingungen, Dauer, Rückkehr zum
+Normalbetrieb und zulässige Prioritäten werden im Schema 6 gespeichert und
+nach dem erneuten Laden wieder angezeigt. Eine Zusammenfassung und die
+passive Resolver-Vorschau zeigen die erwartete Wirkung, ohne Heizbefehle zu
+erzeugen. Der Schornsteinfeger bleibt unveränderlich auf Priorität 1000;
+Helper und Automationen werden nicht erstellt oder geschaltet.
+
+## Phase 77 – Passive special-mode effects
+
+Built-in and custom special modes share a responsive editor for rooms,
+temperature behavior, schedule override, window/presence conditions, duration,
+return to normal operation, and allowed priorities. Schema-6 values survive
+reload and are summarized with the passive resolver preview; no heating command
+is issued. Chimney-sweep remains fixed at priority 1000, and helpers or
+automations are never created or switched.
+
 ## Phase 76 – passiver Sondermodus-Resolver
 
 Die passive Engine berechnet je Raum, welcher Sondermodus wirksam wäre und

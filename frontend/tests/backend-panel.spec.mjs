@@ -154,6 +154,41 @@ test("manages an internal custom special mode without exposing helper creation",
   await expect(mode.locator("[data-special-mode-delete]")).toBeVisible();
 });
 
+test("edits schema-6 special-mode effects and keeps the chimney-sweep guard", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.management.zones = [{ id: "zone-1", name: "Wohnzimmer", area_ids: ["wohnzimmer"] }];
+    panel._data.management.special_modes = [{ id: "quiet-hours", name: "Ruhezeit", description: "Passiv", mode_type: "custom", behavior: "passive_only", available: true, active: false, binding_type: "internal", helper_entity: "", origin: "user", zone_ids: ["zone-1"], priority: 450, effect: { action: "comfort", override_schedule: false, respect_windows: true, respect_presence: true }, deactivation: { action: "return_to_normal" } }];
+    panel.__phase77Calls = [];
+    panel._hass.callWS = async (message) => { panel.__phase77Calls.push(message); return message.type.endsWith("admin/get") ? structuredClone(panel._data) : {}; };
+    panel._render();
+  });
+  await page.locator("details[data-section=safety] > summary").click();
+  const mode = page.locator('[data-special-mode="quiet-hours"]');
+  await mode.locator(":scope > summary").click();
+  await expect(mode).toContainText("Verhalten bei Aktivierung");
+  await mode.locator("[name=effect_action]").selectOption("fixed_temperature");
+  await mode.locator("[name=target_temperature]").fill("21.5");
+  await mode.locator("[name=override_schedule]").check();
+  await mode.locator("[name=zone_ids]").selectOption("zone-1");
+  await mode.locator("[name=effect_scope][value=selected]").check();
+  await mode.getByRole("button", { name: "Speichern" }).click();
+  await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel").__phase77Calls.find((item) => item.type.endsWith("admin/special_mode/set"))?.item?.effect?.target_temperature)).toBe(21.5);
+  await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel").__phase77Calls.find((item) => item.type.endsWith("admin/special_mode/set"))?.item?.effect?.override_schedule)).toBe(true);
+});
+
+test("keeps the built-in chimney-sweep priority and passive protection visible", async ({ page }) => {
+  await page.locator("details[data-section=safety] > summary").click();
+  const chimney = page.locator('[data-safety-mode="chimney_sweep"]');
+  await chimney.locator(":scope > summary").click();
+  await expect(chimney).toContainText("unveränderliche Priorität 1000");
+  await expect(chimney.locator("[name=priority]")).toHaveValue("1000");
+  await expect(chimney.locator("[name=priority]")).toBeDisabled();
+  await expect(chimney.locator("[name=respect_windows]")).toBeDisabled();
+  await expect(chimney.locator("[name=respect_presence]")).toBeDisabled();
+  await expect(chimney).toContainText("passiv");
+});
+
 test("keeps a new special mode local until create and lets cancel avoid backend writes", async ({ page }) => {
   await page.locator("details[data-section=safety] > summary").click();
   const calls = await page.evaluate(() => {

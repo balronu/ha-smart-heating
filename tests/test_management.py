@@ -98,6 +98,12 @@ class ManagementTests(unittest.TestCase):
         self.assertFalse(party["controllable"])
         self.assertFalse(validate_management(data))
 
+    def test_special_mode_normalization_preserves_future_schema_fields(self):
+        data = normalize_management({"special_modes": [{"id": "party", "effect": {"action": "comfort"}, "future_policy": {"source": "next-beta"}}]})
+        party = next(item for item in data["special_modes"] if item["id"] == "party")
+        self.assertEqual(party["future_policy"], {"source": "next-beta"})
+        self.assertEqual(party["effect"]["action"], "comfort")
+
     def test_chimney_sweep_priority_is_immutable_in_model(self):
         data = normalize_management({"special_modes": [{"id": "chimney_sweep", "priority": 1}]})
         chimney = next(item for item in data["special_modes"] if item["id"] == "chimney_sweep")

@@ -625,7 +625,20 @@ async def _ws_admin_safety_set(hass: HomeAssistant, connection: websocket_api.Ac
         if helper_entity and helper_entity not in helper_ids and helper_entity not in saved_helper_ids and not helper_entity.startswith("input_boolean."):
             connection.send_error(msg["id"], "invalid_configuration", "helper_entity_not_found")
             return
-    await _admin_mapping_set(hass, connection, msg, "safety")
+    entry, management = _admin_entry(hass, msg["entry_id"])
+    management["safety"] = {key: value for key, value in item.items() if key != "special_modes"}
+    submitted_modes = item.get("special_modes")
+    if isinstance(submitted_modes, list):
+        submitted_by_id = {str(mode.get("id")): mode for mode in submitted_modes if isinstance(mode, dict) and mode.get("id")}
+        existing_modes = [mode for mode in management.get("special_modes", []) if str(mode.get("id")) not in submitted_by_id]
+        management["special_modes"] = normalize_special_modes({"special_modes": existing_modes + list(submitted_by_id.values())}, management["safety"].get("modes", {}))
+    try:
+        _admin_save(hass, entry, management)
+        await _async_entry_updated(hass, entry)
+    except ValueError as err:
+        connection.send_error(msg["id"], "invalid_configuration", str(err))
+        return
+    connection.send_result(msg["id"], {"management": management, "validation": validate_management(management)})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/system/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})

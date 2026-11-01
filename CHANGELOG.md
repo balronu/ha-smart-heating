@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased – Phase 77 Sondermodus-Wirkungen
+
+### Deutsch
+
+- Built-in- und benutzerdefinierte Sondermodi erhalten eine gemeinsame,
+  mobil bedienbare Oberfläche für Räume, Temperaturverhalten, Zeitplan,
+  Fenster-/Anwesenheitsbedingungen, Dauer, Rückkehr zum Normalbetrieb und
+  Priorität.
+- Die Wirkung wird im Schema 6 gespeichert und in der passiven Vorschau
+  zusammengefasst. Bestehende unbekannte Felder bleiben bei der Normalisierung
+  erhalten; Schornsteinfeger bleibt unveränderlich auf Priorität 1000.
+- Keine Einstellung aktiviert Heizsteuerung, Helper oder Automationen.
+
+### English
+
+- Built-in and custom special modes now share a mobile-friendly editor for
+  rooms, temperature behavior, schedule, window/presence conditions, duration,
+  return to normal operation, and priority.
+- Effects are stored in schema 6 and summarized in the passive preview.
+  Unknown existing fields survive normalization; chimney-sweep remains fixed
+  at priority 1000.
+- No setting activates heating control, helpers, or automations.
+
 ## Unreleased – Phase 76 passiver Sondermodus-Resolver
 
 ### Deutsch

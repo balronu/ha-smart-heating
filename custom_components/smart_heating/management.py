@@ -300,7 +300,8 @@ def _normalize_special_mode(item: Mapping[str, Any], fallback: Mapping[str, Any]
     }
     raw_activation = source.get("activation") if isinstance(source.get("activation"), Mapping) else {}
     raw_deactivation = source.get("deactivation") if isinstance(source.get("deactivation"), Mapping) else {}
-    return {
+    normalized = deepcopy(source)
+    normalized.update({
         "id": _special_mode_id(source, index),
         "name": str(source.get("name") or label).strip() or label,
         "description": str(source.get("description") or description).strip(),
@@ -334,7 +335,8 @@ def _normalize_special_mode(item: Mapping[str, Any], fallback: Mapping[str, Any]
             "action": str(raw_deactivation.get("action") or "return_to_normal"),
         },
         "effect": effect,
-    }
+    })
+    return normalized
 
 
 def normalize_special_modes(source: Mapping[str, Any] | None, safety_modes: Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
