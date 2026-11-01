@@ -1,5 +1,33 @@
 # Smart Heating (Beta 38)
 
+## Phase 82 – Passiver Shadow-Vergleich
+
+Der Shadow-Status vergleicht jetzt Legacy-Nachweise, die passive Smart-
+Heating-Entscheidung und den beobachteten Climate-Zustand. Gleiche Sollwerte
+gelten nur mit einem zeitnahen, als nachgewiesen markierten Legacy-Trace als
+Parität. Ohne Trace wird „Vergleich nicht möglich“, bei zu alten Daten
+„Daten veraltet“ und bei unterschiedlichen nachgewiesenen Sollwerten
+„Abweichung nachgewiesen“ angezeigt. Simulationen bleiben als Simulation
+gekennzeichnet.
+
+Die Diagnose zeigt außerdem geplante Aktoraktionen ausschließlich als Daten,
+Datenqualität und offene Freigabeblocker. SMART bleibt unabhängig von einem
+grünen Einzelvergleich gesperrt; es werden keine Heizbefehle oder
+Automationstrigger ausgeführt.
+
+## Phase 82 – Passive shadow comparison (English)
+
+The shadow status now compares legacy evidence, the passive Smart Heating
+decision, and the observed climate state. Equal setpoints count as parity only
+when a fresh, explicitly proven legacy trace exists. Missing traces produce
+“comparison not possible”; old traces produce “stale data”; differing proven
+values produce “divergence proven”. Synthetic fixtures remain marked as
+simulation.
+
+The diagnostic also exposes planned actuator actions as data, data quality, and
+open takeover blockers. SMART remains locked regardless of one green comparison;
+no heating commands or automation triggers are executed.
+
 ## Phase 81 – Passiver Aktorvertrag
 
 Die passive Shadow-Auswertung erzeugt jetzt je Raum einen strikt nicht

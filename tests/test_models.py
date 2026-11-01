@@ -109,6 +109,26 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(plan["executed_commands"], [])
         self.assertTrue(plan["passive"])
 
+    def test_shadow_comparison_does_not_claim_parity_without_proven_legacy_trace(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "20:00"}]})
+        result = calculate_status(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T07:00:00+01:00"),
+            timezone="Europe/Berlin",
+            context={
+                "zone_id": "esszimmer",
+                "comfort_temperature": 22,
+                "night_temperature": 17,
+                "heating_sources": {"primary_climate_entity": "climate.esszimmer"},
+                "actor_states": {"climate.esszimmer": {"state": "heat", "temperature": 22, "available": True}},
+                "schedule_source_verified": True,
+            },
+        )
+        comparison = result["shadow"]["comparison"]
+        self.assertEqual(comparison["comparison"], "comparison_not_possible")
+        self.assertFalse(comparison["legacy_proven"])
+        self.assertFalse(comparison["smart_takeover_allowed"])
+
     def test_unknown_window_is_not_treated_as_closed(self):
         schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "20:00"}]})
         result = calculate_status(

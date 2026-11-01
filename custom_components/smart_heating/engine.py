@@ -9,6 +9,7 @@ from typing import Any, Mapping
 from .models import WeeklySchedule, evaluate_decision
 from .backend_engine import calculate_room_demand, evaluate_window_groups, evaluate_window_strategy, resolve_passive_decision, resolve_special_modes
 from .actuator import build_passive_actor_plan
+from .shadow_compare import compare_shadow_decision
 
 
 def calculate_status(
@@ -98,6 +99,21 @@ def calculate_status(
     )
     missing_prerequisites = sorted(set(missing_prerequisites) | set(actor_plan["missing_prerequisites"]))
     data_quality = "complete" if not missing_prerequisites else "incomplete"
+    selected_state = actor_plan.get("selected_entity") and context.get("actor_states", {}).get(actor_plan["selected_entity"], {})
+    comparison = compare_shadow_decision(
+        timestamp=now,
+        zone_id=context.get("zone_id"),
+        observed_thermostat=selected_state,
+        legacy_decision=context.get("legacy_decision"),
+        smart_decision=passive_decision,
+        planned_actor_action=(actor_plan.get("planned_commands") or [None])[0],
+        active_special_mode=mode_result.get("winner"),
+        priority=passive_decision.get("priority"),
+        schedule_decision={"active": active, "next_switch": next_switch.isoformat() if next_switch else None, "source_verified": bool(context.get("schedule_source_verified", False))},
+        window_state=window_result.get("state"),
+        presence=presence,
+        data_quality=data_quality,
+    )
     return {
         "schedule_active": active,
         "next_switch": next_switch.isoformat() if next_switch else None,
@@ -149,5 +165,6 @@ def calculate_status(
             "passive": True,
             "commands": [],
             "planned_actor_actions": actor_plan,
+            "comparison": comparison,
         },
     }

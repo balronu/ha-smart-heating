@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased – Phase 82 Shadow-Vergleich / Shadow parity
+
+### Deutsch
+
+- Legacy-Entscheidung, passive Smart-Heating-Entscheidung und beobachteter
+  Thermostatzustand werden in einem nachvollziehbaren Vergleichsmodell
+  zusammengeführt.
+- Parität wird nur mit frischem, ausdrücklich nachgewiesenem Legacy-Trace
+  gemeldet; fehlende oder veraltete Daten bleiben sichtbar und geben SMART
+  nicht frei.
+- Die bestehende passive Diagnosekarte zeigt Vergleichsergebnis, Sollwerte,
+  Begründung und den gesperrten SMART-Zustand.
+
+### English
+
+- Legacy decisions, passive Smart Heating decisions, and observed thermostat
+  state are exposed in an auditable comparison model.
+- Parity is reported only with a fresh, explicitly proven legacy trace; missing
+  or stale data stays visible and never enables SMART takeover.
+- The existing passive diagnostic card shows the comparison, setpoints,
+  rationale, and the locked SMART state.
+
 ## Unreleased – Phase 81 passiver Aktorvertrag / Passive actuator contract
 
 ### Deutsch
