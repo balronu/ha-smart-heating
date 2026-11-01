@@ -51,6 +51,28 @@ test("keeps temperature and controller choices explicit and passive", async ({ p
   await expect(page.locator("details[data-section=controller]")).toContainText("keine Befehle");
 });
 
+test("separates relevant rooms, other HA areas, and technical temperature sources", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.areas = [
+      { area_id: "wohnzimmer", name: "Wohnzimmer", relevant: true, suggestions: { thermostat_entities: ["climate.wohnzimmer"], temperature_entities: ["sensor.wohnzimmer"] }, additional_temperature_entities: [{ entity_id: "sensor.pve_disk_temperature" }] },
+      { area_id: "tankstelle", name: "Tankstellen", relevant: false, suggestions: { thermostat_entities: [], temperature_entities: [] }, additional_temperature_entities: [] },
+    ];
+    panel._data.temperature_entities = [
+      { entity_id: "sensor.wohnzimmer", name: "Wohnzimmer", temperature_role: "room" },
+      { entity_id: "sensor.pve_disk_temperature", name: "PVE Disk", temperature_role: "technical" },
+    ];
+    panel._render();
+  });
+  await page.locator("details[data-section=rooms]").first().locator(":scope > summary").click();
+  await expect(page.locator("details[data-room]")).toHaveCount(2);
+  await expect(page.locator("details[data-room=room-tankstelle]")).toContainText("weiterer HA-Bereich");
+  await expect(page.locator("details[data-room=room-wohnzimmer]")).toContainText("sensor.pve_disk_temperature");
+  await page.locator("[data-area-search]").fill("tank");
+  await expect(page.locator("details[data-room=room-wohnzimmer]")).toBeHidden();
+  await expect(page.locator("details[data-room=room-tankstelle]")).toBeVisible();
+});
+
 test("uses contact cards on small displays", async ({ page }) => {
   await page.locator("details[data-section=windows] summary").click();
   await expect(page.locator(".contact-cards article")).toHaveCount(3);

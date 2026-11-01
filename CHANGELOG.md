@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.0-beta.19 – Beta 19
+
+### Deutsch
+
+- Mobile Verwaltungsoberfläche gegen intrinsische Breiten langer Entity-IDs, Auswahlfelder und Speicherschaltflächen gehärtet; Touch-Ziele bleiben vollständig erreichbar.
+- Heizungsrelevante Innenräume und weitere HA-Bereiche getrennt dargestellt, durchsuchbar und nur über eine ausdrückliche interne Auswahl umklassifizierbar; HA-Bereiche selbst bleiben unverändert.
+- Temperaturfühler nach Raumtemperatur und technischen Quellen klassifiziert; Batterie-, Festplatten-, CPU-, Filament-, Taupunkt-, Scheduler- und Diagnosequellen werden nicht als primäre Raum-/Außentemperatur empfohlen.
+- Gespeicherte Zuordnungen, Fensterkontakte und passiver Betriebsmodus bleiben erhalten; Außenquelle und Controller bleiben rein beobachtbar.
+
+### English
+
+- Hardened the mobile administration UI against intrinsic widths from long entity IDs, selectors, and save buttons; touch targets remain reachable.
+- Separated heating-relevant indoor rooms from other HA areas, with search and explicit internal reclassification; Home Assistant areas themselves remain unchanged.
+- Classified temperature sensors as room or technical sources; battery, disk, CPU, filament, dew-point, scheduler, and diagnostic sources are no longer recommended as primary room/outdoor temperatures.
+- Preserved stored mappings, window contacts, and passive operation; outdoor source and controller remain observation-only.
+
 ## 0.1.0-beta.18 – Beta 18
 
 ### Deutsch

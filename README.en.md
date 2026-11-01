@@ -1,11 +1,14 @@
-# Smart Heating (Beta 18)
+# Smart Heating (Beta 19)
 
 ## Required terms and surfaces
 
 - **Frontend – Lovelace card:** heating status, visualization, and passive weekly-plan preview.
 - **Administration UI – Smart Heating in the HA sidebar:** weekly plans, zones, rooms, temperature sensors, window contacts, people, and observable control signals.
 - **Integration configuration – HA Options dialog:** technical options such as operating mode, summer strategy, and chimney-sweep/frost-protection values.
-- **Backend – Python integration:** persistence, validation, state calculation, WebSocket APIs, and heating logic.
+- **Smart Heating Integration:** technical Home Assistant integration.
+- **Smart Heating Administration:** independent Home Assistant sidebar surface.
+- **Smart Heating Settings:** native Home Assistant Options dialog.
+- **Smart Heating Dashboard Card:** Lovelace frontend for display and later control.
 
 The Options dialog defaults to **Observe only (current)**. Smart Heating calculates demand and recommendations without changing thermostats, automations, or other devices. **Actively control heating** is not available yet and is server-side locked. Summer strategy is independent and never switches thermostats off in observe-only mode.
 
@@ -17,21 +20,20 @@ schedules, status, simulation, and a compact Lovelace card.
 > climate entities, existing helpers, schedulers, or special modes. Productive
 > migration is not included.
 
-> **Phase 20 safety boundary (2026-10-31):** Beta 17 is published only from
+> **Phase 26 safety boundary (2026-11-01):** Beta 19 is published only from
 > the development repository and is not installed automatically on VM 104.
 > The productive instance was inspected read-only only; both existing Config
 > Entries remain unchanged.
 
-## Beta 13 backend management and climate zones
+## Beta 19 administration and climate zones
 
-Beta 17 provides a separate passive backend panel for people, climate zones,
+Beta 19 provides a separate passive Smart Heating administration panel for people, climate zones,
 thermostats, window/tilt contacts, room temperature sensors, outdoor
 temperature, and one central controller. Changes are persisted through Config
 Entry options and the supported WebSocket API; Home Assistant entities are
 never created or deleted. People are sourced only from `person.*`. Unknown
 presence is not treated as away, and a thermostat cannot belong to two active
-zones. Backend menus are independently collapsible; HA Areas are read-only and
-used only for room suggestions.
+zones. Administration sections are independently collapsible; HA areas are read-only, separated into relevant indoor rooms and other areas, and become relevant only after an explicit internal selection.
 
 ## Features
 
@@ -43,7 +45,7 @@ used only for room suggestions.
 - read-only diagnostics and migration preview
 - compact responsive Lovelace card with validated plan editing
 - German and English translations
-- conservative automatic entity discovery with visible ambiguity reporting
+- conservative automatic entity discovery with visible ambiguity reporting and technical-temperature classification
 - migration plan with single-writer lock, confirmation token, snapshot,
   read-back, and isolated rollback adapter
 - explainable decision with active mode, reason, target, and HVAC target
@@ -70,7 +72,7 @@ acceptance is claimed here.
 The normal Lovelace card contains heating status, modes, and weekly schedules
 only. Technical administration is separate in the Home Assistant sidebar panel
 **Smart Heating**, with seven independently expandable sections, nested room
-entries, and no backend forms in the heating card. The rendered surfaces were
+entries, and no administration forms in the heating card. The rendered surfaces were
 checked in UI fixtures on desktop, iPhone, iPad, and a narrow touch monitor:
 
 ![Smart Heating Desktop](docs/screenshots/smart-heating-card-desktop.png)
@@ -86,7 +88,7 @@ The native Options Flow intentionally contains only four safe operating and
 safety values. Edit the weekly schedule graphically in the panel; saving other
 options preserves all existing windows and optional target temperatures.
 
-## Beta 17 backend UI
+## Beta 19 Smart Heating administration UI
 
 The sidebar presents the weekly schedule as a compact day overview. Only the
 selected day is edited; windows can be added, changed, or removed with an
@@ -96,7 +98,7 @@ collapsible and provide clear empty states.
 
 ## Installation and setup
 
-Beta 17 is a GitHub pre-release. Pre-releases must be enabled
+Beta 19 is a GitHub pre-release. Pre-releases must be enabled
 explicitly in HACS. Then install **Smart Heating** through **HACS → Integrations**.
 If Home Assistant requires a restart, treat it as a separately approved step.
 
@@ -117,7 +119,7 @@ entry_id: YOUR_CONFIG_ENTRY_ID
 The card edits only the Smart Heating entry's own schedule and never writes
 existing heating entities.
 
-The sidebar panel is the supported passive backend entry point. The Lovelace
+The sidebar panel is the supported passive Smart Heating administration entry point. The Lovelace
 card is intentionally separate and does not contain technical administration.
 
 The Options Flow can persist explicit associations for the primary climate,
@@ -158,7 +160,7 @@ fixture. Productive VM 104 installation is explicitly outside this beta. The
 compatibility mode is passive; full mode remains locked until a separately
 verified single-writer proof exists.
 
-Version: `0.1.0-beta.17`
+Version: `0.1.0-beta.19`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 
