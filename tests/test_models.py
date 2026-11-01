@@ -148,3 +148,28 @@ class ScheduleTests(unittest.TestCase):
         )
         self.assertEqual(result["mode"], "chimney_sweep")
         self.assertEqual(result["target_hvac_mode"], "heat")
+
+    def test_shadow_status_reports_mode_effect_and_missing_migration_prerequisites(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "20:00"}]})
+        result = calculate_status(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T22:00:00+01:00"),
+            timezone="Europe/Berlin",
+            context={
+                "zone_id": "living",
+                "comfort_temperature": 22,
+                "night_temperature": 17,
+                "thermostats": [{"entity_id": "climate.living", "state": "heat", "available": True}],
+                "room_temperature": 19,
+                "special_modes": [{"id": "party", "mode_type": "party", "available": True, "active": True}],
+                "presence": {"status": "home"},
+                "heating_sources": {},
+            },
+        )
+        self.assertEqual(result["mode"], "party")
+        self.assertEqual(result["target_temperature"], 22.0)
+        self.assertTrue(result["shadow"]["schedule_decision"]["active"] is False)
+        self.assertIn("actor_path", result["shadow"]["missing_prerequisites"])
+        self.assertIn("scheduler_or_schedule_source", result["shadow"]["missing_prerequisites"])
+        self.assertEqual(result["shadow"]["commands"], [])
+        self.assertEqual(result["room_demand"]["commands"], [])

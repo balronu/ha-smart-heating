@@ -1,5 +1,19 @@
 # Smart Heating (Beta 38)
 
+## Phase 76 – passive special-mode resolver
+
+The passive engine now calculates which special mode would be effective per
+room and which target temperature or effect would follow. It supports comfort,
+setback, fixed and relative temperatures, schedule overrides, window and
+presence conditions, expiry, and return to normal operation. Priorities are
+deterministic; chimney-sweep remains the absolute winner at priority 1000.
+Missing or unknown status sources block the effect with an explicit reason.
+
+The result is a shadow decision with data quality and missing
+scheduler/actuator prerequisites. No heating commands, helper changes, or
+automation changes are performed; the existing heating automation remains the
+sole productive control path.
+
 ## Phase 75 – passive migration data model
 
 The management model is backward-compatibly normalized internally to schema 6.

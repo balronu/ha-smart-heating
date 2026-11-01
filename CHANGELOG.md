@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased – Phase 76 passiver Sondermodus-Resolver
+
+### Deutsch
+
+- Der passive Resolver berechnet jetzt die Wirkung aktiver Built-in- und
+  Custom-Sondermodi je Raum: Zieltemperatur, Zeitplanübersteuerung,
+  Fenster-/Anwesenheitsregeln, Ablauf und Rückkehr zum Normalbetrieb.
+- Prioritäten werden deterministisch aufgelöst; Schornsteinfeger bleibt mit
+  Priorität 1000 absolut vorrangig. Unbekannte Statusquellen werden nicht als
+  aktiv angenommen.
+- Shadow-Ergebnisse enthalten Gewinner, unterdrückte Modi, Begründung,
+  Datenqualität, fehlende Scheduler-/Aktorvoraussetzungen und weiterhin keine
+  Befehle. Smart Heating bleibt passiv.
+
+### English
+
+- The passive resolver now calculates the per-room effect of active built-in
+  and custom special modes: target temperature, schedule override,
+  window/presence rules, expiry, and return to normal operation.
+- Priorities are resolved deterministically; chimney-sweep remains the absolute
+  winner at priority 1000. Unknown status sources are never treated as active.
+- Shadow results include the winner, suppressed modes, rationale, data quality,
+  missing scheduler/actuator prerequisites, and still no commands. Smart
+  Heating remains passive.
+
 ## Unreleased – Phase 75 Migrationsdatenmodell
 
 ### Deutsch

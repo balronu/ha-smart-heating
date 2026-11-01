@@ -28,6 +28,8 @@ MODE_PRIORITIES = {
     "schedule": 200,
     "default": 100,
 }
+SPECIAL_MODE_ACTIONS = {"observe", "comfort", "setback", "fixed_temperature", "relative_temperature", "pause_demand", "override_windows"}
+UNKNOWN_STATES = {"unknown", "unavailable", "missing", "none", ""}
 
 
 def normalize_window_state(value: Any, semantics: str = "binary") -> str:
@@ -167,6 +169,10 @@ def mode_is_active(mode: Mapping[str, Any], now: datetime | None = None) -> bool
     """Determine activity without reviving an expired mode."""
     if not mode.get("available", False) or not mode.get("active", False):
         return False
+    has_source_state = "status_state" in mode or "activation_state" in mode
+    source_state = str(mode.get("status_state", mode.get("activation_state", "")) or "").strip().lower()
+    if has_source_state and (source_state in UNKNOWN_STATES or source_state in {"off", "false", "0", "inactive", "inaktiv"}):
+        return False
     now = now or datetime.now(timezone.utc)
     expires = mode.get("expires_at")
     if expires:
@@ -180,25 +186,207 @@ def mode_is_active(mode: Mapping[str, Any], now: datetime | None = None) -> bool
     return True
 
 
-def resolve_special_modes(modes: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...], *, now: datetime | None = None, zone_id: str | None = None) -> dict[str, Any]:
-    """Select one deterministic winner and explain all suppressed active modes."""
+def _condition_result(mode: Mapping[str, Any], *, presence_status: str | None = None, window_state: str | None = None) -> tuple[bool, str | None]:
+    conditions = mode.get("conditions", {})
+    if not isinstance(conditions, Mapping):
+        return True, None
+    required_presence = conditions.get("presence")
+    if required_presence:
+        if presence_status in {None, "unknown", "unavailable", "missing"}:
+            return False, "Anwesenheit unbekannt"
+        expected = {"home": {"home", "zuhause"}, "away": {"away", "abwesend"}}.get(str(required_presence).lower(), {str(required_presence).lower()})
+        if str(presence_status).lower() not in expected:
+            return False, "Anwesenheitsbedingung nicht erfüllt"
+    required_window = conditions.get("window")
+    if required_window:
+        if window_state in {None, "unknown", "unavailable", "open_unknown"}:
+            return False, "Fensterzustand unbekannt"
+        if str(window_state).lower() != str(required_window).lower():
+            return False, "Fensterbedingung nicht erfüllt"
+    return True, None
+
+
+def _default_mode_effect(mode: Mapping[str, Any]) -> dict[str, Any]:
+    """Resolve built-in semantics without changing persisted configuration."""
+    raw = mode.get("effect") if isinstance(mode.get("effect"), Mapping) else {}
+    effect = dict(raw)
+    action = str(effect.get("action") or "observe")
+    mode_type = str(mode.get("mode_type") or "custom")
+    if action == "observe":
+        defaults = {
+            "party": {"action": "comfort", "override_schedule": True},
+            "visit": {"action": "comfort", "respect_presence": False},
+            "return_home": {"action": "comfort", "override_schedule": True, "respect_presence": False},
+            "summer": {"action": "pause_demand"},
+            "frost_protection": {"action": "fixed_temperature", "target_reference": "frost"},
+        }
+        effect.update(defaults.get(mode_type, {}))
+    if mode_type == "chimney_sweep":
+        effect.update({"action": "fixed_temperature", "override_schedule": True, "respect_windows": False, "respect_presence": False})
+    effect.setdefault("respect_windows", True)
+    effect.setdefault("respect_presence", True)
+    effect.setdefault("override_schedule", False)
+    return effect
+
+
+def resolve_special_modes(
+    modes: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...],
+    *,
+    now: datetime | None = None,
+    zone_id: str | None = None,
+    presence_status: str | None = None,
+    window_state: str | None = None,
+) -> dict[str, Any]:
+    """Select a deterministic passive winner and explain all exclusions."""
     active = []
     expired = []
+    blocked = []
+    mode_by_id = {str(value.get("id", "")): value for value in modes if isinstance(value, Mapping)}
     for mode in modes:
         if mode_is_active(mode, now):
             if zone_id and mode.get("zone_ids") and zone_id not in mode.get("zone_ids", []):
                 continue
+            conditions_met, condition_reason = _condition_result(mode, presence_status=presence_status, window_state=window_state)
+            if not conditions_met:
+                blocked.append({"id": str(mode.get("id", "")), "reason": condition_reason})
+                continue
             kind = str(mode.get("mode_type") or "custom")
-            priority = int(mode.get("priority", MODE_PRIORITIES.get(kind, MODE_PRIORITIES["custom"])))
-            active.append({"id": str(mode.get("id", "")), "name": mode.get("name"), "mode_type": kind, "priority": priority, "effect": mode.get("effect", {"action": "observe"}), "window_handling": mode.get("window_handling", "normal")})
+            priority = 1000 if kind == "chimney_sweep" else int(mode.get("priority", MODE_PRIORITIES.get(kind, MODE_PRIORITIES["custom"])))
+            active.append({"id": str(mode.get("id", "")), "name": mode.get("name"), "mode_type": kind, "priority": priority, "temperature": mode.get("temperature"), "effect": mode.get("effect", {"action": "observe"}), "window_handling": mode.get("window_handling", "normal")})
         elif mode.get("active"):
-            expired.append(str(mode.get("id", "")))
+            mode_id = str(mode.get("id", ""))
+            has_source_state = "status_state" in mode or "activation_state" in mode
+            source_state = str(mode.get("status_state", mode.get("activation_state", "")) or "").strip().lower()
+            if has_source_state and source_state in UNKNOWN_STATES:
+                blocked.append({"id": mode_id, "reason": "Statusquelle unbekannt"})
+            else:
+                expired.append(mode_id)
+    for item in active:
+        item["effect"] = _default_mode_effect(item)
+        item["deactivation"] = mode_by_id.get(item["id"], {}).get("deactivation", {"action": "return_to_normal"})
     active.sort(key=lambda item: (-item["priority"], item["id"]))
     winner = active[0] if active else None
-    return {"active": active, "winner": winner, "suppressed": active[1:], "expired": expired, "passive": True}
+    return {"active": active, "winner": winner, "suppressed": active[1:], "expired": expired, "blocked": blocked, "passive": True}
 
 
-def calculate_room_demand(*, room_temperature: float | None, target_temperature: float | None, windows: Mapping[str, Any], window_reaction: Mapping[str, Any], thermostats: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...], mode_result: Mapping[str, Any] | None = None, now: datetime | None = None) -> dict[str, Any]:
+def resolve_passive_decision(
+    base_decision: Any,
+    mode_result: Mapping[str, Any],
+    *,
+    comfort_temperature: float | None = None,
+    setback_temperature: float | None = None,
+    chimney_temperature: float | None = None,
+    frost_temperature: float | None = None,
+    window_state: str | None = None,
+    presence_status: str | None = None,
+) -> dict[str, Any]:
+    """Apply one special-mode effect to a decision without issuing a command."""
+    winner = mode_result.get("winner")
+    if not winner:
+        return {
+            "mode": base_decision.mode,
+            "reason": base_decision.reason,
+            "source": base_decision.source,
+            "target_temperature": base_decision.target_temperature,
+            "target_hvac_mode": base_decision.target_hvac_mode,
+            "priority": None,
+            "mode_id": None,
+            "heat_demand_override": None,
+            "schedule_overridden": False,
+            "window_override": False,
+            "presence_override": False,
+            "blocked_by_window": False,
+            "blocked_by_presence": False,
+            "returned_to_normal": bool(mode_result.get("expired")),
+            "missing_prerequisites": [],
+            "passive": True,
+        }
+    effect = winner.get("effect", {}) if isinstance(winner.get("effect"), Mapping) else {}
+    action = str(effect.get("action") or "observe")
+    blocked_by_window = bool(effect.get("respect_windows", True)) and window_state in {"open", "tilted", "open_unknown"} and base_decision.mode in {"window_open", "window_tilted", "window_unknown"}
+    blocked_by_presence = bool(effect.get("respect_presence", True)) and presence_status in {"away", "unknown", "unavailable", "missing"} and base_decision.mode == "away"
+    if blocked_by_window or blocked_by_presence:
+        reasons = []
+        if blocked_by_window:
+            reasons.append("Fensterbedingung hat Vorrang")
+        if blocked_by_presence:
+            reasons.append("Anwesenheitsbedingung hat Vorrang")
+        return {
+            "mode": base_decision.mode,
+            "reason": f"{base_decision.reason}; Sondermodus {winner.get('name') or winner.get('id')} blockiert ({', '.join(reasons)})",
+            "source": base_decision.source,
+            "target_temperature": base_decision.target_temperature,
+            "target_hvac_mode": base_decision.target_hvac_mode,
+            "priority": winner.get("priority"),
+            "mode_id": winner.get("id"),
+            "heat_demand_override": None,
+            "schedule_overridden": False,
+            "window_override": False,
+            "presence_override": False,
+            "blocked_by_window": blocked_by_window,
+            "blocked_by_presence": blocked_by_presence,
+            "returned_to_normal": False,
+            "missing_prerequisites": [],
+            "passive": True,
+        }
+    missing: list[str] = []
+    target: float | None = None
+    target_reference = effect.get("target_reference")
+    if action == "comfort" or target_reference == "comfort":
+        target = comfort_temperature
+    elif action == "setback" or target_reference == "setback":
+        target = setback_temperature if setback_temperature is not None else frost_temperature
+    elif action == "fixed_temperature":
+        target = effect.get("target_temperature")
+        if target is None and effect.get("target_reference") == "frost":
+            target = frost_temperature
+        if target is None and winner.get("temperature") is not None:
+            target = winner.get("temperature")
+        if target is None and winner.get("mode_type") == "chimney_sweep":
+            target = chimney_temperature
+    elif action == "relative_temperature":
+        delta = effect.get("temperature_delta", effect.get("delta_temperature"))
+        if base_decision.target_temperature is not None and isinstance(delta, (int, float)):
+            target = float(base_decision.target_temperature) + float(delta)
+        else:
+            missing.append("relative_temperature_basis")
+    elif action == "pause_demand":
+        target = base_decision.target_temperature
+    elif action == "override_windows":
+        target = base_decision.target_temperature
+    elif action not in SPECIAL_MODE_ACTIONS:
+        missing.append("unknown_special_mode_action")
+    if action in {"comfort", "setback", "fixed_temperature", "relative_temperature"} and target is None:
+        missing.append("special_mode_target_temperature")
+    try:
+        target = float(target) if target is not None else None
+    except (TypeError, ValueError):
+        target = None
+        missing.append("invalid_special_mode_target_temperature")
+    hvac = "heat" if target is not None and action != "pause_demand" else base_decision.target_hvac_mode
+    if winner.get("mode_type") == "summer" or action == "pause_demand":
+        hvac = base_decision.target_hvac_mode
+    return {
+        "mode": winner.get("mode_type") or base_decision.mode,
+        "reason": f"Sondermodus {winner.get('name') or winner.get('id')} gewinnt mit Priorität {winner.get('priority')}",
+        "source": "special_mode",
+        "target_temperature": target,
+        "target_hvac_mode": hvac,
+        "priority": winner.get("priority"),
+        "mode_id": winner.get("id"),
+        "heat_demand_override": False if action == "pause_demand" else None,
+        "schedule_overridden": bool(effect.get("override_schedule", False)),
+        "window_override": not bool(effect.get("respect_windows", True)) or winner.get("window_handling") in {"ignore_all", "ignore_open", "ignore_tilted"},
+        "presence_override": not bool(effect.get("respect_presence", True)),
+        "blocked_by_window": False,
+        "blocked_by_presence": False,
+        "returned_to_normal": False,
+        "missing_prerequisites": missing,
+        "passive": True,
+    }
+
+
+def calculate_room_demand(*, room_temperature: float | None, target_temperature: float | None, windows: Mapping[str, Any], window_reaction: Mapping[str, Any], thermostats: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...], mode_result: Mapping[str, Any] | None = None, demand_override: bool | None = None, now: datetime | None = None) -> dict[str, Any]:
     """Calculate a room preview; unknown inputs never create invented demand."""
     warnings = []
     available_thermostats = [item for item in thermostats if item.get("available") is not False and item.get("state") not in {"missing", "unknown", "unavailable"}]
@@ -210,6 +398,8 @@ def calculate_room_demand(*, room_temperature: float | None, target_temperature:
         warnings.append("Fensterzustand nicht eindeutig")
     action = window_reaction.get("action", "none")
     demand = None if warnings else room_temperature < target_temperature
+    if demand_override is not None and not warnings:
+        demand = demand_override
     if action == "pause_demand" and demand is not None:
         demand = False
     mode = (mode_result or {}).get("winner")

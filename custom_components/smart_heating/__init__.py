@@ -154,6 +154,10 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     context["special_modes"] = management.get("special_modes", [])
     context["control_plane"] = deepcopy(management.get("control_plane", {}))
     context["heating_sources"] = deepcopy(management.get("heating_sources", {}))
+    context["heating_sources"]["primary_climate_entity"] = context["heating_sources"].get("primary_climate_entity") or config.get("climate_entity")
+    context["heating_sources"]["fallback_climate_entity"] = context["heating_sources"].get("fallback_climate_entity") or config.get("tado_fallback")
+    context["presence"] = person_presence(hass, management["persons"])
+    context["schedule_source_verified"] = bool(config.get("schedule_source_verified", False))
     context["thermostats"] = []
     context["window_strategy"] = "none"
     context["window_groups"] = []

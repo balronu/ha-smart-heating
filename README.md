@@ -1,5 +1,20 @@
 # Smart Heating (Beta 38)
 
+## Phase 76 – passiver Sondermodus-Resolver
+
+Die passive Engine berechnet je Raum, welcher Sondermodus wirksam wäre und
+welche Zieltemperatur bzw. Wirkung daraus folgt. Unterstützt werden
+Komfort-/Absenk-/feste/relative Temperaturen, Zeitplanübersteuerung,
+Fenster- und Anwesenheitsbedingungen, Ablauf und Rückkehr zum Normalbetrieb.
+Prioritäten werden deterministisch aufgelöst; Schornsteinfeger bleibt mit
+Priorität 1000 absolut vorrangig. Fehlende oder unbekannte Statusquellen
+blockieren die Wirkung und werden sichtbar begründet.
+
+Das Ergebnis ist eine Shadow-Entscheidung mit Datenqualität und fehlenden
+Scheduler-/Aktorvoraussetzungen. Es werden keine Heizbefehle, Helper- oder
+Automationsänderungen ausgeführt; die bestehende Heizungsautomation bleibt
+alleinige produktive Steuerungsinstanz.
+
 ## Phase 75 – passives Migrationsdatenmodell
 
 Das Management-Modell wird intern als Schema 6 rückwärtskompatibel aus älteren
