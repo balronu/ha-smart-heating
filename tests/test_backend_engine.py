@@ -16,6 +16,7 @@ _SPEC.loader.exec_module(_ENGINE)
 from smart_heating_backend_engine import (
     aggregate_window_states,
     calculate_room_demand,
+    evaluate_window_contacts,
     evaluate_window_groups,
     evaluate_window_strategy,
     normalize_window_state,
@@ -24,6 +25,36 @@ from smart_heating_backend_engine import (
 
 
 class BackendEngineTests(unittest.TestCase):
+    def test_contact_roles_use_open_precedence_and_ignore_invalid_states(self):
+        result = evaluate_window_contacts([
+            {"entity_id": "binary_sensor.tilt", "contact_role": "tilt", "state": "on"},
+            {"entity_id": "binary_sensor.open", "contact_role": "open", "state": "on"},
+        ])
+        self.assertEqual(result["state"], "open")
+        self.assertTrue(all(item["considered_for_automation"] for item in result["contacts"]))
+
+        ignored = evaluate_window_contacts([
+            {"entity_id": "binary_sensor.tilt", "contact_role": "tilt", "state": "unknown"},
+            {"entity_id": "binary_sensor.open", "contact_role": "open", "state": "unavailable"},
+        ])
+        self.assertEqual(ignored["state"], "closed")
+        self.assertEqual(ignored["valid_count"], 0)
+        self.assertTrue(all(item["automation_ignored"] for item in ignored["contacts"]))
+        self.assertTrue(all(item["reason"] == "Für Heizungsautomatik ignoriert" for item in ignored["contacts"]))
+
+    def test_contact_roles_support_multiple_same_role_and_recovery(self):
+        result = evaluate_window_contacts([
+            {"entity_id": "binary_sensor.open1", "contact_role": "open", "state": "off"},
+            {"entity_id": "binary_sensor.open2", "contact_role": "open", "state": "on"},
+            {"entity_id": "binary_sensor.tilt", "contact_role": "tilt", "state": "unavailable"},
+        ])
+        self.assertEqual(result["state"], "open")
+        recovered = evaluate_window_contacts([
+            {"entity_id": "binary_sensor.open1", "contact_role": "open", "state": "off"},
+            {"entity_id": "binary_sensor.open2", "contact_role": "open", "state": "off"},
+            {"entity_id": "binary_sensor.tilt", "contact_role": "tilt", "state": "on"},
+        ])
+        self.assertEqual(recovered["state"], "tilted")
     def test_binary_contact_never_invents_tilt(self):
         self.assertEqual(normalize_window_state("on", "binary"), "open")
         self.assertEqual(normalize_window_state("on", "tilt"), "tilted")

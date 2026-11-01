@@ -8,7 +8,7 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from .models import ScheduleValidationError, WeeklySchedule
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 COLLECTION_KEYS = ("persons", "zones", "sensors")
 SENSOR_TYPES = ("window", "tilt", "temperature", "thermostat")
 SAFETY_MODES = ("party", "visit", "return_home", "summer", "chimney_sweep", "frost_protection")
@@ -51,6 +51,8 @@ SPECIAL_MODE_BINDINGS = ("internal", "entity", "helper_create")
 SPECIAL_MODE_ACTIVATION_TYPES = ("internal", "entity", "binary_sensor", "switch", "presence", "time", "combined")
 WINDOW_HANDLING = ("normal", "ignore_tilted", "ignore_open", "ignore_all")
 WINDOW_STRATEGIES = ("none", "setback", "frost", "pause_demand", "custom_temperature")
+WINDOW_CONTACT_ROLES = ("unassigned", "tilt", "open")
+WINDOW_CONTACT_ROLE_LABELS = {"unassigned": "Nicht zugeordnet", "tilt": "Gekippt-Sensor", "open": "Offen-Sensor"}
 SPECIAL_MODE_TYPES = (*SAFETY_MODES, "custom")
 SUPPORTED_CUSTOM_BEHAVIORS = ("passive_only",)
 SPECIAL_MODE_DEFINITIONS = {
@@ -137,12 +139,22 @@ def zone_status(hass: Any, zones: list[Mapping[str, Any]]) -> list[dict[str, Any
     return result
 
 
-def zone_backend_summary(hass: Any, zones: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+def zone_backend_summary(hass: Any, zones: list[Mapping[str, Any]], management: Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
     """Expose passive per-room window/thermostat diagnostics for the UI."""
-    from .backend_engine import evaluate_window_groups, evaluate_window_strategy
+    from .backend_engine import evaluate_window_contacts, evaluate_window_groups, evaluate_window_strategy
 
     result = []
     for zone in zones:
+        assigned_contacts = []
+        if management:
+            area_ids = set(zone.get("area_ids", []))
+            for kind in ("window", "tilt"):
+                for configured in management.get("sensors", {}).get(kind, []):
+                    if configured.get("ignored") or (configured.get("area_id") not in area_ids and zone.get("id") not in configured.get("zone_ids", [])):
+                        continue
+                    state = hass.states.get(configured.get("entity_id"))
+                    assigned_contacts.append({**configured, "state": getattr(state, "state", "missing"), "name": configured.get("name") or configured.get("entity_id")})
+        contact_evaluation = evaluate_window_contacts(assigned_contacts) if assigned_contacts else None
         groups = []
         for group in zone.get("window_groups", []):
             sensors = []
@@ -151,10 +163,12 @@ def zone_backend_summary(hass: Any, zones: list[Mapping[str, Any]]) -> list[dict
                 sensors.append({"entity_id": sensor.get("entity_id"), "state": getattr(state, "state", "missing"), "semantics": sensor.get("semantics", "binary")})
             groups.append({**group, "sensors": sensors})
         windows = evaluate_window_groups(groups)
+        if contact_evaluation:
+            windows = {"windows": [], "state": contact_evaluation["state"], "conflicts": [], "contacts": contact_evaluation["contacts"]}
         delays = zone.get("window_delays", {})
         reaction = evaluate_window_strategy(state=windows["state"], strategy=zone.get("window_strategy", "none"), tilted_delay=delays.get("tilted", 0), open_delay=delays.get("open", 0), close_delay=delays.get("closed", 0))
         status = next((item for item in zone_status(hass, [zone]) if item["zone_id"] == zone.get("id")), {})
-        result.append({"zone_id": zone.get("id"), "name": zone.get("name"), "thermostats": status.get("thermostats", []), "thermostat_count": len(status.get("thermostats", [])), "window_state": windows["state"], "window_groups": windows["windows"], "window_conflicts": windows["conflicts"], "window_reaction": reaction, "passive": True})
+        result.append({"zone_id": zone.get("id"), "name": zone.get("name"), "thermostats": status.get("thermostats", []), "thermostat_count": len(status.get("thermostats", [])), "window_state": windows["state"], "window_groups": windows["windows"], "window_contacts": windows.get("contacts", []), "window_conflicts": windows["conflicts"], "window_reaction": reaction, "passive": True})
     return result
 
 
@@ -357,6 +371,10 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
             item.setdefault("state_semantics", "open_or_tilted" if kind in {"window", "tilt"} else "")
             item.setdefault("ignored", False)
             item.setdefault("window_group_id", None)
+            if kind in {"window", "tilt"}:
+                item.setdefault("legacy_state_semantics", item.get("state_semantics") or ("tilt" if kind == "tilt" else "binary"))
+                role = str(item.get("contact_role", item.get("window_role", "unassigned")) or "unassigned")
+                item["contact_role"] = role if role in WINDOW_CONTACT_ROLES else "unassigned"
             if kind == "window" and item.get("state_semantics") == "open_or_tilted":
                 item["state_semantics"] = "binary"
     if result["controller"]:
@@ -432,6 +450,8 @@ def validate_management(value: Mapping[str, Any] | None) -> list[str]:
                 errors.append(f"unknown_zone_reference:{kind}:{item['id']}")
             if kind == "temperature" and item.get("strategy", "primary_fallback") not in {"primary_fallback", "first_available", "mean_valid"}:
                 errors.append(f"invalid_temperature_strategy:{item['id']}")
+            if kind in {"window", "tilt"} and item.get("contact_role", "unassigned") not in WINDOW_CONTACT_ROLES:
+                errors.append(f"invalid_window_contact_role:{item['id']}")
     sensor_owners: dict[str, str] = {}
     for kind, items in data["sensors"].items():
         for item in items:
@@ -757,6 +777,7 @@ def discover_window_contacts(hass: Any, configured_entities: list[str] | tuple[s
 
 def window_contact_summary(hass: Any, management: Mapping[str, Any]) -> dict[str, Any]:
     """Return room/group counts for the panel without changing assignments."""
+    from .backend_engine import evaluate_window_contacts
     configured_items = [
         item
         for kind in ("window", "tilt")
@@ -774,6 +795,9 @@ def window_contact_summary(hass: Any, management: Mapping[str, Any]) -> dict[str
             contact["zone_ids"] = list(configured_item.get("zone_ids", []))
             contact["configured_type"] = configured_item.get("type")
             contact["state_semantics"] = configured_item.get("state_semantics", "open_or_tilted")
+            contact["contact_role"] = configured_item.get("contact_role", "unassigned")
+            contact["role_label"] = WINDOW_CONTACT_ROLE_LABELS.get(contact["contact_role"], "Nicht zugeordnet")
+            contact["legacy_state_semantics"] = configured_item.get("legacy_state_semantics", configured_item.get("state_semantics", "binary"))
             # This is an internal override only; the HA Area Registry is
             # never modified by Smart Heating.
             if configured_item.get("area_id"):
@@ -797,6 +821,8 @@ def window_contact_summary(hass: Any, management: Mapping[str, Any]) -> dict[str
             "zone_ids": list(configured_item.get("zone_ids", [])),
             "configured_type": configured_item.get("type"),
             "state_semantics": configured_item.get("state_semantics", "open_or_tilted"),
+            "contact_role": configured_item.get("contact_role", "unassigned"),
+            "role_label": WINDOW_CONTACT_ROLE_LABELS.get(configured_item.get("contact_role", "unassigned"), "Nicht zugeordnet"),
             "review_flags": ["configured_but_not_eligible"],
             "review_required": True,
             "ignored": bool(configured_item.get("ignored", False)),
@@ -812,7 +838,12 @@ def window_contact_summary(hass: Any, management: Mapping[str, Any]) -> dict[str
         group[contact["status"]] = group.get(contact["status"], 0) + 1
         group["review"] += int(contact["review_required"])
         group["contacts"].append(contact)
-        group["aggregate_status"] = aggregate_window_status([item.get("status", "unknown") for item in group["contacts"]])
+        evaluation = evaluate_window_contacts(group["contacts"])
+        group["aggregate_status"] = evaluation["state"]
+        group["automation_state"] = evaluation["state"]
+        diagnostics = {item["entity_id"]: item for item in evaluation["contacts"]}
+        contact.update(diagnostics.get(contact["entity_id"], {}))
+        group["contact_diagnostics"] = evaluation["contacts"]
     return {
         "total": len(contacts) + len(ignored),
         "configured": sum(item["configured"] for item in contacts) + len(ignored),

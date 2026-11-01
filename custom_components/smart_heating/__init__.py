@@ -103,25 +103,24 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
     for key, entity_id in config.get("special_modes", {}).items():
         if isinstance(entity_id, str) and entity_id:
             result[key] = hass.states.is_state(entity_id, "on")
-    ignored_window_entities = {
-        item.get("entity_id")
-        for kind in ("window", "tilt")
-        for item in management.get("sensors", {}).get(kind, [])
-        if item.get("ignored") and item.get("entity_id")
-    }
-    window_unknown = False
+    from .backend_engine import evaluate_window_contacts
+    configured_contacts = []
+    configured_ids = set()
+    for kind in ("window", "tilt"):
+        for item in management.get("sensors", {}).get(kind, []):
+            if item.get("entity_id") and not item.get("ignored"):
+                configured_ids.add(item["entity_id"])
+                state = hass.states.get(item["entity_id"])
+                configured_contacts.append({**item, "state": getattr(state, "state", "missing")})
     for entity_id in config.get("window_entities", []):
-        if entity_id in ignored_window_entities:
-            continue
-        state = hass.states.get(entity_id)
-        if state and str(state.state).lower() in {"on", "open", "opened", "offen", "true"}:
-            result["window_open"] = True
-        elif state and str(state.state).lower() in {"tilt", "tilted", "gekippt", "gekipp", "gekippte"}:
-            result["window_tilted"] = True
-        elif not state or str(state.state).lower() in {"unknown", "unbekannt", "unavailable", "nicht verfügbar", "none", ""}:
-            window_unknown = True
-    if window_unknown and not result.get("window_open") and not result.get("window_tilted"):
-        result["window_unknown"] = True
+        if entity_id not in configured_ids:
+            state = hass.states.get(entity_id)
+            configured_contacts.append({"entity_id": entity_id, "type": "window", "contact_role": "unassigned", "state": getattr(state, "state", "missing")})
+    window_evaluation = evaluate_window_contacts(configured_contacts)
+    if window_evaluation["state"] == "open":
+        result["window_open"] = True
+    elif window_evaluation["state"] == "tilted":
+        result["window_tilted"] = True
     for entity_id in config.get("presence_entities", []):
         state = hass.states.get(entity_id)
         if state and str(state.state).lower() in {"home", "on", "present", "zuhause"}:
@@ -415,7 +414,7 @@ async def _admin_mutation(hass: HomeAssistant, connection: websocket_api.ActiveC
 async def _ws_admin_get(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])
     config = effective_config(entry)
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contact_summary(hass, management), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "backend_evaluations": zone_backend_summary(hass, management["zones"]), "preview": hass.data.get(DOMAIN, {}).get(entry.entry_id).data if hass.data.get(DOMAIN, {}).get(entry.entry_id) else {}, "validation": validate_management(management)})
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contact_summary(hass, management), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "backend_evaluations": zone_backend_summary(hass, management["zones"], management), "preview": hass.data.get(DOMAIN, {}).get(entry.entry_id).data if hass.data.get(DOMAIN, {}).get(entry.entry_id) else {}, "validation": validate_management(management)})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/person/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})

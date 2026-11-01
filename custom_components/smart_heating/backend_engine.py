@@ -14,6 +14,8 @@ WINDOW_STATES = ("closed", "tilted", "open", "open_unknown", "unknown", "unavail
 WINDOW_PRIORITY = {"closed": 0, "tilted": 1, "open_unknown": 2, "open": 3, "unknown": 4, "unavailable": 5}
 WINDOW_HANDLING = {"normal", "ignore_tilted", "ignore_open", "ignore_all"}
 WINDOW_STRATEGIES = {"none", "setback", "frost", "pause_demand", "custom_temperature"}
+WINDOW_CONTACT_ROLES = {"unassigned", "tilt", "open"}
+WINDOW_CONTACT_ROLE_LABELS = {"unassigned": "Nicht zugeordnet", "tilt": "Gekippt-Sensor", "open": "Offen-Sensor"}
 MODE_PRIORITIES = {
     "chimney_sweep": 1000,
     "frost_protection": 900,
@@ -76,6 +78,57 @@ def aggregate_window_states(states: list[str] | tuple[str, ...]) -> str:
     if "unknown" in normalized:
         return "unknown"
     return "closed"
+
+
+def evaluate_window_contacts(contacts: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...]) -> dict[str, Any]:
+    """Evaluate assigned contacts while keeping technical failures visible.
+
+    Unknown/unavailable contacts are diagnostic-only.  They never create a
+    heating lock or an unknown automation state; if no valid signal remains,
+    automation sees a closed room.  ``unassigned`` preserves the legacy
+    semantics until a user explicitly chooses a role.
+    """
+    diagnostics = []
+    valid_states = []
+    for contact in contacts:
+        if not isinstance(contact, Mapping):
+            continue
+        raw = str(contact.get("state", "missing") or "missing").strip().lower()
+        role = str(contact.get("contact_role", contact.get("window_role", "unassigned")) or "unassigned")
+        if role not in WINDOW_CONTACT_ROLES:
+            role = "unassigned"
+        ignored = bool(contact.get("ignored", False))
+        semantics = contact.get("legacy_state_semantics") or contact.get("state_semantics") or ("tilt" if contact.get("type") == "tilt" else "binary")
+        if role == "tilt":
+            semantics = "tilt"
+        elif role == "open":
+            semantics = "open"
+        normalized = normalize_window_state(raw, semantics)
+        reachable = raw not in {"unknown", "unavailable", "missing", "nicht verfügbar", "none", ""}
+        considered = reachable and not ignored and normalized in {"closed", "tilted", "open"}
+        diagnostic_status = "unavailable" if raw in {"unavailable", "nicht verfügbar", "missing"} else "unknown" if not reachable else normalized
+        derived = normalized if normalized in {"closed", "tilted", "open"} else "closed"
+        if considered:
+            valid_states.append(derived)
+        diagnostics.append({
+            "entity_id": str(contact.get("entity_id", "")),
+            "name": contact.get("name") or contact.get("entity_id"),
+            "role": role,
+            "role_label": WINDOW_CONTACT_ROLE_LABELS[role],
+            "raw_state": raw,
+            "state": raw,
+            "reachable": reachable,
+            "available": reachable,
+            "considered_for_automation": considered,
+            "automation_ignored": not considered,
+            "ignored": ignored,
+            "diagnostic_status": diagnostic_status,
+            "derived_state": derived,
+            "semantics": semantics,
+            "reason": "Für Heizungsautomatik ignoriert" if not considered else None,
+        })
+    state = "open" if "open" in valid_states else "tilted" if "tilted" in valid_states else "closed"
+    return {"state": state, "contacts": diagnostics, "ignored_count": sum(not item["considered_for_automation"] for item in diagnostics), "valid_count": len(valid_states), "passive": True}
 
 
 def evaluate_window_groups(groups: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...]) -> dict[str, Any]:
