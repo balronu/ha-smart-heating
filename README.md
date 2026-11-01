@@ -1,4 +1,19 @@
-# Smart Heating (Beta 19)
+# Smart Heating (Beta 22)
+
+## Beta-22-Verwaltungsoberfläche
+
+Die Verwaltungsoberfläche bietet eine kompakte, mobile Wochenplanbearbeitung
+mit nativen Zeitfeldern, nicht überlappenden Komfortfenstern, Tageskopie und
+sichtbarer Speicher-/Validierungsrückmeldung. Raumthermostate und geeignete
+Raumtemperaturfühler werden zuerst aus dem HA-Bereich und zusätzlich aus
+„Weitere geeignete Geräte“ angeboten; Geräte ohne HA-Bereich bleiben damit
+manuell auswählbar. Technische Temperaturquellen werden nicht als Raumfühler
+vorgeschlagen, und gespeicherte, aktuell nicht verfügbare Zuordnungen werden
+zur Prüfung erhalten.
+
+Die HA-Bereichsrelevanz ist von der Aktivierung eines Smart-Heating-Raums
+getrennt. Die Oberfläche verändert keine HA-Bereiche und bleibt im passiven
+Kompatibilitätsmodus.
 
 ## Verbindliche Begriffe und Oberflächen
 
