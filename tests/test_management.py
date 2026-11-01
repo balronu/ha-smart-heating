@@ -292,6 +292,43 @@ class ManagementTests(unittest.TestCase):
         self.assertEqual(by_id["badezimmer"]["window_contacts"][0]["assigned_area_id"], "badezimmer")
         self.assertEqual(by_id["badezimmer"]["window_contacts"][0]["ha_area_id"], "esszimmer")
 
+    def test_area_suggestions_preserve_saved_window_contact_roles(self):
+        data = default_management()
+        upsert_item(data, "sensors", {
+            "id": "bathroom-tilt",
+            "type": "window",
+            "entity_id": "binary_sensor.fensterkontakt_badezimmer_contact",
+            "area_id": "badezimmer",
+            "area_name": "Badezimmer",
+            "contact_role": "tilt",
+        })
+        upsert_item(data, "sensors", {
+            "id": "bathroom-open",
+            "type": "window",
+            "entity_id": "binary_sensor.fensterkontakt_badezimmer_1_2_contact",
+            "area_id": "badezimmer",
+            "area_name": "Badezimmer",
+            "contact_role": "open",
+        })
+        upsert_item(data, "sensors", {
+            "id": "bathroom-unassigned",
+            "type": "window",
+            "entity_id": "binary_sensor.fensterkontakt_badezimmer_unassigned_contact",
+            "area_id": "badezimmer",
+            "area_name": "Badezimmer",
+        })
+        contacts = [
+            {"entity_id": "binary_sensor.fensterkontakt_badezimmer_contact", "name": "Fenster oben", "area_id": "badezimmer", "area_name": "Badezimmer", "status": "closed", "available": True, "configured": True},
+            {"entity_id": "binary_sensor.fensterkontakt_badezimmer_1_2_contact", "name": "Fenster unten", "area_id": "badezimmer", "area_name": "Badezimmer", "status": "closed", "available": True, "configured": True},
+            {"entity_id": "binary_sensor.fensterkontakt_badezimmer_unassigned_contact", "name": "Fenster ohne Rolle", "area_id": "badezimmer", "area_name": "Badezimmer", "status": "closed", "available": True, "configured": True},
+        ]
+        with patch("custom_components.smart_heating.management.discover_areas", return_value=[{"area_id": "badezimmer", "name": "Badezimmer", "entity_ids": []}]), patch("custom_components.smart_heating.management.discover_window_contacts", return_value=contacts):
+            result = area_suggestions(Hass({}), data)
+        room_contacts = {item["entity_id"]: item for item in result[0]["window_contacts"]}
+        self.assertEqual(room_contacts["binary_sensor.fensterkontakt_badezimmer_contact"]["contact_role"], "tilt")
+        self.assertEqual(room_contacts["binary_sensor.fensterkontakt_badezimmer_1_2_contact"]["contact_role"], "open")
+        self.assertNotIn("contact_role", room_contacts["binary_sensor.fensterkontakt_badezimmer_unassigned_contact"])
+
     def test_same_contact_cannot_be_assigned_twice(self):
         data = default_management()
         upsert_item(data, "sensors", {"id": "one", "type": "window", "entity_id": "binary_sensor.fenster", "area_id": "wohnzimmer"})

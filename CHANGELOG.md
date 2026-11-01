@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased – Phase 68 contact-role projection fix
+
+### Deutsch
+
+- `contact_role` wird beim Aufbau der Raumkontaktliste unverändert aus der
+  gespeicherten Smart-Heating-Konfiguration übernommen. Dadurch bleiben
+  `tilt` und `open` im Raumformular sichtbar und werden beim erneuten Speichern
+  nicht unbeabsichtigt auf „Nicht zugeordnet“ zurückgesetzt.
+- Kontakte ohne gespeicherte Rolle bleiben ohne erfundene Standardrolle.
+
+### English
+
+- `contact_role` is now carried unchanged from the saved Smart-Heating
+  configuration into the room contact projection, so `tilt` and `open` remain
+  visible and are not accidentally saved as `unassigned`.
+- Contacts without a stored role remain without an invented role.
+
 ## 0.1.0-beta.37 – Phase 57 sichtbare Diagnosewerte / Visible diagnostic values
 
 ### Deutsch
