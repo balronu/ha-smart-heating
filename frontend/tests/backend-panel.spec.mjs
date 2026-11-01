@@ -19,7 +19,7 @@ test("renders independent backend sections and nested rooms", async ({ page }) =
 
 test("saves a zone and preserves open sections after backend refresh", async ({ page }) => {
   await page.locator("details[data-section=rooms]").first().locator(":scope > summary").click();
-  await page.getByLabel("Name").fill("Wohnbereich");
+  await page.locator("form[data-zone-form] input[name=name]").fill("Wohnbereich");
   await page.getByRole("button", { name: "Zone speichern" }).click();
   await expect(page.locator("details[data-zone]")).toContainText("Wohnbereich");
   await expect(page.locator("details[data-section=rooms]")).toHaveAttribute("open", "");
@@ -35,6 +35,42 @@ test("provides a Home Assistant navigation escape hatch", async ({ page }) => {
   await expect(page.locator("[data-ha-menu-button]")).toBeVisible();
   await expect(page.locator("[data-nav-back]")).toBeVisible();
   await expect(page.locator(".ha-navigation-header")).toContainText("Smart Heating");
+});
+
+test("keeps mobile navigation compact without title wrapping or overflow", async ({ page }) => {
+  const metrics = await page.evaluate(() => ({ body: document.body.scrollWidth, viewport: innerWidth, menu: document.querySelector("[data-ha-menu-button]").getBoundingClientRect().width, back: document.querySelector("[data-nav-back]").getBoundingClientRect().width, title: getComputedStyle(document.querySelector(".nav-title")).whiteSpace }));
+  expect(metrics.body).toBeLessThanOrEqual(metrics.viewport + 1);
+  expect(metrics.menu).toBeLessThanOrEqual(56);
+  expect(metrics.back).toBeLessThan(metrics.viewport * 0.55);
+  expect(metrics.title).toBe("nowrap");
+});
+
+test("edits a Smart-Heating room internally and leaves the HA area contract intact", async ({ page }) => {
+  await page.locator("details[data-section=rooms]").first().locator(":scope > summary").click();
+  await page.locator("details[data-room=room-wohnzimmer] summary").click();
+  await expect(page.locator("form[data-room-form]")).toBeVisible();
+  await page.locator("form[data-room-form] input[name=comfort_temperature]").fill("21.5");
+  await page.locator("form[data-room-form] button[type=submit]").click();
+  await expect(page.locator("form[data-room-form] [data-room-feedback]")).toContainText("Raumkonfiguration gespeichert");
+  await expect(page.locator("details[data-room=room-wohnzimmer]")).toContainText("Smart-Heating-Raum aktiv");
+});
+
+test("persists passive special-mode configuration with a helper status source", async ({ page }) => {
+  await page.locator("details[data-section=safety] summary").click();
+  const party = page.locator('[data-safety-mode="party"]');
+  await party.locator("input[name=enabled]").check();
+  await party.locator("select[name=helper_entity]").selectOption("input_boolean.party");
+  await party.locator("input[name=temperature]").fill("22");
+  await page.locator("form[data-safety-form] button[type=submit]").click();
+  await expect(page.locator("[data-safety-feedback]")).toContainText("Sondermodi gespeichert");
+  await expect(page.locator("form[data-safety-form]")).toContainText("keine aktive Heizungssteuerung");
+});
+
+test("does not present an HA-area suggestion as a saved window assignment", async ({ page }) => {
+  await page.locator("details[data-section=windows]").first().locator(":scope > summary").click();
+  const row = page.locator('tr[data-window-row]').filter({ hasText: "Fenster Batterie" });
+  await expect(row).toContainText("Noch nicht zugeordnet");
+  await expect(row.locator("select[data-window-area]")).toHaveValue("");
 });
 
 test("keeps temperature and controller choices explicit and passive", async ({ page }) => {
@@ -66,7 +102,7 @@ test("separates relevant rooms, other HA areas, and technical temperature source
   });
   await page.locator("details[data-section=rooms]").first().locator(":scope > summary").click();
   await expect(page.locator("details[data-room]")).toHaveCount(2);
-  await expect(page.locator("details[data-room=room-tankstelle]")).toContainText("weiterer HA-Bereich");
+  await expect(page.locator("details[data-room=room-tankstelle]")).toContainText("nicht zugeordnet");
   await expect(page.locator("details[data-room=room-wohnzimmer]")).toContainText("sensor.pve_disk_temperature");
   await page.locator("[data-area-search]").fill("tank");
   await expect(page.locator("details[data-room=room-wohnzimmer]")).toBeHidden();

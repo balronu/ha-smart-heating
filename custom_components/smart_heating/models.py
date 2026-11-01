@@ -171,6 +171,8 @@ def evaluate_decision(
         return HeatingDecision("manual_setback", "Manual setback mode", night_temperature, "heat", "internal_state")
     if flags.get("heating_permission") is False:
         return HeatingDecision("disabled", "Heating permission is off", None, "off", "reference_priority")
+    if flags.get("frost_protection"):
+        return HeatingDecision("frost_protection", "Frost protection mode", frost_temperature, "heat", "reference_priority")
     if flags.get("window_open"):
         return HeatingDecision("window_open", "Window open safety setback", frost_temperature, "heat", "reference_priority")
     if flags.get("window_tilted"):

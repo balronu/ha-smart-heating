@@ -13,6 +13,7 @@ from custom_components.smart_heating.management import (  # noqa: E402
     normalize_management,
     discover_controller_entities,
     discover_temperature_entities,
+    discover_helper_entities,
     area_suggestions,
     is_eligible_window_entity,
     person_presence,
@@ -117,6 +118,28 @@ class ManagementTests(unittest.TestCase):
         data = normalize_management({"relevant_area_ids": ["wohnzimmer"], "zones": [], "sensors": {}})
         self.assertEqual(data["relevant_area_ids"], ["wohnzimmer"])
         self.assertEqual(data["zones"], [])
+
+    def test_area_names_are_neutral_and_local_climate_is_the_only_device_hint(self):
+        class Area:
+            def __init__(self, area_id, name):
+                self.id, self.name = area_id, name
+        class RegistryItem:
+            def __init__(self, entity_id, area_id):
+                self.entity_id, self.area_id = entity_id, area_id
+        hass = Hass({"climate.wohnzimmer": State("heat", {"friendly_name": "Wohnzimmer Heizung"}, "climate.wohnzimmer")})
+        with patch("custom_components.smart_heating.management.discover_areas", return_value=[{"area_id": "wohnmobil", "name": "Wohnmobil", "entity_ids": []}, {"area_id": "wohnzimmer", "name": "Wohnzimmer", "entity_ids": ["climate.wohnzimmer"]}]):
+            result = area_suggestions(hass, default_management())
+        by_id = {item["area_id"]: item for item in result}
+        self.assertFalse(by_id["wohnmobil"]["relevant"])
+        self.assertEqual(by_id["wohnmobil"]["relevance_source"], "unassigned")
+        self.assertTrue(by_id["wohnzimmer"]["relevant"])
+        self.assertEqual(by_id["wohnzimmer"]["relevance_source"], "local_heating_device")
+
+    def test_helper_discovery_is_read_only_and_selectable(self):
+        hass = Hass({"input_boolean.party": State("off", {"friendly_name": "Party"}, "input_boolean.party")})
+        helpers = discover_helper_entities(hass)
+        self.assertEqual(helpers[0]["entity_id"], "input_boolean.party")
+        self.assertTrue(helpers[0]["passive"])
 
     def test_controller_discovery_is_observable_and_includes_input_boolean(self):
         hass = Hass({
