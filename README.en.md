@@ -1,4 +1,12 @@
-# Smart Heating (Beta 31)
+# Smart Heating (Beta 32)
+
+## Phase 42 – Window contact role persistence fix (Beta 32)
+
+The **Tilt sensor**, **Open sensor**, and **Unassigned** roles remain visible
+after selection in the room form and are applied only with **Save room**. The
+save sequence is ordered and performs a read-back, preventing mobile selection
+changes from being overwritten by older room data. Existing contacts and room
+assignments remain intact; operation stays passive and sends no heating commands.
 
 ## Phase 40 – Window contact roles (Beta 31)
 

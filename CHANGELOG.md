@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.1.0-beta.32 – Phase 42 Persistenzkorrektur / Persistence fix
+
+### Deutsch
+
+- Fensterkontaktrollen bleiben nach der Auswahl im Raumformular sichtbar und
+  werden erst mit „Raum speichern“ übernommen.
+- Die geänderten Rollen werden geordnet nach der Raumkonfiguration gespeichert;
+  ein anschließender Readback verhindert, dass ältere mobile Formulardaten die
+  Auswahl zurücksetzen.
+- Bestehende Kontakte und Raumzuordnungen bleiben erhalten. Der passive Modus,
+  die Fensterzustandslogik und die Sicherheitsgrenzen bleiben unverändert.
+
+### English
+
+- Window contact roles remain visible after selection in the room form and are
+  applied only with “Save room”.
+- Changed roles are saved in an ordered sequence after the room configuration;
+  a final read-back prevents older mobile form data from resetting the choice.
+- Existing contacts and room assignments remain intact. Passive mode, window
+  state logic, and safety boundaries remain unchanged.
+
 ## 0.1.0-beta.31 – Phase 40 Fensterkontakt-Funktionen / Window contact roles
 
 ### Deutsch
