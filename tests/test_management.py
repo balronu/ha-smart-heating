@@ -114,6 +114,19 @@ class ManagementTests(unittest.TestCase):
         self.assertEqual(result["sensor.pve_disk_temperature"]["temperature_role"], "technical")
         self.assertEqual(result["sensor.esszimmer_taupunkt"]["temperature_role"], "technical")
 
+    def test_outdoor_and_contact_temperature_sources_are_not_primary_room_sources(self):
+        hass = Hass({
+            "sensor.außen_temperature": State("12", {"device_class": "temperature", "unit_of_measurement": "°C", "friendly_name": "Außen Temperatur"}, "sensor.außen_temperature"),
+            "sensor.fenster_temperature": State("20", {"device_class": "temperature", "unit_of_measurement": "°C", "friendly_name": "Fenster Temperatur"}, "sensor.fenster_temperature"),
+            "sensor.badezimmer_temperature": State("21", {"device_class": "temperature", "unit_of_measurement": "°C", "friendly_name": "Badezimmer Temperatur"}, "sensor.badezimmer_temperature"),
+        })
+        result = discover_temperature_entities(hass)
+        roles = {item["entity_id"]: item["temperature_role"] for item in result}
+        self.assertEqual(roles["sensor.badezimmer_temperature"], "room")
+        self.assertEqual(roles["sensor.fenster_temperature"], "contact")
+        self.assertEqual(roles["sensor.außen_temperature"], "technical")
+        self.assertEqual([item["entity_id"] for item in result], ["sensor.badezimmer_temperature", "sensor.fenster_temperature", "sensor.außen_temperature"])
+
     def test_explicit_area_relevance_is_internal_and_persistent(self):
         data = normalize_management({"relevant_area_ids": ["wohnzimmer"], "zones": [], "sensors": {}})
         self.assertEqual(data["relevant_area_ids"], ["wohnzimmer"])

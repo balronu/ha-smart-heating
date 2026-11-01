@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.1.0-beta.23 – Beta 23
+
+### Deutsch
+
+- Versionsanzeige auf die zentrale Backend-Version ausgerichtet; alte
+  Frontend-Fallbacks melden keine veraltete Beta mehr als aktuell.
+- Wochenplan, Fensterkontakte, ignorierte Sensoren und Personen für schmale
+  mobile Viewports verdichtet; native Zeitfelder und Kopieren bleiben erhalten.
+- Thermostate und Temperaturfühler nach aktuellem HA-Bereich, weiteren
+  geeigneten Bereichen und technischer Eignung gruppiert; Kontakt- und
+  Außenfühler werden nicht als bevorzugte Raumfühler angeboten.
+- Sondermodi bleiben verfügbar, Statusquellen read-only und die
+  Kompatibilitätssteuerung passiv.
+
+### English
+
+- Aligned version display with the central backend version; stale frontend
+  fallbacks no longer present an old beta as current.
+- Compacted the weekly planner, window contacts, ignored sensors, and people
+  for narrow mobile viewports while preserving native time inputs and copying.
+- Grouped thermostats and temperature sensors by current HA area, other
+  suitable areas, and technical suitability; contact and outdoor sensors are
+  not preferred as room sensors.
+- Preserved special modes, read-only status sources, and passive compatibility
+  control.
+
+No Home Assistant entity, area, helper, automation, or heating command is
+changed by this release.
+
 ## 0.1.0-beta.22 – Beta 22
 
 ### Deutsch

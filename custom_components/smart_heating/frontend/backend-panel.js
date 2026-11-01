@@ -1,4 +1,4 @@
-const VERSION = "0.1.0-beta.22";
+const VERSION = "unbekannt";
 const DAYS = [["monday", "Montag", "Mo"], ["tuesday", "Dienstag", "Di"], ["wednesday", "Mittwoch", "Mi"], ["thursday", "Donnerstag", "Do"], ["friday", "Freitag", "Fr"], ["saturday", "Samstag", "Sa"], ["sunday", "Sonntag", "So"]];
 
 class SmartHeatingBackendPanel extends HTMLElement {
@@ -21,7 +21,7 @@ class SmartHeatingBackendPanel extends HTMLElement {
   _cloneSchedule(schedule) { return Object.fromEntries(DAYS.map(([key]) => [key, (Array.isArray(schedule?.[key]) ? schedule[key] : []).map((item) => ({ start: item.start || "", end: item.end || "", ...(item.target_temperature === undefined || item.target_temperature === null || item.target_temperature === "" ? {} : { target_temperature: item.target_temperature }) }))])); }
   _esc(value) { return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char])); }
   _areas(areas, selected = "") { return `<option value="">Kein Raum / unzugeordnet</option>${(areas || []).map((area) => `<option value="${this._esc(area.area_id)}" ${area.area_id === selected ? "selected" : ""}>${this._esc(area.name)}</option>`).join("")}`; }
-  _options(items, selected = []) { const values = new Set(selected || []); return (items || []).map((item) => `<option value="${this._esc(item.entity_id)}" title="${this._esc(item.entity_id)}" ${values.has(item.entity_id) ? "selected" : ""}>${this._esc(item.name || item.entity_id)}</option>`).join(""); }
+  _options(items, selected = []) { const values = new Set(selected || []); return (items || []).map((item) => `<option value="${this._esc(item.entity_id)}" title="${this._esc(item.entity_id)}" ${values.has(item.entity_id) ? "selected" : ""}>${this._esc(item.name || item.entity_id)} · ${this._esc(item.entity_id)}</option>`).join(""); }
   _entityDetails(item, selected = "") { return `<p class="entity-detail" data-entity-detail>${selected ? "Aktuell gespeichert: " : ""}<code>${this._esc(item?.entity_id || selected || "Keine Quelle ausgewählt")}</code>${item?.classification_reason ? ` · ${this._esc(item.classification_reason)}` : ""}</p>`; }
   _status(value) { return ({ open: "offen", tilted: "gekippt", closed: "geschlossen", unknown: "unbekannt" }[value] || value || "unbekannt"); }
   _review(flags) { return (flags || []).map((flag) => ({ duplicate_name: "ähnlicher Kontaktname", stale_or_unavailable: "nicht verfügbar / prüfen", configured_but_not_eligible: "bestehende Zuordnung manuell prüfen" }[flag] || flag)).join(", "); }
@@ -80,13 +80,24 @@ class SmartHeatingBackendPanel extends HTMLElement {
     const filterAreas = () => { const query = (this.querySelector("[data-area-search]")?.value || "").toLowerCase(); const mode = this.querySelector("[data-area-filter]")?.value || "all"; this.querySelectorAll("details[data-room]").forEach((room) => { const source = room.dataset.relevanceSource; const relevanceOk = mode === "all" || (mode === "relevant" && room.dataset.indoor === "true") || (mode === "unassigned" && source === "unassigned") || (mode === "other" && room.dataset.indoor !== "true"); room.hidden = !relevanceOk || !room.textContent.toLowerCase().includes(query); }); this.querySelectorAll("[data-area-heading]").forEach((heading) => { heading.hidden = mode === "relevant" && heading.dataset.areaHeading === "other" || mode === "other" && heading.dataset.areaHeading === "relevant"; }); }; this.querySelector("[data-area-search]")?.addEventListener("input", filterAreas); this.querySelector("[data-area-filter]")?.addEventListener("change", filterAreas);
     this._enhanceEntitySelectors(); this._enhanceRoomSelectors(); this._enhanceMobileContacts(); this._bindPhase28(); this._enhanceNavigationStyles();
   }
+  _bindIgnoredSensorSearch() {
+    if (!this.querySelector("style[data-phase30-style]")) { const style = document.createElement("style"); style.dataset.phase30Style = "true"; style.textContent = ".day-card legend,.day-button,.editor-heading strong{overflow-wrap:normal;word-break:normal}.schedule-row{column-gap:14px}.schedule-row label{min-width:0}.ignored-search{margin:8px 0}.ignored-list article{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--divider-color)}.ignored-list article code,.ignored-list article .ha-area{grid-column:1/-1}.ignored-list article button{width:auto}.person-card{grid-template-columns:minmax(0,1fr) auto auto!important;padding:8px!important}.person-card button{width:auto!important;white-space:nowrap}.contact-cards article td{display:block;padding:6px 0}.contact-cards article td+td{border-top:1px solid var(--divider-color);margin-top:4px}"; this.prepend(style); }
+    const details = this.querySelector(".ignored-sensors");
+    if (!details || details.querySelector("[data-ignored-search]")) return;
+    details.querySelector("summary")?.insertAdjacentHTML("afterend", `<label class="ignored-search">Ignorierte Sensoren durchsuchen<input type="search" data-ignored-search placeholder="Name oder Entity-ID"></label>`);
+    details.querySelector("[data-ignored-search]")?.addEventListener("input", (event) => {
+      const query = event.target.value.toLowerCase();
+      details.querySelectorAll("[data-ignored-contact]").forEach((item) => { item.hidden = query !== "" && !item.textContent.toLowerCase().includes(query); });
+    });
+  }
   _enhanceRoomSelectors() {
+    this._bindIgnoredSensorSearch();
     this.querySelectorAll("form[data-room-form]").forEach((form) => {
       const area = (this._data?.areas || []).find((item) => item.area_id === form.dataset.areaId);
       const zone = (this._data?.management?.zones || []).find((item) => (item.area_ids || []).includes(form.dataset.areaId));
       const savedClimate = zone?.thermostat_entities || [], savedTemperature = zone?.temperature_entities || [];
       const localClimate = area?.thermostat_entities || [], localTemperature = area?.temperature_entities || [];
-      const globalClimate = this._data?.climate_entities || [], globalTemperature = (this._data?.temperature_entities || []).filter((item) => item.temperature_role === "room");
+      const globalClimate = this._data?.climate_entities || [], globalTemperature = (this._data?.temperature_entities || []).filter((item) => ["room", "contact"].includes(item.temperature_role));
       const options = (local, global, saved) => { const localIds = new Set(local.map((item) => item.entity_id)); const other = global.filter((item) => !localIds.has(item.entity_id)); const missing = saved.filter((id) => !global.some((item) => item.entity_id === id) && !localIds.has(id)).map((id) => ({ entity_id: id, name: `Gespeichert, aktuell nicht verfügbar (${id})`, unavailable: true })); return `${this._options(local, saved)}${other.length ? `<optgroup label="Weitere geeignete Geräte">${this._options(other, saved)}</optgroup>` : ""}${missing.length ? `<optgroup label="Gespeicherte Zuordnung prüfen">${this._options(missing, saved)}</optgroup>` : ""}`; };
       const climate = form.querySelector("select[name=thermostat_entity]"), temperature = form.querySelector("select[name=temperature_entity]");
       if (climate) climate.innerHTML = `<option value="">Kein lokales Thermostat</option>${options(localClimate, globalClimate, savedClimate)}`;
