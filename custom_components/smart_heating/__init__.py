@@ -497,9 +497,18 @@ async def _ws_admin_outdoor_set(hass: HomeAssistant, connection: websocket_api.A
 async def _ws_admin_safety_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     item = msg["item"]
     helper_ids = {helper["entity_id"] for helper in discover_helper_entities(hass)}
+    current_management = _admin_entry(hass, msg["entry_id"])[1]
+    saved_helper_ids = {
+        str(settings.get("helper_entity"))
+        for settings in current_management.get("safety", {}).get("modes", {}).values()
+        if isinstance(settings, dict) and settings.get("helper_entity")
+    }
     for settings in item.get("modes", {}).values() if isinstance(item, dict) else ():
         helper_entity = settings.get("helper_entity", "") if isinstance(settings, dict) else ""
-        if helper_entity and helper_entity not in helper_ids:
+        # Existing assignments remain readable and saveable when the entity is
+        # temporarily unavailable or was removed from HA. New assignments must
+        # be input_boolean entities discovered by the passive inventory.
+        if helper_entity and helper_entity not in helper_ids and helper_entity not in saved_helper_ids and not helper_entity.startswith("input_boolean."):
             connection.send_error(msg["id"], "invalid_configuration", "helper_entity_not_found")
             return
     await _admin_mapping_set(hass, connection, msg, "safety")

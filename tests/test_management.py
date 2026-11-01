@@ -114,6 +114,16 @@ class ManagementTests(unittest.TestCase):
         self.assertEqual(result["sensor.pve_disk_temperature"]["temperature_role"], "technical")
         self.assertEqual(result["sensor.esszimmer_taupunkt"]["temperature_role"], "technical")
 
+    def test_outdoor_temperature_sources_are_prioritized_and_classified(self):
+        hass = Hass({
+            "sensor.gw1100a_v2_2_3_outdoor_temperature": State("12", {"device_class": "temperature", "unit_of_measurement": "°C", "friendly_name": "Außentemperatur"}, "sensor.gw1100a_v2_2_3_outdoor_temperature"),
+            "sensor.wohnzimmer_temperature": State("21", {"device_class": "temperature", "unit_of_measurement": "°C", "friendly_name": "Wohnzimmer"}, "sensor.wohnzimmer_temperature"),
+        })
+        result = discover_temperature_entities(hass)
+        self.assertEqual(result[0]["entity_id"], "sensor.gw1100a_v2_2_3_outdoor_temperature")
+        self.assertEqual(result[0]["temperature_role"], "outdoor")
+        self.assertIn("Außentemperatur", result[0]["classification_reason"])
+
     def test_outdoor_and_contact_temperature_sources_are_not_primary_room_sources(self):
         hass = Hass({
             "sensor.außen_temperature": State("12", {"device_class": "temperature", "unit_of_measurement": "°C", "friendly_name": "Außen Temperatur"}, "sensor.außen_temperature"),
@@ -124,8 +134,8 @@ class ManagementTests(unittest.TestCase):
         roles = {item["entity_id"]: item["temperature_role"] for item in result}
         self.assertEqual(roles["sensor.badezimmer_temperature"], "room")
         self.assertEqual(roles["sensor.fenster_temperature"], "contact")
-        self.assertEqual(roles["sensor.außen_temperature"], "technical")
-        self.assertEqual([item["entity_id"] for item in result], ["sensor.badezimmer_temperature", "sensor.fenster_temperature", "sensor.außen_temperature"])
+        self.assertEqual(roles["sensor.außen_temperature"], "outdoor")
+        self.assertEqual([item["entity_id"] for item in result], ["sensor.außen_temperature", "sensor.badezimmer_temperature", "sensor.fenster_temperature"])
 
     def test_explicit_area_relevance_is_internal_and_persistent(self):
         data = normalize_management({"relevant_area_ids": ["wohnzimmer"], "zones": [], "sensors": {}})
@@ -149,10 +159,23 @@ class ManagementTests(unittest.TestCase):
         self.assertEqual(by_id["wohnzimmer"]["relevance_source"], "local_heating_device")
 
     def test_helper_discovery_is_read_only_and_selectable(self):
-        hass = Hass({"input_boolean.party": State("off", {"friendly_name": "Party"}, "input_boolean.party")})
+        hass = Hass({"input_boolean.party": State("off", {"friendly_name": "Party"}, "input_boolean.party"), "input_number.not_a_mode": State("20", {"friendly_name": "Temperatur"}, "input_number.not_a_mode")})
         helpers = discover_helper_entities(hass)
         self.assertEqual(helpers[0]["entity_id"], "input_boolean.party")
         self.assertTrue(helpers[0]["passive"])
+        self.assertEqual(helpers[0]["suggested_for"], ["party"])
+        self.assertFalse(any(item["entity_id"] == "input_number.not_a_mode" for item in helpers))
+
+    def test_helper_discovery_separates_availability_and_activity(self):
+        hass = Hass({
+            "input_boolean.sommermodus": State("on", {"friendly_name": "Sommermodus"}, "input_boolean.sommermodus"),
+            "input_boolean.besuch": State("unavailable", {"friendly_name": "Besuch"}, "input_boolean.besuch"),
+        })
+        helpers = {item["entity_id"]: item for item in discover_helper_entities(hass)}
+        self.assertTrue(helpers["input_boolean.sommermodus"]["available"])
+        self.assertTrue(helpers["input_boolean.sommermodus"]["active"])
+        self.assertFalse(helpers["input_boolean.besuch"]["available"])
+        self.assertFalse(helpers["input_boolean.besuch"]["active"])
 
     def test_controller_discovery_is_observable_and_includes_input_boolean(self):
         hass = Hass({

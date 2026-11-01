@@ -86,6 +86,37 @@ test("keeps temperature and controller choices explicit and passive", async ({ p
   await expect(page.locator("details[data-section=controller]")).toContainText("keine Befehle");
 });
 
+test("shows a saved outdoor source even when it is temporarily unavailable", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.management.outdoor_temperature = { entity_id: "sensor.gw1100a_v2_2_3_outdoor_temperature" };
+    panel._data.temperature_entities = [{ entity_id: "sensor.gw1100a_v2_2_3_outdoor_temperature", name: "Außentemperatur", temperature_role: "outdoor", state: "unavailable", available: false }];
+    panel._render();
+  });
+  await page.locator("details[data-section=outdoor] summary").click();
+  await expect(page.locator("form[data-outdoor-form] select")).toHaveValue("sensor.gw1100a_v2_2_3_outdoor_temperature");
+  await expect(page.locator("[data-outdoor-entity]")).toContainText("Gespeicherte Entity");
+});
+
+test("offers only boolean status helpers and separates availability from activity", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.helper_entities = [
+      { entity_id: "input_boolean.party", name: "Party", state: "on", domain: "input_boolean", available: true, active: true, suggested_for: ["party"] },
+      { entity_id: "input_number.temperature", name: "Temperatur", state: "20", domain: "input_number" },
+      { entity_id: "input_boolean.besuch", name: "Besuch", state: "unavailable", domain: "input_boolean", available: false, active: false, suggested_for: ["visit"] },
+    ];
+    panel._render();
+  });
+  await page.locator("details[data-section=safety] summary").click();
+  const party = page.locator('[data-safety-mode="party"]');
+  await expect(party.locator("select option[value='input_boolean.party']")).toHaveCount(1);
+  await expect(party.locator("select option[value='input_number.temperature']")).toHaveCount(0);
+  await expect(party).toContainText("Verfügbarkeit");
+  await expect(party).toContainText("Aktivität");
+  await expect(party).toContainText("Status");
+});
+
 test("separates relevant rooms, other HA areas, and technical temperature sources", async ({ page }) => {
   await page.evaluate(() => {
     const panel = document.querySelector("smart-heating-backend-panel");

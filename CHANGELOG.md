@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.1.0-beta.26 – Beta 26
+
+### Deutsch
+
+- Sondermodus-Statusquellen auf geeignete `input_boolean`-Entities begrenzt;
+  passende Helfer werden je Modus vorgeschlagen und Verfügbarkeit, Aktivität
+  sowie Status getrennt dargestellt.
+- Gespeicherte Sondermodus-Zuordnungen bleiben bei fehlender oder vorübergehend
+  nicht verfügbarer Entity erhalten und werden nicht stillschweigend ersetzt.
+- Außentemperaturfühler werden als eigene Kategorie priorisiert; gespeicherte,
+  nicht verfügbare Quellen bleiben zur Prüfung sichtbar.
+- Mobile Auswahlfelder und passive Statusanzeigen für iPhone, iPad, Desktop
+  und Touchmonitor regressionsgetestet.
+
+### English
+
+- Limited special-mode status sources to suitable `input_boolean` entities;
+  matching helpers are suggested per mode and availability, activity, and
+  status are shown separately.
+- Preserved saved special-mode assignments when an entity is missing or
+  temporarily unavailable; no silent replacement occurs.
+- Classified and prioritized outdoor temperature sensors separately, while
+  keeping saved unavailable sources visible for review.
+- Regression-tested compact mobile selectors and passive status displays for
+  iPhone, iPad, desktop, and touch-monitor profiles.
+
+The Lovelace card is intentionally not changed by Phase 34. No Home Assistant
+helper, area, sensor, automation, scheduler, thermostat, or heating command is
+changed by these development changes.
+
 ## 0.1.0-beta.25 – Beta 25
 
 ### Deutsch
