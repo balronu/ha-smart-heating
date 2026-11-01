@@ -1,5 +1,13 @@
 # Smart Heating – Architecture
 
+## Phase 38 passive backend engine
+
+`backend_engine.py` is Home Assistant-independent and evaluates window signals,
+physical-window groups, delayed strategies, special-mode expiry/priority, and
+room demand previews. Unknown, unavailable, or contradictory input remains a
+warning and never becomes a fabricated closed state or heat demand. Results are
+passive and contain no service commands.
+
 ## Beta 16 integration boundary
 
 Smart Heating is a regular `hub`-type Config-Entry integration, not a Home

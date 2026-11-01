@@ -43,6 +43,7 @@ from .management import (
     validate_management,
     window_contact_summary,
     zone_status,
+    zone_backend_summary,
     SAFETY_MODES,
 )
 from .storage import effective_config, load_schedule, normalized_options
@@ -146,6 +147,21 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     settings = next(iter(management["internal"]["zones"].values()), {})
     context["comfort_temperature"] = settings.get("comfort_temperature", 20.0)
     context["night_temperature"] = settings.get("night_temperature", 17.0)
+    context["special_modes"] = management.get("special_modes", [])
+    context["thermostats"] = []
+    context["window_strategy"] = "none"
+    context["window_groups"] = []
+    context["window_delays"] = {"tilted": 0, "open": 0, "closed": 0}
+    if management.get("zones"):
+        first_zone = management["zones"][0]
+        context["zone_id"] = first_zone.get("id")
+        context["thermostats"] = [
+            {"entity_id": entity_id, "state": str(getattr(hass.states.get(entity_id), "state", "missing")), "available": bool(hass.states.get(entity_id)) and str(hass.states.get(entity_id).state) not in {"unknown", "unavailable"}}
+            for entity_id in first_zone.get("thermostat_entities", [])
+        ]
+        context["window_strategy"] = first_zone.get("window_strategy", "none")
+        context["window_groups"] = first_zone.get("window_groups", [])
+        context["window_delays"] = first_zone.get("window_delays", context["window_delays"])
     safety_modes = management.get("safety", {}).get("modes", {})
     if isinstance(safety_modes, dict):
         chimney = safety_modes.get("chimney_sweep", {})
@@ -399,7 +415,7 @@ async def _admin_mutation(hass: HomeAssistant, connection: websocket_api.ActiveC
 async def _ws_admin_get(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])
     config = effective_config(entry)
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contact_summary(hass, management), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "preview": hass.data.get(DOMAIN, {}).get(entry.entry_id).data if hass.data.get(DOMAIN, {}).get(entry.entry_id) else {}, "validation": validate_management(management)})
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contact_summary(hass, management), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "backend_evaluations": zone_backend_summary(hass, management["zones"]), "preview": hass.data.get(DOMAIN, {}).get(entry.entry_id).data if hass.data.get(DOMAIN, {}).get(entry.entry_id) else {}, "validation": validate_management(management)})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/person/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})

@@ -1,5 +1,13 @@
 # Migration boundary
 
+## Beta 29 schema 4
+
+Normalization migrates legacy `thermostat_entity` to a unique
+`thermostat_entities` list and preserves the first item as the lead thermostat.
+Window groups, strategies, delays, and special-mode effect fields are additive.
+Normalization is idempotent; conflicts are reported instead of deleting or
+reassigning records. No productive migration runs automatically.
+
 ## Beta 13 duplicate-entry and legacy-helper handling
 
 The live inventory must distinguish a native `platform: smart_heating` entity

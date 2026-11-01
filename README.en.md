@@ -1,5 +1,15 @@
 # Smart Heating (Beta 28)
 
+## Phase 38 backend boundary (Beta 29)
+
+Rooms can retain multiple `climate.*` entities while room temperature sensors
+remain separate. Legacy single-thermostat data migrates losslessly and
+idempotently; duplicate ownership is reported. Window contacts use explicit
+semantics and physical groups, with conservative states and deterministic
+delays. Special-mode expiry, effects, window handling, and priority are
+read-only previews. Compatibility mode remains locked and no HA service is
+called by this backend.
+
 ## Phase 36 – universal special-mode manager
 
 Beta 28 adds independent special-mode objects with stable IDs. Existing
