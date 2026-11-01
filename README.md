@@ -1,11 +1,13 @@
-# Smart Heating (Beta 35)
+# Smart Heating (Beta 36)
 
-## Phase 53 – Fensterkontakt-Diagnose (Beta 35)
+## Phase 55 – Diagnosewerte für Fensterkontakte (Beta 36)
 
-Die Verwaltung zeigt für zugeordnete Fensterkontakte eine einklappbare,
+Die Verwaltung zeigt für jeden konfigurierten Fensterkontakt eine einklappbare,
 rein lesende Quellenprüfung. Sie vergleicht die Rolle aus `ConfigEntry.options`,
-dem geladenen Runtime-Snapshot und dem `admin/get`-Readback. Fehlende Werte
-werden ausdrücklich als „Nicht vorhanden“ angezeigt. Der passive
+dem geladenen Runtime-Snapshot und dem `admin/get`-Readback. Die Anzeige hängt
+nicht von `area_id`, `zone_ids` oder einer bereits gesetzten Rolle ab; fehlende
+Werte werden ausdrücklich als „Nicht vorhanden“ angezeigt. Wenn das Backend
+keine Diagnosewerte liefert, wird dies sichtbar gemeldet. Der passive
 Kompatibilitätsmodus, bestehende Zuordnungen und Home-Assistant-Entities
 bleiben unverändert.
 
