@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.1.0-beta.33 – Phase 44 atomare Raumspeicherung / Atomic room save
+
+### Deutsch
+
+- Raumdaten und Fensterkontaktrollen werden gemeinsam über den atomaren
+  `admin/room/save`-Pfad gespeichert.
+- Ein unabhängiger Readback des Config Entries prüft jede Entity-ID und Rolle,
+  bevor „Raumkonfiguration gespeichert“ angezeigt wird.
+- Bei Abweichungen erscheint eine sichtbare Fehlermeldung statt einer falschen
+  Erfolgsmeldung. Bestehende Kontakte, Raumzuordnungen und der passive Modus
+  bleiben unverändert.
+
+### English
+
+- Room data and window contact roles are saved together through the atomic
+  `admin/room/save` path.
+- An independent Config Entry read-back verifies every entity ID and role
+  before “Room configuration saved” is shown.
+- Mismatches produce a visible error instead of a false success message.
+  Existing contacts, room assignments, and passive mode remain unchanged.
+
+
 ## 0.1.0-beta.32 – Phase 42 Persistenzkorrektur / Persistence fix
 
 ### Deutsch

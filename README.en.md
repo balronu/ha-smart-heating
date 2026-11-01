@@ -1,4 +1,12 @@
-# Smart Heating (Beta 32)
+# Smart Heating (Beta 33)
+
+## Phase 44 – Atomic room save (Beta 33)
+
+Room data and window-contact roles are now saved atomically through
+`admin/room/save` and verified against an independent Config Entry read-back.
+Mismatches are shown as an error before a success message is displayed.
+Existing contacts and room assignments remain intact; operation stays passive
+and sends no heating commands.
 
 ## Phase 42 – Window contact role persistence fix (Beta 32)
 
@@ -284,7 +292,7 @@ fixture. Productive VM 104 installation is explicitly outside this beta. The
 compatibility mode is passive; full mode remains locked until a separately
 verified single-writer proof exists.
 
-Version: `0.1.0-beta.28`
+Version: `0.1.0-beta.33`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 
