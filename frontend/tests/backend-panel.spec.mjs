@@ -114,6 +114,18 @@ test("uses contact cards on small displays", async ({ page }) => {
   await expect(page.locator(".contact-cards article")).toHaveCount(3);
 });
 
+test("ignores and restores a contact without deleting the HA entity", async ({ page }) => {
+  await page.locator("details[data-section=windows] summary").click();
+  const row = page.locator('tr[data-window-row]').filter({ hasText: "Wohnzimmer Fenster" });
+  await row.locator("[data-window-ignore]").click();
+  await expect(page.locator('tr[data-window-row]').filter({ hasText: "Wohnzimmer Fenster" })).toHaveCount(0);
+  await expect(page.locator(".ignored-sensors summary")).toContainText("Ignorierte Sensoren (1)");
+  await page.locator(".ignored-sensors").locator("summary").click();
+  await page.locator("[data-window-restore='binary_sensor.wohnzimmer_fenster']").click();
+  await expect(page.locator('tr[data-window-row]').filter({ hasText: "Wohnzimmer Fenster" })).toHaveCount(1);
+  await expect(page.locator(".ignored-sensors summary")).toContainText("Ignorierte Sensoren (0)");
+});
+
 test("shows the graphical weekly planner with day, time, and target controls", async ({ page }) => {
   await expect(page.locator("[data-weekly-planner]")).toBeVisible();
   await expect(page.locator("[data-schedule-day]")).toHaveCount(7);

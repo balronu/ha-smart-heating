@@ -99,8 +99,16 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
     for key, entity_id in config.get("special_modes", {}).items():
         if isinstance(entity_id, str) and entity_id:
             result[key] = hass.states.is_state(entity_id, "on")
+    ignored_window_entities = {
+        item.get("entity_id")
+        for kind in ("window", "tilt")
+        for item in management.get("sensors", {}).get(kind, [])
+        if item.get("ignored") and item.get("entity_id")
+    }
     window_unknown = False
     for entity_id in config.get("window_entities", []):
+        if entity_id in ignored_window_entities:
+            continue
         state = hass.states.get(entity_id)
         if state and str(state.state).lower() in {"on", "open", "opened", "offen", "true"}:
             result["window_open"] = True

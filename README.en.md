@@ -160,7 +160,7 @@ fixture. Productive VM 104 installation is explicitly outside this beta. The
 compatibility mode is passive; full mode remains locked until a separately
 verified single-writer proof exists.
 
-Version: `0.1.0-beta.20`
+Version: `0.1.0-beta.21`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 
