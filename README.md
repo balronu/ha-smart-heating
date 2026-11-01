@@ -1,4 +1,13 @@
-# Smart Heating (Beta 31)
+# Smart Heating (Beta 32)
+
+## Phase 42 – Persistenzkorrektur für Fensterkontaktrollen (Beta 32)
+
+Die Rollen **Gekippt-Sensor**, **Offen-Sensor** und **Nicht zugeordnet** bleiben
+nach der Auswahl im Raumformular sichtbar und werden erst mit **Raum speichern**
+übernommen. Die Speicherung erfolgt geordnet mit anschließendem Readback, damit
+mobile Auswahländerungen nicht durch ältere Raumdaten überschrieben werden.
+Bestehende Kontakte und Raumzuordnungen bleiben erhalten; der Betrieb bleibt
+passiv und es werden keine Heizbefehle ausgeführt.
 
 ## Phase 40 – Fensterkontakt-Funktionen (Beta 31)
 
