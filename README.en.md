@@ -1,5 +1,18 @@
 # Smart Heating (Beta 39)
 
+## Phase 85 – UX consolidation (local, unreleased)
+
+The local Beta.39 work condenses the weekly schedule into mobile day rows,
+moves copying into the selected day editor, and separates confirmed saves from
+unsaved edits. Special-mode effects use touch-friendly choices and show
+dependent fields only when relevant, with a readable passive summary.
+
+The administration overview and “Diagnostics & Migration” also expose control
+ownership, passive operation, shadow data quality, and open SMART blockers.
+Manifest, backend, and frontend report the same Beta.39 version locally. This
+work is intentionally unreleased and not installed on VM 104; the legacy
+heating automation and productive configuration remain unchanged.
+
 ## Phase 83 – Live shadow data supply
 
 The passive shadow evaluation now reads only known Home Assistant states via

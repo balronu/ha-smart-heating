@@ -1,5 +1,5 @@
 /* Smart Heating: operational Lovelace card. Technical administration lives in the HA panel. */
-const SMART_HEATING_CARD_VERSION = "unbekannt";
+const SMART_HEATING_CARD_VERSION = "0.1.0-beta.39";
 // Home Assistant picker contract: type: "smart-heating-card" (bare custom element).
 // The backend WebSocket is authoritative; the fallback must never claim a release version.
 // Render contract: this._data?.version || SMART_HEATING_CARD_VERSION

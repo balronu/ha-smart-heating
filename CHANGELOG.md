@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased – Phase 85 UX-Konsolidierung / UX consolidation
+
+### Deutsch
+
+- Der Wochenplan wird auf mobilen Geräten als kompakte Tageszeilen mit einem
+  Editor pro Tag dargestellt; Kopieren bleibt im geöffneten Editor, und
+  ungespeicherte Änderungen werden vom bestätigten Speicherstatus getrennt.
+- Sondermodus-Wirkungen verwenden jetzt klar getrennte, touch-freundliche
+  Auswahlfelder. Abhängige Eingaben werden nur bei relevanter Auswahl gezeigt;
+  passive Vorschau, SMART-Sperren und Schornsteinfeger-Priorität bleiben
+  erhalten.
+- Die Startübersicht und „Diagnose & Migration“ zeigen Steuerungshoheit,
+  Passivmodus, Shadow-Status und offene SMART-Voraussetzungen kompakt an.
+- Die lokale Versionsanzeige ist auf Beta.39 zwischen Manifest, Backend und
+  Frontend vereinheitlicht. Diese Änderung ist noch nicht veröffentlicht und
+  nicht auf VM 104 installiert.
+
+### English
+
+- The weekly schedule now uses compact mobile day rows with one editor per day;
+  copying remains inside the open editor and unsaved changes are distinct from
+  confirmed save status.
+- Special-mode effects use clearly separated, touch-friendly choices.
+  Dependent inputs appear only when relevant; passive previews, SMART locks,
+  and chimney-sweep priority remain unchanged.
+- The overview and “Diagnostics & Migration” now summarize control ownership,
+  passive operation, shadow status, and open SMART prerequisites.
+- The local displayed version is aligned to Beta.39 across the manifest,
+  backend, and frontend. This change is not released or installed on VM 104.
+
 ## 0.1.0-beta.39 – Phase 83 reale Shadow-Datenversorgung / Live shadow data
 
 ### Deutsch
