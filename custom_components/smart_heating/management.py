@@ -176,6 +176,7 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
             item.setdefault("enabled", True)
             item.setdefault("zone_ids", [])
             item.setdefault("state_semantics", "open_or_tilted" if kind in {"window", "tilt"} else "")
+            item.setdefault("ignored", False)
     if result["controller"]:
         result["controller"]["id"] = _id(result["controller"].get("id"))
     return result
@@ -487,6 +488,7 @@ def window_contact_summary(hass: Any, management: Mapping[str, Any]) -> dict[str
             if configured_item.get("area_id"):
                 contact["assigned_area_id"] = configured_item["area_id"]
                 contact["assigned_area_name"] = configured_item.get("area_name", configured_item["area_id"])
+            contact["ignored"] = bool(configured_item.get("ignored", False))
     for configured_item in configured_items:
         if configured_item["entity_id"] in discovered_ids:
             continue
@@ -506,7 +508,10 @@ def window_contact_summary(hass: Any, management: Mapping[str, Any]) -> dict[str
             "state_semantics": configured_item.get("state_semantics", "open_or_tilted"),
             "review_flags": ["configured_but_not_eligible"],
             "review_required": True,
+            "ignored": bool(configured_item.get("ignored", False)),
         })
+    ignored = [item for item in contacts if item.get("ignored")]
+    contacts = [item for item in contacts if not item.get("ignored")]
     groups: dict[str, dict[str, Any]] = {}
     for contact in contacts:
         key = contact.get("assigned_area_id") or contact.get("area_id") or "__unassigned__"
@@ -516,7 +521,15 @@ def window_contact_summary(hass: Any, management: Mapping[str, Any]) -> dict[str
         group[contact["status"]] = group.get(contact["status"], 0) + 1
         group["review"] += int(contact["review_required"])
         group["contacts"].append(contact)
-    return {"total": len(contacts), "configured": sum(item["configured"] for item in contacts), "review": sum(item["review_required"] for item in contacts), "groups": list(groups.values()), "contacts": contacts}
+    return {
+        "total": len(contacts) + len(ignored),
+        "configured": sum(item["configured"] for item in contacts) + len(ignored),
+        "review": sum(item["review_required"] for item in contacts),
+        "ignored": len(ignored),
+        "ignored_contacts": ignored,
+        "groups": list(groups.values()),
+        "contacts": contacts,
+    }
 
 
 def upsert_item(data: dict[str, Any], collection: str, item: Mapping[str, Any]) -> dict[str, Any]:

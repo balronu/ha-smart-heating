@@ -163,3 +163,18 @@ class ManagementTests(unittest.TestCase):
         preserved = next(item for item in result["contacts"] if item["entity_id"] == "sensor.fenster_battery")
         self.assertIn("configured_but_not_eligible", preserved["review_flags"])
         self.assertEqual(result["groups"][0]["area_name"], "Wohnzimmer")
+
+    def test_ignored_contacts_are_separated_and_restorable(self):
+        data = default_management()
+        upsert_item(data, "sensors", {"id": "ignored", "type": "window", "entity_id": "binary_sensor.fenster_a", "ignored": True})
+        contacts = [{"entity_id": "binary_sensor.fenster_a", "name": "Fenster A", "area_id": "wohnzimmer", "area_name": "Wohnzimmer", "status": "open", "available": True, "configured": True, "review_flags": [], "review_required": False}]
+        with patch("custom_components.smart_heating.management.discover_window_contacts", return_value=contacts):
+            result = window_contact_summary(Hass({}), data)
+        self.assertEqual(result["contacts"], [])
+        self.assertEqual(result["ignored"], 1)
+        self.assertEqual(result["ignored_contacts"][0]["entity_id"], "binary_sensor.fenster_a")
+        upsert_item(data, "sensors", {"id": "ignored", "type": "window", "entity_id": "binary_sensor.fenster_a", "ignored": False})
+        with patch("custom_components.smart_heating.management.discover_window_contacts", return_value=contacts):
+            restored = window_contact_summary(Hass({}), data)
+        self.assertEqual(restored["ignored"], 0)
+        self.assertEqual(restored["contacts"][0]["entity_id"], "binary_sensor.fenster_a")

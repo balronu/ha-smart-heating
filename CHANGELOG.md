@@ -421,3 +421,20 @@ Control mode remains locked and no productive heating service is called.
 - Read-only diagnostics and migration preview.
 - Compact responsive Lovelace card.
 - No productive HA installation or heating control.
+## 0.1.0-beta.21 – Beta 21
+
+### Deutsch
+
+- Mobile Verwaltungsoberfläche für Fenster- und Türkontakte kompakter gestaltet.
+- Sensoren können innerhalb von Smart Heating ignoriert und später wiederhergestellt werden; Home Assistant-Entitäten bleiben erhalten.
+- Sondermodus-Verfügbarkeit und tatsächlicher Aktivierungsstatus bleiben getrennt; Statusquellen werden ausschließlich passiv gelesen.
+- Raumkarten und Sondermodi starten eingeklappt, mit getrennten Statusangaben und sicheren Touch-Zielen.
+
+### English
+
+- Made the mobile administration UI more compact for window and door contacts.
+- Sensors can be ignored and restored within Smart Heating without deleting Home Assistant entities.
+- Special-mode availability remains separate from actual activation; helper entities are read-only status sources.
+- Room cards and special modes start collapsed with separated status information and touch-safe controls.
+
+Compatibility: existing management data remains backward compatible; missing `ignored` flags default to `false`. Beta 21 remains passive and sends no heating commands.
