@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.1.0-beta.27 – Beta 27
+
+### Deutsch
+
+- Sondermodus-Quellen zeigen die auf VM 104 vorhandenen passenden Helfer als
+  unverbindliche Empfehlung; weitere Boolean-Quellen sind durchsuchbar, ohne
+  lange Standardlisten oder automatische Aktivierung.
+- Wochenplan als kompakte Sieben-Tage-Übersicht mit Bearbeiten/Kopieren;
+  Zeitfelder erscheinen nur im geöffneten Tag und Speichern schließt den Editor.
+- Mobile Regressionstests für iPhone, iPad, Desktop und Touchmonitor ergänzt.
+
+### English
+
+- Show the suitable helpers present on VM 104 as non-binding special-mode
+  recommendations; additional Boolean sources are searchable without a long
+  default list or automatic activation.
+- Compact seven-day planner with edit/copy actions; time fields appear only in
+  the open day and saving closes the editor.
+- Extended mobile regression coverage for iPhone, iPad, desktop, and touch monitor.
+
+The Lovelace card remains intentionally outside Phase 35. No Home Assistant
+helper, area, sensor, automation, scheduler, thermostat, or heating command is changed.
+
 ## 0.1.0-beta.26 – Beta 26
 
 ### Deutsch

@@ -1,4 +1,15 @@
-# Smart Heating (Beta 26)
+# Smart Heating (Beta 27)
+
+## Phase 35 – final iPhone UX polish
+
+Beta 27 presents suitable special-mode helpers as compact recommendations and
+reveals additional `input_boolean` sources only through search. Saved, missing,
+and unavailable sources remain visible; no source is saved or activated
+automatically. The weekly planner starts as a compact overview with short day
+summaries, opens only one day for editing, and returns to the overview after
+save. All changes remain passive.
+
+The Lovelace card is still not part of this phase.
 
 ## Phase 34 – special modes, outdoor temperature, and mobile assignments
 
@@ -221,7 +232,7 @@ fixture. Productive VM 104 installation is explicitly outside this beta. The
 compatibility mode is passive; full mode remains locked until a separately
 verified single-writer proof exists.
 
-Version: `0.1.0-beta.25`
+Version: `0.1.0-beta.27`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 
