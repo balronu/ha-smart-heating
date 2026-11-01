@@ -1,4 +1,4 @@
-# Smart Heating (Beta 16)
+# Smart Heating (Beta 17)
 
 **Smart Heating** ist eine HACS-kompatible Home-Assistant-Integration für
 Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
@@ -9,14 +9,14 @@ Wochenzeitpläne, Status, Simulation und eine kompakte Lovelace-Karte.
 > Sondermodus. Eine Migration in eine produktive Heizungssteuerung ist nicht
 > enthalten.
 
-> **Phase-20-Sicherheitsgrenze (31.10.2026):** Beta 16 ist ausschließlich im
+> **Phase-20-Sicherheitsgrenze (31.10.2026):** Beta 17 ist ausschließlich im
 > Entwicklungsrepository veröffentlicht und wird nicht automatisch auf VM 104
 > installiert. Die produktive Instanz wurde nur lesend untersucht; beide
 > vorhandenen Config Entries bleiben unverändert.
 
 ## Beta-12-Backend-Verwaltung und Klimazonen
 
-Beta 16 führt die eigenständige, passive Backend-Verwaltung für Personen,
+Beta 17 führt die eigenständige, passive Backend-Verwaltung für Personen,
 Klimazonen, Thermostate, Fenster-/Kippkontakte, Raumtemperaturfühler,
 Außentemperatur und einen zentralen Controller. Änderungen werden über
 Config-Entry-Optionen beziehungsweise die unterstützte WebSocket-API
@@ -86,7 +86,7 @@ anderer Optionen vollständig erhalten.
 
 ## Installation
 
-Beta 16 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
+Beta 17 ist ein GitHub-Prerelease. In HACS muss die Vorabversion explizit
 aktiviert werden. Danach über **HACS → Integrationen → Smart Heating**
 installieren. Ein erforderlicher Home-Assistant-Neustart ist separat zu
 prüfen und darf erst nach Freigabe durchgeführt werden.
@@ -114,6 +114,14 @@ entry_id: YOUR_CONFIG_ENTRY_ID
 
 Die Karte bearbeitet ausschließlich den Zeitplan dieser Smart-Heating-Entry.
 Sie schreibt keine bestehenden Heizungs-Entities.
+
+### Beta-17-Backend-Oberfläche
+
+Das Seitenpanel zeigt den Wochenplan als kompakte Tagesübersicht. Nur der
+ausgewählte Tag wird bearbeitet; Fenster können mit optionaler Zieltemperatur
+hinzugefügt, geändert und entfernt werden. Speichern erfolgt ausdrücklich und
+meldet Erfolg oder Validierungsfehler sichtbar zurück. Die sieben
+Verwaltungsbereiche bleiben unabhängig aufklappbar und zeigen Leerzustände.
 
 ### Beta-12-Installationsassistent
 
@@ -188,7 +196,7 @@ bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
-Version: `0.1.0-beta.16`
+Version: `0.1.0-beta.17`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 
