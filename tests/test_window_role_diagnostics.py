@@ -47,6 +47,20 @@ class WindowRoleDiagnosticsTests(unittest.TestCase):
         self.assertTrue(all(item["matches"] for item in result))
         self.assertEqual(management["sensors"]["window"][0]["contact_role"], "tilt")
 
+    def test_diagnostic_input_does_not_require_area_or_zone_metadata(self):
+        contact = {"entity_id": "binary_sensor.legacy_contact", "name": "Altkontakt"}
+        management = {"sensors": {"window": [{"entity_id": contact["entity_id"]}]}}
+        result = build_window_role_diagnostics(
+            config_entry_options={"management": management},
+            runtime_management=management,
+            readback_management=management,
+            assigned_contacts=[contact],
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["entity_id"], contact["entity_id"])
+        self.assertIsNone(result[0]["config_entry_role"])
+        self.assertEqual(result[0]["status"], "Nicht vorhanden")
+
 
 if __name__ == "__main__":
     unittest.main()

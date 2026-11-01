@@ -218,6 +218,22 @@ test("shows distinct read-only sources for assigned window role diagnostics", as
   await expect(section.locator("button,select,input")).toHaveCount(0);
 });
 
+test("shows an explicit diagnostic-unavailable state instead of hiding existing contacts", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.window_role_diagnostics = [];
+    panel._data.window_contacts.contacts = [
+      { entity_id: "binary_sensor.legacy_contact", name: "Altkontakt", ignored: false },
+    ];
+    panel._render();
+  });
+  const section = page.locator("details[data-section=diagnostics]");
+  await section.locator(":scope > summary").click();
+  await expect(section.locator("[data-window-role-diagnostics]")).toContainText("Diagnosedaten nicht verfügbar");
+  await expect(section.locator("[data-window-role-diagnostics]")).toContainText("Backend");
+  await expect(section.locator("button,select,input")).toHaveCount(0);
+});
+
 test("keeps role changes local until room save and persists independent contact roles across reload", async ({ page }) => {
   await page.evaluate(() => {
     const panel = document.querySelector("smart-heating-backend-panel");

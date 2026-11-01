@@ -424,13 +424,19 @@ async def _ws_admin_get(hass: HomeAssistant, connection: websocket_api.ActiveCon
     coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
     runtime_management = getattr(coordinator, "runtime_management_raw", {}) if coordinator else {}
     options_management = entry.options if isinstance(entry.options, Mapping) else {}
-    configured_assigned_ids = {
+    # Include every existing Smart-Heating contact. Older room data can retain
+    # a contact without area_id/zone_ids; those fields are not prerequisites
+    # for a role or for a read-only diagnostic row.
+    configured_ids = {
         str(item.get("entity_id"))
         for kind in ("window", "tilt")
         for item in management.get("sensors", {}).get(kind, [])
-        if isinstance(item, Mapping) and item.get("entity_id") and (item.get("area_id") or item.get("zone_ids"))
+        if isinstance(item, Mapping) and item.get("entity_id")
     }
-    assigned_contacts = [item for item in window_contacts["contacts"] if item.get("entity_id") in configured_assigned_ids and not item.get("ignored")]
+    assigned_contacts = [
+        item for item in window_contacts["contacts"]
+        if item.get("entity_id") in configured_ids and not item.get("ignored")
+    ]
     connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contacts, "window_role_diagnostics": build_window_role_diagnostics(config_entry_options=options_management, runtime_management=runtime_management, readback_management=management, assigned_contacts=assigned_contacts), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "backend_evaluations": zone_backend_summary(hass, management["zones"], management), "preview": coordinator.data if coordinator else {}, "validation": validate_management(management)})
 
 
