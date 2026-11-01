@@ -1,4 +1,15 @@
-# Smart Heating (Beta 25)
+# Smart Heating (Beta 26)
+
+## Phase 34 – special modes, outdoor temperature, and mobile assignments
+
+Beta 26 offers only suitable `input_boolean` status sources for special modes,
+with availability, activity, and status shown separately. Existing Party,
+Visit, Return Home, Summer, and Chimney Sweep assignments are suggested
+passively and remain preserved when temporarily unavailable. Outdoor sensors
+are prioritized separately, including saved sources that are currently
+unavailable.
+
+The Lovelace card is still not part of this phase.
 
 ## Phase 32 – compact weekly plan and room-based window management
 

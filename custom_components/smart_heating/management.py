@@ -23,13 +23,23 @@ TEMPERATURE_UNITS = {"°c", "°f", "c", "f"}
 # are both neutral until an explicit Smart-Heating choice or a real local
 # heating device provides evidence.
 INDOOR_AREA_HINTS = ("wohn", "zimmer", "küche", "kueche", "bad", "schlaf", "büro", "buero", "flur", "diele", "ess", "living", "bed", "bath", "office", "hall")
+OUTDOOR_TEMPERATURE_HINTS = (
+    "outdoor", "outside", "weather", "wetter", "außen", "aussen", "outside", "forecast",
+)
 TECHNICAL_TEMPERATURE_HINTS = (
     "battery", "batterie", "cpu", "gpu", "disk", "filament", "drucker", "pve", "nas", "nvme",
     "smart", "ssd", "hdd", "taupunkt", "dewpoint", "feuchte", "humidity", "spannung", "voltage",
     "leistung", "power", "verbrauch", "uptime", "scheduler", "zeitplan", "diagnostic", "diagnose",
-    "outdoor", "outside", "weather", "wetter", "außen", "aussen", "outside", "forecast",
 )
 CONTACT_TEMPERATURE_HINTS = ("fenster", "tür", "tuer", "door", "kontakt", "contact", "öffnung", "offnung")
+SAFETY_MODE_HINTS = {
+    "party": ("party", "feier"),
+    "visit": ("besuch", "guest", "gast"),
+    "return_home": ("heimweg", "heimkehr", "rückkehr", "rueckkehr", "return", "homecoming"),
+    "summer": ("sommer", "summer"),
+    "chimney_sweep": ("schornstein", "feger", "chimney"),
+    "frost_protection": ("frost", "frostschutz"),
+}
 
 
 def discover_persons(hass: Any) -> list[dict[str, Any]]:
@@ -47,18 +57,27 @@ def discover_persons(hass: Any) -> list[dict[str, Any]]:
 
 
 def discover_helper_entities(hass: Any) -> list[dict[str, Any]]:
-    """Return existing helper entities as passive, selectable status sources."""
+    """Return only boolean helpers suitable for passive special-mode status."""
     states = getattr(getattr(hass, "states", None), "async_all", lambda _domain: [])
     result = []
-    for domain in ("input_boolean", "input_number", "input_select", "input_datetime"):
-        for state in states(domain):
-            result.append({
-                "entity_id": state.entity_id,
-                "name": _entity_name(state, state.entity_id),
-                "state": str(state.state),
-                "domain": domain,
-                "passive": True,
-            })
+    for state in states("input_boolean"):
+        entity_id = state.entity_id
+        name = _entity_name(state, entity_id)
+        haystack = f"{name} {entity_id}".lower()
+        suggestions = [mode for mode, hints in SAFETY_MODE_HINTS.items() if any(hint in haystack for hint in hints)]
+        current = str(state.state).lower()
+        result.append({
+            "entity_id": entity_id,
+            "name": name,
+            "state": str(state.state),
+            "domain": "input_boolean",
+            "passive": True,
+            "available": current not in {"unknown", "unavailable"},
+            "active": current == "on",
+            "status": "aktiv" if current == "on" else "inaktiv" if current == "off" else "nicht verfügbar",
+            "suggested_for": suggestions,
+            "suitable": True,
+        })
     return sorted(result, key=lambda item: (item["name"].lower(), item["entity_id"]))
 
 
@@ -411,14 +430,15 @@ def discover_temperature_entities(hass: Any, entity_ids: list[str] | tuple[str, 
         haystack = f"{item['name']} {entity_id}".lower()
         matches = [hint for hint in TECHNICAL_TEMPERATURE_HINTS if hint in haystack]
         contact_matches = [hint for hint in CONTACT_TEMPERATURE_HINTS if hint in haystack]
-        item["temperature_role"] = "technical" if matches else "contact" if contact_matches else "room"
+        item["temperature_role"] = "outdoor" if any(hint in haystack for hint in OUTDOOR_TEMPERATURE_HINTS) else "technical" if matches else "contact" if contact_matches else "room"
         item["classification_reason"] = (
-            "Technische Quelle: " + ", ".join(matches) if matches
+            "Geeigneter Außentemperaturfühler" if item["temperature_role"] == "outdoor"
+            else "Technische Quelle: " + ", ".join(matches) if matches
             else "Fenster-/Kontaktfühler: manuell prüfen" if contact_matches
             else "Geeigneter Raumtemperaturfühler"
         )
         result.append(item)
-    return sorted(result, key=lambda item: ({"room": 0, "contact": 1, "technical": 2}.get(item["temperature_role"], 3), item["name"].lower(), item["entity_id"]))
+    return sorted(result, key=lambda item: ({"outdoor": 0, "room": 1, "contact": 2, "technical": 3}.get(item["temperature_role"], 4), item["name"].lower(), item["entity_id"]))
 
 
 def discover_climate_entities(hass: Any, entity_ids: list[str] | tuple[str, ...] | None = None) -> list[dict[str, Any]]:

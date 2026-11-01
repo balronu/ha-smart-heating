@@ -1,4 +1,15 @@
-# Smart Heating (Beta 25)
+# Smart Heating (Beta 26)
+
+## Phase 34 – Sondermodi, Außentemperatur und mobile Zuordnungen
+
+Beta 26 bietet für Sondermodi ausschließlich passende `input_boolean`-
+Statusquellen mit getrennten Anzeigen für Verfügbarkeit, Aktivität und Status.
+Geeignete Party-, Besuch-, Heimweg-, Sommer- und Schornsteinfeger-Helfer werden
+passiv vorgeschlagen; bestehende Zuordnungen bleiben auch bei vorübergehender
+Nichtverfügbarkeit erhalten. Außentemperaturfühler werden separat priorisiert,
+einschließlich gespeicherter, aktuell nicht verfügbarer Quellen.
+
+Die Lovelace-Karte ist weiterhin nicht Bestandteil dieser Phase.
 
 ## Phase 32 – kompakter Wochenplan und raumbezogene Fensterverwaltung
 
