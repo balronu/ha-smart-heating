@@ -1,4 +1,13 @@
-# Smart Heating (Beta 33)
+# Smart Heating (Beta 35)
+
+## Phase 53 – Fensterkontakt-Diagnose (Beta 35)
+
+Die Verwaltung zeigt für zugeordnete Fensterkontakte eine einklappbare,
+rein lesende Quellenprüfung. Sie vergleicht die Rolle aus `ConfigEntry.options`,
+dem geladenen Runtime-Snapshot und dem `admin/get`-Readback. Fehlende Werte
+werden ausdrücklich als „Nicht vorhanden“ angezeigt. Der passive
+Kompatibilitätsmodus, bestehende Zuordnungen und Home-Assistant-Entities
+bleiben unverändert.
 
 ## Phase 44 – Atomare Raumspeicherung (Beta 33)
 

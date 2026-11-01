@@ -1,4 +1,13 @@
-# Smart Heating (Beta 33)
+# Smart Heating (Beta 35)
+
+## Phase 53 – Window role diagnostics (Beta 35)
+
+The administration panel now provides a collapsible, read-only source
+comparison for assigned window contacts. It compares the role from
+`ConfigEntry.options`, the loaded runtime snapshot, and the `admin/get`
+readback. Missing values are explicitly shown as “Not present”. Passive
+compatibility mode, existing assignments, and Home Assistant entities remain
+unchanged.
 
 ## Phase 44 – Atomic room save (Beta 33)
 
