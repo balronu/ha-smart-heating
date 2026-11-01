@@ -117,14 +117,16 @@ test("keeps bathroom window status readable and separates saved assignment", asy
   await page.evaluate(() => {
     const panel = document.querySelector("smart-heating-backend-panel");
     panel._data.window_contacts.contacts.push({ id: "window-bathroom", name: "Badezimmer Fenster", entity_id: "binary_sensor.badezimmer_fenster", area_name: "Badezimmer", assigned_area_id: "badezimmer", assigned_area_name: "Badezimmer", status: "closed", review_required: false, review_flags: [] });
+    panel._data.areas.push({ area_id: "badezimmer", name: "Badezimmer", relevant: false, relevance_source: "unassigned", window_contacts: [panel._data.window_contacts.contacts.at(-1)], window_contact_count: 1 });
     panel._render();
   });
+  await page.locator("details[data-section=rooms] > summary").click();
+  await expect(page.locator("details[data-room=room-badezimmer] summary")).toContainText("1 Fenster");
+  const roomContact = page.locator("details[data-room=room-badezimmer] [data-room-window-contact]");
+  await expect(roomContact).toContainText("Badezimmer Fenster");
+  await expect(roomContact).toContainText("geschlossen");
   await page.locator("details[data-section=windows] summary").click();
-  const row = page.locator("tr[data-window-row]").filter({ hasText: "Badezimmer Fenster" });
-  await expect(row).toContainText("Badezimmer");
-  await expect(row).toContainText("geschlossen");
-  await expect(row).toContainText("Gespeicherter Raum");
-  await expect(row).toContainText("Badezimmer");
+  await expect(page.locator("tr[data-window-row]").filter({ hasText: "Badezimmer Fenster" })).toHaveCount(0);
 });
 
 test("ignores and restores a contact without deleting the HA entity", async ({ page }) => {
@@ -255,6 +257,58 @@ test("rejects overlapping windows before the websocket save", async ({ page }) =
   await rows.nth(1).locator("input[data-schedule-input=end]").fill("12:00");
   await page.locator("[data-schedule-save]").click();
   await expect(page.locator("[role=status]")).toContainText("überlappen");
+});
+
+test("keeps a compact seven-day overview and copies a day without opening all editors", async ({ page }) => {
+  await expect(page.locator("[data-schedule-day]")).toHaveCount(7);
+  await expect(page.locator("[data-day-editor]")).toHaveCount(1);
+  await page.locator("button[data-schedule-add=monday]").click();
+  await page.evaluate(() => window.prompt = () => "friday");
+  await page.locator("button[data-schedule-copy]").click();
+  await expect(page.locator("fieldset[data-schedule-day=friday] [data-day-summary]")).toContainText("06:00 – 22:00");
+  await expect(page.locator("[data-day-editor]")).toHaveCount(1);
+});
+
+test("manages multiple contacts inside a room and persists a room move", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    const contact = panel._data.window_contacts.contacts[0];
+    contact.assigned_area_id = "wohnzimmer";
+    contact.assigned_area_name = "Wohnzimmer";
+    contact.status = "closed";
+    state.window_contacts.contacts[0].assigned_area_id = "wohnzimmer";
+    state.window_contacts.contacts[0].assigned_area_name = "Wohnzimmer";
+    panel._data.areas[0].window_contacts = [contact];
+    panel._data.areas[0].window_contact_count = 1;
+    panel._render();
+  });
+  await page.locator("details[data-section=rooms] > summary").click();
+  const room = page.locator("details[data-room=room-wohnzimmer]");
+  await room.locator("summary").click();
+  await expect(room.locator("[data-room-window-contact]")).toHaveCount(1);
+  await room.locator("[data-room-window-add-input]").fill("binary_sensor.wohnzimmer_tuer");
+  await room.locator("[data-room-window-add]").click();
+  await expect(room.locator("[data-room-window-contact]")).toHaveCount(2);
+  await room.locator("[data-room-window-remove='binary_sensor.wohnzimmer_fenster']").click();
+  await expect(room.locator("[data-room-window-contact]")).toHaveCount(1);
+  await expect(room).toContainText("Wohnzimmer Tür");
+});
+
+test("shows assigned contacts in their saved room and keeps ignored contacts separate", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    const contact = panel._data.window_contacts.contacts[0];
+    contact.assigned_area_id = "wohnzimmer";
+    contact.assigned_area_name = "Wohnzimmer";
+    panel._data.areas[0].window_contacts = [contact];
+    panel._data.areas[0].window_contact_count = 1;
+    panel._render();
+  });
+  await page.locator("details[data-section=rooms] > summary").click();
+  await expect(page.locator("details[data-room=room-wohnzimmer] summary")).toContainText("1 Fenster");
+  await page.locator("details[data-section=windows] summary").click();
+  await expect(page.locator("tr[data-window-row]")).toHaveCount(2);
+  await expect(page.locator("tr[data-window-row]").filter({ hasText: "Wohnzimmer Fenster" })).toHaveCount(0);
 });
 
 test("searches long cross-area device lists and keeps the saved bathroom choices", async ({ page }) => {

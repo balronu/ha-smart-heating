@@ -1,4 +1,29 @@
-# Smart Heating (Beta 24)
+# Smart Heating (Beta 25)
+
+## Phase 32 – kompakter Wochenplan und raumbezogene Fensterverwaltung
+
+Beta 25 veröffentlicht die Phase-32-Änderungen. Der Wochenplan zeigt alle sieben Tage kompakt;
+nur der ausgewählte Tag öffnet seine Bearbeitung. Zeitfenster können weiterhin
+hinzugefügt, entfernt, kopiert und mit optionaler Zieltemperatur gespeichert
+werden. Validierung und Persistenz bleiben serverseitig wirksam.
+
+Fenster- und Türkontakte werden direkt im Smart-Heating-Raum mit Name, Zustand
+und Verfügbarkeit verwaltet. Die gespeicherte Smart-Heating-Raum-ID wird von
+der aktuellen HA-Bereichszuordnung getrennt ausgewertet, sodass Zuordnungen nach
+Reload korrekt im Zielraum erscheinen. Mehrere Kontakte, Suche, Verschieben,
+Entfernen und ignorierte Kontakte werden unterstützt; HA-Bereiche und originale
+Sensoren bleiben unverändert. Die zentrale Kontaktliste zeigt nur noch
+ungeklärte, nicht verfügbare oder fehlerhafte Kontakte sowie die kompakte Liste
+ignorierter Sensoren.
+
+Die Lovelace-Karte ist nicht Bestandteil dieser Phase.
+
+## Beta-25-Installationshinweis
+
+Beta 25 wird als Vorabversion über HACS veröffentlicht. Die produktive
+Installation bleibt im passiven Kompatibilitätsmodus; eine echte iPhone-
+Abnahme erfolgt separat durch den Betreiber. Die neue Lovelace-Karte ist nicht
+Bestandteil dieser Phase.
 
 ## Beta-24-iPhone-Abnahme
 
@@ -246,7 +271,7 @@ bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
-Version: `0.1.0-beta.24`
+Version: `0.1.0-beta.25`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 
