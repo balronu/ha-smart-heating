@@ -1,4 +1,4 @@
-# Smart Heating (Beta 28)
+# Smart Heating (Beta 30)
 
 ## Phase 38 backend boundary (Beta 29)
 

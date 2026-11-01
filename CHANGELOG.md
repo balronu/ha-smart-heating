@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.1.0-beta.30 – Phase 39 Veröffentlichung / Release
+
+### Deutsch
+
+- Veröffentlicht den vollständigen passiven Phase-38-Backendstand einschließlich
+  der vereinheitlichten Thermostat-Mehrfachauswahl.
+- Bestehende Einzelthermostate werden verlustfrei in Listen übernommen;
+  gespeicherte Mehrfachauswahlen erscheinen nach dem Reload wieder markiert.
+- Der Release bleibt im passiven Kompatibilitätsmodus und verändert keine
+  produktiven Heizungswege, Helper, Automationen oder Thermostate.
+- Die Lovelace-Steuerkarte ist weiterhin nicht Bestandteil dieses Releases.
+
+### English
+
+- Publishes the complete passive Phase 38 backend, including the unified
+  multi-thermostat room selector.
+- Existing single-thermostat assignments migrate losslessly to lists, and
+  saved multi-selections are restored after reload.
+- The release remains in passive compatibility mode and changes no productive
+  heating paths, helpers, automations, or thermostats.
+- The Lovelace control card remains outside this release.
+
 ## Phase 38 UX-Nachbesserung – Thermostatauswahl vereinheitlicht
 
 ### Deutsch
