@@ -98,6 +98,7 @@ Thermostate, Scheduler, Tokens und Berechtigungen blieben unverändert.
 
 ## Commit
 
-Nach erfolgreicher Abschlussprüfung wird ein lokaler Phase-87-Commit erstellt.
-Es erfolgt kein Push, kein PR und kein Release. Der exakte Commit wird im
-Abschluss der lokalen Git-Historie ausgewiesen.
+Der Implementierungs- und Dokumentationscommit ist
+`453cba9b17bdb13d596d7d1f4866bff1e2fb7bc5`. Der nachträgliche Berichtseintrag
+wird als separater lokaler Dokumentationscommit erfasst. Es erfolgt kein Push,
+kein PR und kein Release.
