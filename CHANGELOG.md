@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.1.0-beta.35 – Phase 53 Fensterkontakt-Diagnose / Window role diagnostics
+
+### Deutsch
+
+- Die Verwaltungsdiagnose vergleicht Fensterkontaktrollen getrennt aus
+  `ConfigEntry.options`, dem geladenen Runtime-Snapshot und dem `admin/get`-
+  Readback.
+- Fehlende Rollen werden als „Nicht vorhanden“ von „Nicht zugeordnet“
+  unterschieden; die Diagnose bleibt rein lesend.
+- Bestehende Raum-, Kontakt- und Heizungsdaten bleiben unverändert. Der
+  Betrieb bleibt im passiven Kompatibilitätsmodus.
+
+### English
+
+- The administration diagnostics compare window-contact roles separately from
+  `ConfigEntry.options`, the loaded runtime snapshot, and the `admin/get`
+  readback.
+- Missing roles are shown as “Not present” instead of being conflated with
+  “Unassigned”; the diagnostic is read-only.
+- Existing room, contact, and heating data remain unchanged. Operation stays in
+  passive compatibility mode.
+
 ## 0.1.0-beta.34 – Phase 48 Formularpersistenz / Form persistence
 
 ### Deutsch
