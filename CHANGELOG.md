@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased – Phase 87 Lovelace-Integration und Release-Reife / Lovelace integration and release readiness
+## 0.1.0-beta.40 – Lovelace-Integration und Release-Reife / Lovelace integration and release readiness
 
 ### Deutsch
 

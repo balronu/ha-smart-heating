@@ -1,6 +1,6 @@
 # Smart Heating (Beta 39)
 
-## Phase 87 – Lovelace integration and release readiness (local, passive)
+## Beta.40 – Lovelace integration and release readiness (passive)
 
 The card is registered through `StaticPathConfig` and the public
 `frontend.add_extra_js_url` API. The versioned URL
@@ -14,9 +14,8 @@ options. The card reads only `smart_heating/plan/get`, deduplicates parallel
 requests for identical instances, and refreshes on a new HA state handoff. It
 has no polling loop.
 
-After an explicitly approved release, install the exact tag through HACS and
-add `custom:smart-heating-card` using the visual editor. Until then Phase 87 is
-local and is not installed on VM 104. The card cannot activate special modes,
+Install the exact Beta.40 tag through HACS and add `custom:smart-heating-card`
+using the visual editor. The card cannot activate special modes,
 change thermostats or Legacy automations, switch SMART, or call write
 endpoints. Missing backend and unknown/unavailable sensor or scheduler data
 remain visible.

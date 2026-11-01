@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.beforeEach(async ({ page }) => {
   await page.goto("/frontend/fixtures/harness.html");
   await expect(page.getByTestId("status").first()).toContainText("Kompatibilitätsmodus");
-  await expect(page.getByTestId("version").first()).toContainText("0.1.0-beta.39");
+  await expect(page.getByTestId("version").first()).toContainText("0.1.0-beta.40");
   await expect(page.getByText("Diese Karte zeigt ausschließlich passive Daten.").first()).toBeVisible();
 });
 
