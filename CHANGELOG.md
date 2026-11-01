@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased – Phase 71 Sondermodi UX
+
+### Deutsch
+
+- Built-in- und benutzerdefinierte Sondermodi werden kompakt und standardmäßig
+  eingeklappt angezeigt; Verfügbarkeit und Aktivität bleiben getrennt.
+- Neue benutzerdefinierte Modi beginnen als lokaler Entwurf und werden erst mit
+  „Anlegen“ gespeichert. „Abbrechen“ erzeugt keinen Backend-Schreibzugriff.
+- Fehlende oder unbekannte externe Statusquellen werden ausdrücklich als
+  „Status unbekannt“ dargestellt. Helper-Erstellung bleibt deaktiviert und der
+  Betrieb passiv.
+
+### English
+
+- Built-in and custom special modes now use compact, collapsed entries while
+  keeping availability and activity separate.
+- New custom modes start as local drafts and are persisted only with “Create”;
+  “Cancel” performs no backend write.
+- Missing or unknown external status sources are shown explicitly as “Status
+  unknown”. Helper creation remains disabled and operation stays passive.
+
 ## 0.1.0-beta.38 – Phase 68 contact-role projection fix
 
 ### Deutsch

@@ -1,5 +1,15 @@
 # Smart Heating (Beta 38)
 
+## Phase 71 – Special-mode drafts and mobile UX
+
+The administration presents built-in and custom special modes as compact,
+collapsed entries by default. Availability ("offered for use") remains
+separate from the actual active state, with the status source shown where
+relevant. New custom modes start as local drafts: only **Create** persists the
+mode, while **Cancel** discards it without a backend write. Missing or unknown
+status sources are shown explicitly. Helper creation remains disabled,
+priorities and control logic are unchanged, and operation stays passive.
+
 ## Phase 68 – Preserve room contact roles (Beta 38)
 
 The room administration now carries saved window-contact roles unchanged into

@@ -1,5 +1,24 @@
 # Smart Heating (Beta 38)
 
+## Phase 71 – Sondermodus-Draft und mobile UX
+
+Die Verwaltung zeigt vordefinierte und benutzerdefinierte Sondermodi kompakt
+und standardmäßig eingeklappt. Verfügbarkeit („zur Verwendung angeboten“) und
+der tatsächliche Aktivzustand bleiben getrennt. Neue benutzerdefinierte Modi
+werden zunächst nur als lokaler Entwurf erstellt; erst „Anlegen“ speichert sie,
+„Abbrechen“ verwirft sie ohne Backend-Schreibzugriff. Fehlende oder unbekannte
+Statusquellen werden sichtbar gekennzeichnet. Die Integration bleibt passiv,
+erstellt keine Helper und verändert keine Prioritäten.
+
+## Phase 71 – Special-mode drafts and mobile UX
+
+The administration presents built-in and custom special modes as compact,
+collapsed entries. Availability (“offered for use”) remains separate from the
+actual active state. New custom modes start as local drafts; only “Create”
+persists them and “Cancel” performs no backend write. Missing or unknown status
+sources are shown explicitly. The integration remains passive, creates no
+helpers, and does not change priorities.
+
 ## Phase 68 – Raumkontaktrollen erhalten (Beta 38)
 
 Die Raumverwaltung übernimmt gespeicherte Fensterkontaktrollen unverändert in
