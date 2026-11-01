@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
 from typing import Any, Mapping
 
@@ -20,6 +21,7 @@ def calculate_status(
     context = context or {}
     active = schedule.active_at(now, timezone)
     next_switch, next_state = schedule.next_switch(now, timezone)
+    active_window = schedule.active_window_at(now, timezone)
     decision = evaluate_decision(
         schedule_active=active,
         overrides=overrides,
@@ -30,6 +32,8 @@ def calculate_status(
         frost_temperature=context.get("frost_temperature", 5.0),
         hvac_supports_off=context.get("hvac_supports_off", True),
     )
+    if decision.mode == "comfort" and active_window is not None and active_window.target_temperature is not None:
+        decision = replace(decision, target_temperature=active_window.target_temperature)
     presence = context.get("presence", {}) if isinstance(context.get("presence", {}), Mapping) else {}
     window_result = evaluate_window_groups(context.get("window_groups", ()))
     mode_result = resolve_special_modes(
@@ -113,7 +117,14 @@ def calculate_status(
             "zone_id": context.get("zone_id"),
             "active_special_mode": mode_result.get("winner"),
             "suppressed_special_modes": mode_result.get("suppressed", []),
-            "schedule_decision": {"active": active, "source_verified": bool(context.get("schedule_source_verified", False))},
+            "schedule_decision": {
+                "active": active,
+                "source_verified": bool(context.get("schedule_source_verified", False)),
+                "next_switch": next_switch.isoformat() if next_switch else None,
+                "next_state": next_state,
+                "window_target_temperature": active_window.target_temperature if active_window else None,
+                "timezone": timezone,
+            },
             "window_state": window_result.get("state"),
             "presence": presence,
             "actor_path": {"primary": sources.get("primary_climate_entity"), "fallback": sources.get("fallback_climate_entity")},

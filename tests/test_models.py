@@ -26,9 +26,30 @@ class ScheduleTests(unittest.TestCase):
         with self.assertRaises(ScheduleValidationError):
             WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "08:00"}, {"start": "07:00", "end": "09:00"}]})
 
-    def test_invalid_and_midnight_window_rejected(self):
+    def test_equal_start_and_end_is_rejected(self):
         with self.assertRaises(ScheduleValidationError):
-            WeeklySchedule.from_mapping({"monday": [{"start": "22:00", "end": "05:00"}]})
+            WeeklySchedule.from_mapping({"monday": [{"start": "22:00", "end": "22:00"}]})
+
+    def test_overnight_window_crosses_midnight_and_week_boundary(self):
+        schedule = WeeklySchedule.from_mapping({"sunday": [{"start": "22:00", "end": "02:00", "target_temperature": 21.5}]})
+        self.assertTrue(schedule.active_at(datetime.fromisoformat("2026-11-01T23:30:00+01:00"), "Europe/Berlin"))
+        self.assertTrue(schedule.active_at(datetime.fromisoformat("2026-11-02T01:30:00+01:00"), "Europe/Berlin"))
+        self.assertFalse(schedule.active_at(datetime.fromisoformat("2026-11-02T02:00:00+01:00"), "Europe/Berlin"))
+        self.assertEqual(schedule.active_window_at(datetime.fromisoformat("2026-11-02T01:30:00+01:00"), "Europe/Berlin").target_temperature, 21.5)
+        next_switch, next_state = schedule.next_switch(datetime.fromisoformat("2026-11-02T01:30:00+01:00"), "Europe/Berlin")
+        self.assertEqual((next_switch.date().isoformat(), next_switch.hour, next_switch.minute, next_state), ("2026-11-02", 2, 0, False))
+
+    def test_window_target_is_used_by_passive_comfort_decision(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "08:00", "target_temperature": 21.5}]})
+        result = calculate_status(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T07:00:00+01:00"),
+            timezone="Europe/Berlin",
+            context={"comfort_temperature": 22, "night_temperature": 17, "heating_sources": {"primary_climate_entity": "climate.test"}, "schedule_source_verified": True},
+        )
+        self.assertEqual(result["target_temperature"], 21.5)
+        self.assertEqual(result["shadow"]["schedule_decision"]["active"], True)
+        self.assertEqual(result["shadow"]["schedule_decision"]["next_switch"], "2026-11-02T08:00:00+01:00")
 
     def test_week_boundary(self):
         schedule = WeeklySchedule.from_mapping({"sunday": [{"start": "23:00", "end": "23:59"}], "monday": [{"start": "06:00", "end": "07:00"}]})

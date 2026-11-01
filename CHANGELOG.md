@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased – Phase 78 Wochenzeitplan und Tages-/Nachtsteuerung
+
+### Deutsch
+
+- Der versionierte Wochenplan bewahrt bestehende Einstellungen und unterstützt
+  mehrere Komfortfenster pro Wochentag einschließlich Über-Mitternacht-Fenstern.
+- Die passive Auswertung meldet Komfort-/Absenkbetrieb, nächste Umschaltung und
+  optionale Fenster-Solltemperaturen. Fehlende Scheduler-Nachweise blockieren
+  weiterhin eine SMART-Umschaltung.
+- Die Verwaltung bietet Abbrechen ohne Schreibzugriff und bleibt auf kleinen
+  Bildschirmen bedienbar. Es werden keine Heizbefehle ausgelöst.
+
+### English
+
+- The versioned weekly schedule preserves existing settings and supports
+  multiple comfort windows per weekday, including windows crossing midnight.
+- Passive evaluation reports comfort/setback state, the next switch, and
+  optional window targets. Missing scheduler evidence still blocks SMART
+  cutover.
+- The editor provides a no-write cancel action and remains usable on narrow
+  screens. No heating commands are issued.
+
 ## Unreleased – Phase 77 Sondermodus-Wirkungen
 
 ### Deutsch

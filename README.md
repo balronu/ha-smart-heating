@@ -1,5 +1,24 @@
 # Smart Heating (Beta 38)
 
+## Phase 78 – Wochenzeitplan passiv auswerten
+
+Der Wochenplan unterstützt Montag bis Sonntag, mehrere Komfortfenster pro Tag
+und Fenster über Mitternacht. Außerhalb der Fenster gilt passiv die
+Absenktemperatur; optionale Fenster-Solltemperaturen werden nur in der
+Shadow-Entscheidung berücksichtigt. Der Resolver meldet Tages-/Nachtstatus und
+die nächste lokale Umschaltung einschließlich Zeitzone/DST. Ein fehlender oder
+nicht verifizierter Scheduler blockiert weiterhin die SMART-Umschaltung; es
+werden keine Heizbefehle gesendet.
+
+## Phase 78 – Passive weekly schedule evaluation
+
+The weekly plan supports Monday through Sunday, multiple comfort windows per
+day, and windows crossing midnight. Outside those windows the passive
+setback-temperature decision applies; optional window targets are used only by
+the shadow decision. The resolver reports day/night state and the next local
+switch including timezone/DST. A missing or unverified scheduler still blocks
+SMART cutover, and no heating command is sent.
+
 ## Phase 77 – Sondermodus-Wirkungen passiv konfigurieren
 
 Die Verwaltung bietet für Built-in- und benutzerdefinierte Sondermodi ein

@@ -438,12 +438,34 @@ test("shows unsaved state before saving and stacks time fields on a narrow phone
   expect(layout[1].right).toBeLessThanOrEqual(320);
 });
 
+test("supports an overnight window and explicitly cancels local edits", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel.__phase78Calls = [];
+    const callWS = panel._hass.callWS;
+    panel._hass.callWS = async (message) => { panel.__phase78Calls.push(message); return callWS(message); };
+  });
+  await page.locator("button[data-schedule-edit=monday]").click();
+  await page.locator("button[data-schedule-add=monday]").click();
+  const row = page.locator("[data-day-editor=monday] [data-schedule-row]").last();
+  await row.locator("input[data-schedule-input=start]").fill("22:00");
+  await row.locator("input[data-schedule-input=end]").fill("02:00");
+  await page.locator("button[data-schedule-close]").click();
+  await expect(page.locator("[data-schedule-day=monday] [data-day-summary]")).toContainText("über Mitternacht");
+  const callsBeforeCancel = await page.evaluate(() => document.querySelector("smart-heating-backend-panel").__phase78Calls.filter((item) => item.type.endsWith("plan/set")).length);
+  await page.locator("button[data-schedule-edit=monday]").click();
+  await page.locator("button[data-schedule-cancel]").click();
+  await expect(page.locator("[data-schedule-day=monday] [data-day-summary]")).not.toContainText("über Mitternacht");
+  const callsAfterCancel = await page.evaluate(() => document.querySelector("smart-heating-backend-panel").__phase78Calls.filter((item) => item.type.endsWith("plan/set")).length);
+  expect(callsAfterCancel).toBe(callsBeforeCancel);
+});
+
 test("shows an inline validation message and does not call save for invalid windows", async ({ page }) => {
   await page.locator("button[data-schedule-edit=monday]").click();
   await page.locator("button[data-schedule-add=monday]").click();
   const row = page.locator("[data-day-editor=monday] [data-schedule-row]").last();
   await row.locator("input[data-schedule-input=start]").fill("20:00");
-  await row.locator("input[data-schedule-input=end]").fill("08:00");
+  await row.locator("input[data-schedule-input=end]").fill("20:00");
   await page.locator("[data-schedule-save]").click();
   await expect(page.locator("[role=status]")).toContainText("Zeitfenster");
   await expect(page.locator("[role=alert]")).toHaveCount(0);

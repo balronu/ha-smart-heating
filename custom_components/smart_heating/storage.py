@@ -7,6 +7,7 @@ from typing import Any, Mapping
 from .const import DEFAULT_SCHEDULE, MODE_COMPATIBILITY
 from .models import WeeklySchedule
 
+SCHEDULE_SCHEMA_VERSION = 1
 
 def load_schedule(options: Mapping[str, Any]) -> WeeklySchedule:
     schedule = options.get("schedule")
@@ -34,6 +35,7 @@ def effective_config(entry: Any) -> dict[str, Any]:
 def normalized_options(options: Mapping[str, Any], schedule: WeeklySchedule | None = None) -> dict[str, Any]:
     result = dict(options)
     result["schedule"] = (schedule or load_schedule(options)).as_dict()
+    result.setdefault("schedule_schema_version", SCHEDULE_SCHEMA_VERSION)
     result.setdefault("simulation", True)
     result.setdefault("special_modes", {})
     result.setdefault("operation_mode", MODE_COMPATIBILITY)
