@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import inspect
 import logging
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 from uuid import uuid4
 
 import voluptuous as vol
@@ -42,6 +43,7 @@ from .management import (
     upsert_item,
     validate_management,
     window_contact_summary,
+    build_window_role_diagnostics,
     zone_status,
     zone_backend_summary,
     SAFETY_MODES,
@@ -61,10 +63,13 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.entry = entry
+        self.runtime_management_raw: dict[str, Any] = {}
         super().__init__(hass, config_entry=entry, logger=_LOGGER, name=DOMAIN)
 
     async def _async_update_data(self) -> dict[str, Any]:
         config = effective_config(self.entry)
+        management = config.get("management", {})
+        self.runtime_management_raw = deepcopy(management) if isinstance(management, Mapping) else {}
         return calculate_status(
             load_schedule(config),
             now=datetime.now().astimezone(),
@@ -415,7 +420,18 @@ async def _admin_mutation(hass: HomeAssistant, connection: websocket_api.ActiveC
 async def _ws_admin_get(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])
     config = effective_config(entry)
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contact_summary(hass, management), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "backend_evaluations": zone_backend_summary(hass, management["zones"], management), "preview": hass.data.get(DOMAIN, {}).get(entry.entry_id).data if hass.data.get(DOMAIN, {}).get(entry.entry_id) else {}, "validation": validate_management(management)})
+    window_contacts = window_contact_summary(hass, management)
+    coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    runtime_management = getattr(coordinator, "runtime_management_raw", {}) if coordinator else {}
+    options_management = entry.options if isinstance(entry.options, Mapping) else {}
+    configured_assigned_ids = {
+        str(item.get("entity_id"))
+        for kind in ("window", "tilt")
+        for item in management.get("sensors", {}).get(kind, [])
+        if isinstance(item, Mapping) and item.get("entity_id") and (item.get("area_id") or item.get("zone_ids"))
+    }
+    assigned_contacts = [item for item in window_contacts["contacts"] if item.get("entity_id") in configured_assigned_ids and not item.get("ignored")]
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contacts, "window_role_diagnostics": build_window_role_diagnostics(config_entry_options=options_management, runtime_management=runtime_management, readback_management=management, assigned_contacts=assigned_contacts), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "backend_evaluations": zone_backend_summary(hass, management["zones"], management), "preview": coordinator.data if coordinator else {}, "validation": validate_management(management)})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/person/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})

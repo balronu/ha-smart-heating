@@ -855,6 +855,65 @@ def window_contact_summary(hass: Any, management: Mapping[str, Any]) -> dict[str
     }
 
 
+def _raw_window_contact_role(management: Mapping[str, Any] | None, entity_id: str) -> str | None:
+    """Return a stored role without applying the normalizer's default."""
+    if not isinstance(management, Mapping):
+        return None
+    sensors = management.get("sensors", {})
+    if not isinstance(sensors, Mapping):
+        return None
+    for kind in ("window", "tilt"):
+        items = sensors.get(kind, [])
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if isinstance(item, Mapping) and item.get("entity_id") == entity_id:
+                value = item.get("contact_role")
+                return str(value) if value is not None else None
+    return None
+
+
+def build_window_role_diagnostics(
+    *,
+    config_entry_options: Mapping[str, Any] | None,
+    runtime_management: Mapping[str, Any] | None,
+    readback_management: Mapping[str, Any] | None,
+    assigned_contacts: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...] = (),
+) -> list[dict[str, Any]]:
+    """Compare three read-only role sources for assigned contacts.
+
+    The ConfigEntry and runtime mappings are intentionally read as supplied;
+    missing ``contact_role`` keys are not converted to ``unassigned`` here.
+    ``readback_management`` represents the exact management object exposed by
+    the administrative readback, including any normalization it performs.
+    """
+    options_management = config_entry_options.get("management", {}) if isinstance(config_entry_options, Mapping) else {}
+    rows: list[dict[str, Any]] = []
+    for contact in assigned_contacts:
+        if not isinstance(contact, Mapping):
+            continue
+        entity_id = str(contact.get("entity_id") or "")
+        if not entity_id:
+            continue
+        config_role = _raw_window_contact_role(options_management, entity_id)
+        runtime_role = _raw_window_contact_role(runtime_management, entity_id)
+        readback_role = _raw_window_contact_role(readback_management, entity_id)
+        values = (config_role, runtime_role, readback_role)
+        present = [value for value in values if value is not None]
+        matches = len(present) == 3 and len(set(present)) == 1
+        rows.append({
+            "entity_id": entity_id,
+            "name": str(contact.get("name") or entity_id),
+            "assigned_area_id": contact.get("assigned_area_id"),
+            "config_entry_role": config_role,
+            "runtime_role": runtime_role,
+            "readback_role": readback_role,
+            "matches": matches,
+            "status": "Übereinstimmung" if matches else "Abweichung" if present else "Nicht vorhanden",
+        })
+    return rows
+
+
 def upsert_item(data: dict[str, Any], collection: str, item: Mapping[str, Any]) -> dict[str, Any]:
     normalized = deepcopy(dict(item))
     normalized["id"] = _id(normalized.get("id"))

@@ -200,6 +200,24 @@ test("keeps bathroom window status readable and separates saved assignment", asy
   await expect(page.locator("tr[data-window-row]").filter({ hasText: "Badezimmer Fenster" })).toHaveCount(0);
 });
 
+test("shows distinct read-only sources for assigned window role diagnostics", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.window_role_diagnostics = [
+      { entity_id: "binary_sensor.bath_tilt", name: "Bad gekippt", config_entry_role: "tilt", runtime_role: "unassigned", readback_role: "tilt", status: "Abweichung" },
+      { entity_id: "binary_sensor.bath_open", name: "Bad offen", config_entry_role: null, runtime_role: null, readback_role: "open", status: "Abweichung" },
+    ];
+    panel._render();
+  });
+  const section = page.locator("details[data-section=diagnostics]");
+  await section.locator(":scope > summary").click();
+  await expect(section.locator("[data-window-role-diagnostic]")).toHaveCount(2);
+  await expect(section).toContainText("binary_sensor.bath_tilt");
+  await expect(section).toContainText("Nicht vorhanden");
+  await expect(section).toContainText("Abweichung");
+  await expect(section.locator("button,select,input")).toHaveCount(0);
+});
+
 test("keeps role changes local until room save and persists independent contact roles across reload", async ({ page }) => {
   await page.evaluate(() => {
     const panel = document.querySelector("smart-heating-backend-panel");

@@ -168,6 +168,15 @@ class RuntimeTests(unittest.TestCase):
                         },
                         first_save["persisted_contact_roles"],
                     )
+                    diagnostics = {
+                        item["entity_id"]: item
+                        for item in admin_readback["window_role_diagnostics"]
+                    }
+                    self.assertEqual(
+                        {entity_id: diagnostics[entity_id]["readback_role"] for entity_id in diagnostics},
+                        first_save["persisted_contact_roles"],
+                    )
+                    self.assertTrue(all(item["matches"] for item in diagnostics.values()))
 
                     second_save = await save_room(103, ("tilt", "open"))
                     self.assertEqual(second_save["persisted_contact_roles"], first_save["persisted_contact_roles"])
