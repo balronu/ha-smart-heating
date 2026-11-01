@@ -10,7 +10,7 @@ class Phase38ManagementTests(unittest.TestCase):
         second = normalize_management(first)
         self.assertEqual(first, second)
         self.assertEqual(first["zones"][0]["thermostat_entities"], ["climate.esszimmer"])
-        self.assertEqual(first["schema_version"], 5)
+        self.assertEqual(first["schema_version"], 6)
 
     def test_window_contact_role_migration_is_idempotent_and_preserves_legacy_semantics(self):
         legacy = {"sensors": {"window": [{"id": "w1", "entity_id": "binary_sensor.window", "state_semantics": "binary"}], "tilt": [{"id": "t1", "entity_id": "binary_sensor.tilt", "state_semantics": "tilt"}]}}

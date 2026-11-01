@@ -1,5 +1,20 @@
 # Smart Heating (Beta 38)
 
+## Phase 75 – passive migration data model
+
+The management model is backward-compatibly normalized internally to schema 6.
+Existing rooms, thermostats, room-temperature sensors, window-contact roles,
+weekly schedules, and presence assignments are preserved. Special modes also
+have a structured passive behavior contract for activation, conditions, target
+temperature, schedule override, duration, and return to normal operation.
+
+The `control_plane` is fenced safely: migration can reach only `LEGACY`;
+`TRANSITIONING` and `SMART` remain blocked until a separately verified future
+cutover. The model describes ownership, readiness, errors, and rollback
+readiness but sends no heating commands and changes no productive Home
+Assistant components. Unknown entities are never guessed. Chimney-sweep keeps
+its immutable highest priority.
+
 ## Phase 71 – Special-mode drafts and mobile UX
 
 The administration presents built-in and custom special modes as compact,

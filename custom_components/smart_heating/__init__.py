@@ -152,6 +152,8 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     context["comfort_temperature"] = settings.get("comfort_temperature", 20.0)
     context["night_temperature"] = settings.get("night_temperature", 17.0)
     context["special_modes"] = management.get("special_modes", [])
+    context["control_plane"] = deepcopy(management.get("control_plane", {}))
+    context["heating_sources"] = deepcopy(management.get("heating_sources", {}))
     context["thermostats"] = []
     context["window_strategy"] = "none"
     context["window_groups"] = []

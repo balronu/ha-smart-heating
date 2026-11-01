@@ -1,5 +1,22 @@
 # Smart Heating (Beta 38)
 
+## Phase 75 – passives Migrationsdatenmodell
+
+Das Management-Modell wird intern als Schema 6 rückwärtskompatibel aus älteren
+Konfigurationen normalisiert. Bestehende Räume, Thermostate, Raumfühler,
+Fensterkontaktrollen, Wochenpläne und Anwesenheitszuordnungen werden nicht
+verworfen. Sondermodi besitzen zusätzlich einen strukturierten passiven
+Wirkungsvertrag für Aktivierung, Bedingungen, Zieltemperatur, Zeitplan-
+Übersteuerung, Dauer und Rückkehr zum Normalbetrieb.
+
+Der `control_plane`-Zustand ist sicher eingezäunt: `LEGACY` ist der einzige
+durch Migration erreichbare Zustand; `TRANSITIONING` und `SMART` bleiben bis zu
+einer späteren, separat geprüften Umschaltung blockiert. Das Modell beschreibt
+Steuerungshoheit, Bereitschaft, Fehler und Rückfall, führt aber keine
+Heizbefehle aus und verändert keine produktiven Home-Assistant-Komponenten.
+Unbekannte Entitäten werden nicht automatisch ergänzt. Der Schornsteinfeger-
+Modus behält die unveränderliche höchste Priorität.
+
 ## Phase 71 – Sondermodus-Draft und mobile UX
 
 Die Verwaltung zeigt vordefinierte und benutzerdefinierte Sondermodi kompakt

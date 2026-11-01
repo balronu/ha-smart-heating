@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased – Phase 75 Migrationsdatenmodell
+
+### Deutsch
+
+- Das Management-Schema wird rückwärtskompatibel auf Version 6 normalisiert.
+  Räume, mehrere Thermostate, Raumtemperaturfühler, Fensterkontaktrollen,
+  Zeitpläne und Anwesenheitszuordnungen bleiben erhalten.
+- Sondermodi erhalten einen strukturierten passiven Vertrag für Aktivierung,
+  Bedingungen, Wirkung, Dauer und Rückkehr zum Normalbetrieb. Unbekannte
+  Entitäten werden nicht erraten; Helper werden weiterhin nicht erstellt.
+- Der neue `control_plane`-Block beschreibt `LEGACY`, `TRANSITIONING` und
+  `SMART`, aktiviert aber ausschließlich `LEGACY`. Umschaltbereitschaft,
+  Steuerungshoheit, Rückfallbereitschaft, Fehler und Blockierungsgrund bleiben
+  getrennt sichtbar. Heizbefehle bleiben gesperrt.
+- Ein angeforderter aktiver Zustand wird bei der passiven Migration nicht
+  aktiviert, sondern als blockierter Wunschzustand mit Validierungsfehler
+  dokumentiert. Schornsteinfeger behält unveränderlich Priorität 1000.
+
+### English
+
+- The management schema is backward-compatibly normalized to version 6.
+  Rooms, multiple thermostats, room-temperature sensors, window-contact roles,
+  schedules, and presence assignments are preserved.
+- Special modes now have a structured passive contract for activation,
+  conditions, effects, duration, and return to normal operation. Unknown
+  entities are not guessed and helpers are still never created.
+- The new `control_plane` block describes `LEGACY`, `TRANSITIONING`, and
+  `SMART`, but migration activates only `LEGACY`. Readiness, confirmed
+  ownership, rollback readiness, errors, and blocking reasons remain separate;
+  heating commands stay locked.
+- Requested active states are not activated during passive migration. They are
+  retained as blocked requested states with validation errors. Chimney-sweep
+  priority remains immutably 1000.
+
 ## Unreleased – Phase 71 Sondermodi UX
 
 ### Deutsch
