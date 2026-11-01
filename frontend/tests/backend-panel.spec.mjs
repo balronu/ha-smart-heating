@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
   await page.evaluate(() => localStorage.clear());
   await page.waitForTimeout(50);
   await expect(page.locator("main.smart-heating-backend")).toBeVisible();
-  await expect(page.locator("details[data-section]")).toHaveCount(7);
+  await expect(page.locator("details[data-section]")).toHaveCount(8);
   await expect(page.locator("details[open]")).toHaveCount(0);
 });
 
@@ -133,6 +133,28 @@ test("keeps special-mode defaults compact and reveals extra Boolean helpers thro
   await party.locator("input[data-mode-source-search]").fill("Fremd");
   await expect(party.locator("select option[value='input_boolean.fremdmodus']")).toHaveCount(1);
   await expect(party).toContainText("Empfehlung");
+});
+
+test("manages an internal custom special mode without exposing helper creation", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.management.special_modes = [{ id: "quiet-hours", name: "Ruhezeit", description: "Passiv anzeigen", mode_type: "custom", behavior: "passive_only", available: false, active: false, binding_type: "internal", helper_entity: "", origin: "user" }];
+    panel._render();
+  });
+  await page.locator("details[data-section=safety] summary").click();
+  const mode = page.locator('[data-special-mode="quiet-hours"]');
+  await expect(mode).toContainText("Steuerbar: nein");
+  await expect(mode.locator("option:disabled")).toContainText("nicht verfügbar");
+  await expect(page.locator("[data-special-mode-add]")).toBeVisible();
+  await expect(mode.locator("[data-special-mode-duplicate]")).toBeVisible();
+  await expect(mode.locator("[data-special-mode-delete]")).toBeVisible();
+});
+
+test("centralizes global settings and keeps active control locked", async ({ page }) => {
+  await page.locator("details[data-section=system] summary").click();
+  await expect(page.locator("form[data-system-form]")).toContainText("Kompatibilitätsmodus");
+  await expect(page.locator("form[data-system-form] option[value=full]")).toHaveAttribute("disabled", "");
+  await expect(page.locator("form[data-system-form]")).toContainText("gesperrt");
 });
 
 test("separates relevant rooms, other HA areas, and technical temperature sources", async ({ page }) => {

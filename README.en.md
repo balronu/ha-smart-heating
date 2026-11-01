@@ -1,4 +1,19 @@
-# Smart Heating (Beta 27)
+# Smart Heating (Beta 28)
+
+## Phase 36 – universal special-mode manager
+
+Beta 28 adds independent special-mode objects with stable IDs. Existing
+built-in assignments are migrated compatibly; custom modes can be managed
+internally and passively or bound read-only to suitable `input_boolean` entities.
+Search covers friendly name and entity ID, availability/activity/controllability
+are separate, and HA helpers are never created automatically. Productive heating
+control remains locked.
+
+The Lovelace card and VM 104 installation are outside this phase.
+
+Global operating and safety values are edited in the “System & operating mode”
+section of the Smart Heating administration. The native HA options dialog now
+only points to that central UI and leaves existing values unchanged.
 
 ## Phase 35 – final iPhone UX polish
 
@@ -232,7 +247,7 @@ fixture. Productive VM 104 installation is explicitly outside this beta. The
 compatibility mode is passive; full mode remains locked until a separately
 verified single-writer proof exists.
 
-Version: `0.1.0-beta.27`
+Version: `0.1.0-beta.28`
 Release type: development release / HACS pre-release  
 Productive migration: locked; isolated adapter tests only
 

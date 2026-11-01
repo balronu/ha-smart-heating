@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.1.0-beta.28 – Beta 28
+
+### Deutsch
+
+- Eigenständige Sondermodus-Objekte mit stabiler ID, Beschreibung, Funktion,
+  Verfügbarkeit, Aktivität, Anbindung und passiver Steuerbarkeitsanzeige ergänzt.
+- Bestehende `safety.modes`-Zuordnungen werden idempotent übernommen; vorhandene
+  `input_boolean`-Quellen bleiben lesend verbunden.
+- Interne benutzerdefinierte Modi sowie Bearbeiten, Duplizieren und Entfernen
+  ergänzt. Automatische HA-Helper-Erstellung bleibt aus Sicherheitsgründen deaktiviert.
+- Mobile Regression für interne Modi, Migration und Helper-Erstellungs-Gate ergänzt.
+- Globale Betriebs- und Sicherheitswerte in die Smart-Heating-Verwaltung
+  zentralisiert; der native Optionsdialog ist jetzt ein unverändernder Hinweis.
+
+### English
+
+- Added independent special-mode objects with stable IDs, descriptions, functions,
+  availability, activity, bindings, and passive controllability status.
+- Existing `safety.modes` assignments migrate idempotently and existing
+  `input_boolean` sources remain read-only connections.
+- Added internal custom modes with edit, duplicate, and remove actions. Automatic
+  HA-helper creation remains disabled for safety.
+- Added mobile regression coverage for internal modes, migration, and the helper gate.
+- Centralized global operating and safety values in the Smart Heating
+  administration; the native options dialog is now a non-mutating pointer.
+
 ## 0.1.0-beta.27 – Beta 27
 
 ### Deutsch

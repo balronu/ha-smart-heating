@@ -1,4 +1,19 @@
-# Smart Heating (Beta 27)
+# Smart Heating (Beta 28)
+
+## Phase 36 – universeller Sondermodus-Manager
+
+Beta 28 führt eigenständige, stabile Sondermodus-Objekte ein. Die vordefinierten
+Modi übernehmen vorhandene Zuordnungen rückwärtskompatibel; benutzerdefinierte
+Modi können intern und passiv verwaltet oder lesend an geeignete
+`input_boolean`-Entities gebunden werden. Die Auswahl durchsucht Anzeigename
+und Entity-ID, trennt Verfügbarkeit, Aktivität und Steuerbarkeit und erstellt
+keine HA-Helper automatisch. Die produktive Heizungssteuerung bleibt gesperrt.
+
+Die Lovelace-Karte und eine VM-104-Installation sind nicht Bestandteil dieser Phase.
+
+Globale Betriebs- und Sicherheitswerte werden im Abschnitt „System & Betriebsmodus“
+der Smart-Heating-Verwaltung gepflegt. Der native HA-Optionsdialog zeigt nur noch
+den Verweis auf diese zentrale Verwaltung und lässt bestehende Werte unverändert.
 
 ## Phase 35 – letzter iPhone-UX-Feinschliff
 
@@ -293,7 +308,7 @@ bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
-Version: `0.1.0-beta.27`
+Version: `0.1.0-beta.28`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 

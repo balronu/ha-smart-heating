@@ -156,7 +156,7 @@ class SmartHeatingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
-    """Edit schedule and explicit entity associations."""
+    """Keep the native dialog as a safe pointer to the central manager."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         self._entry = config_entry
@@ -166,41 +166,10 @@ class SmartHeatingOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_settings(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
         if user_input is not None:
-            # The value remains in the schema for backwards-compatible reads,
-            # but productive takeover is not an available operation yet. Keep
-            # this guard server-side so forged form data cannot arm control.
-            if user_input.get(CONF_OPERATION_MODE) == MODE_FULL:
-                return self.async_show_form(
-                    step_id="settings",
-                    data_schema=self._schema(),
-                    errors={"base": "active_control_unavailable"},
-                )
-            options = dict(self._entry.options)
-            options.update(user_input)
-            special_modes = dict(options.get(CONF_SPECIAL_MODES, self._entry.data.get(CONF_SPECIAL_MODES, {})) or {})
-            special_mode_field_seen = False
-            for field, mode in (
-                ("party_entity", "party"),
-                ("visit_entity", "visit"),
-                ("return_home_entity", "return_home"),
-                ("chimney_sweep_entity", "chimney_sweep"),
-                ("summer_entity", "summer"),
-            ):
-                if field in user_input:
-                    special_mode_field_seen = True
-                    entity_id = user_input.pop(field)
-                    options.pop(field, None)
-                    if entity_id:
-                        special_modes[mode] = entity_id
-                    else:
-                        special_modes.pop(mode, None)
-            if special_mode_field_seen:
-                options[CONF_SPECIAL_MODES] = special_modes
-            options[CONF_SCHEDULE] = WeeklySchedule.from_mapping(
-                options.get(CONF_SCHEDULE, self._entry.data.get(CONF_SCHEDULE, DEFAULT_SCHEDULE))
-            ).as_dict()
-            return self.async_create_entry(title="", data=options)
-        return self.async_show_form(step_id="settings", data_schema=self._schema())
+            # Preserve every existing option byte-for-byte. The central panel
+            # owns edits; this acknowledgement cannot arm active control.
+            return self.async_create_entry(title="", data=dict(self._entry.options))
+        return self.async_show_form(step_id="settings", data_schema=vol.Schema({}))
 
     def _schema(self) -> vol.Schema:
         schema: dict[Any, Any] = {
