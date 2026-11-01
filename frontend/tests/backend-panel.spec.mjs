@@ -223,9 +223,10 @@ test("keeps role changes local until room save and persists independent contact 
   await expect(room.locator("[data-room-window-contact]").nth(1).locator("select")).toHaveValue("open");
   await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel")._calls.filter((item) => item.type.endsWith("admin/sensor/set")).length)).toBe(0);
   await room.locator("button[type=submit]").click();
-  await expect(room.locator("[data-room-feedback]")).toContainText("Raumkonfiguration gespeichert");
+  await expect(page.locator("details[data-room=room-badezimmer] [data-room-feedback]")).toContainText("Raumkonfiguration gespeichert");
   await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel")._data.window_contacts.contacts.filter((item) => item.assigned_area_id === "badezimmer").map((item) => item.contact_role))).toEqual(["tilt", "open"]);
-  await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel")._calls.filter((item) => item.type.endsWith("admin/sensor/set")).length)).toBe(2);
+  await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel")._calls.filter((item) => item.type.endsWith("admin/room/save")).length)).toBe(1);
+  await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel")._calls.filter((item) => item.type.endsWith("admin/sensor/set")).length)).toBe(0);
   await page.reload();
   await page.locator("details[data-section=rooms] > summary").click();
   await page.locator("details[data-room=room-badezimmer] summary").click();

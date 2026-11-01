@@ -1,4 +1,12 @@
-# Smart Heating (Beta 32)
+# Smart Heating (Beta 33)
+
+## Phase 44 – Atomare Raumspeicherung (Beta 33)
+
+Der Raum-Speichervorgang speichert Raumdaten und Fensterkontaktrollen jetzt
+atomar über `admin/room/save` und prüft den tatsächlich zurückgelesenen
+Config-Entry-Zustand. Abweichungen werden sichtbar als Fehler gemeldet, bevor
+eine Erfolgsmeldung erscheint. Bestehende Kontakte und Raumzuordnungen bleiben
+erhalten; der Betrieb bleibt passiv und führt keine Heizbefehle aus.
 
 ## Phase 42 – Persistenzkorrektur für Fensterkontaktrollen (Beta 32)
 
@@ -347,7 +355,7 @@ bleibt bis zu einem gesondert geprüften Single-Writer-Nachweis gesperrt.
 
 ## Status
 
-Version: `0.1.0-beta.28`
+Version: `0.1.0-beta.33`
 Release-Typ: Entwicklungsrelease / HACS-Prerelease  
 Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 

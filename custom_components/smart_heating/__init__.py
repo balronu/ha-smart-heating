@@ -194,6 +194,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         websocket_api.async_register_command(hass, _ws_admin_person_set)
         websocket_api.async_register_command(hass, _ws_admin_person_delete)
         websocket_api.async_register_command(hass, _ws_admin_zone_set)
+        websocket_api.async_register_command(hass, _ws_admin_room_save)
         websocket_api.async_register_command(hass, _ws_admin_zone_delete)
         websocket_api.async_register_command(hass, _ws_admin_sensor_set)
         websocket_api.async_register_command(hass, _ws_admin_sensor_delete)
@@ -433,6 +434,68 @@ async def _ws_admin_person_delete(hass: HomeAssistant, connection: websocket_api
 @websocket_api.async_response
 async def _ws_admin_zone_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     await _admin_mutation(hass, connection, msg, "zones")
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "smart_heating/admin/room/save",
+    vol.Required("entry_id"): cv.string,
+    vol.Required("item"): dict,
+    vol.Optional("contacts", default=[]): list,
+})
+@websocket_api.async_response
+async def _ws_admin_room_save(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Persist one room and its contact roles as one verified transaction."""
+    entry, management = _admin_entry(hass, msg["entry_id"])
+    expected_roles: dict[str, str] = {}
+    try:
+        upsert_item(management, "zones", msg["item"])
+        for raw_contact in msg.get("contacts", []):
+            if not isinstance(raw_contact, dict):
+                raise ValueError("invalid_window_contact")
+            entity_id = str(raw_contact.get("entity_id", ""))
+            if not entity_id:
+                raise ValueError("missing_window_contact_entity")
+            existing = next(
+                (
+                    stored
+                    for kind in ("window", "tilt")
+                    for stored in management.get("sensors", {}).get(kind, [])
+                    if stored.get("entity_id") == entity_id
+                ),
+                {},
+            )
+            contact = dict(existing)
+            contact.update(raw_contact)
+            contact.setdefault("id", existing.get("id"))
+            contact.setdefault("type", existing.get("type", "window"))
+            upsert_item(management, "sensors", contact)
+            expected_roles[entity_id] = str(contact.get("contact_role", "unassigned"))
+        _admin_save(hass, entry, management)
+        await _async_entry_updated(hass, entry)
+
+        # Read the Config Entry again instead of trusting the in-memory request.
+        _, persisted = _admin_entry(hass, msg["entry_id"])
+        persisted_roles = {
+            str(contact.get("entity_id")): str(contact.get("contact_role", "unassigned"))
+            for kind in ("window", "tilt")
+            for contact in persisted.get("sensors", {}).get(kind, [])
+        }
+        mismatches = {
+            entity_id: {"expected": role, "actual": persisted_roles.get(entity_id, "missing")}
+            for entity_id, role in expected_roles.items()
+            if persisted_roles.get(entity_id) != role
+        }
+        if mismatches:
+            connection.send_error(msg["id"], "persistence_verification_failed", str(mismatches))
+            return
+    except ValueError as err:
+        connection.send_error(msg["id"], "invalid_configuration", str(err))
+        return
+    connection.send_result(msg["id"], {
+        "management": persisted,
+        "persisted_contact_roles": {entity_id: persisted_roles[entity_id] for entity_id in expected_roles},
+        "validation": validate_management(persisted),
+    })
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/zone/delete", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})

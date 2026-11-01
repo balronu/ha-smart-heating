@@ -69,6 +69,78 @@ class RuntimeTests(unittest.TestCase):
                     await hass.async_block_till_done()
                     self.assertEqual(entry.state.value, "loaded")
 
+                    from custom_components.smart_heating import _ws_admin_room_save
+                    from custom_components.smart_heating.management import normalize_management
+
+                    class CaptureConnection:
+                        def __init__(self):
+                            self.results = []
+                            self.errors = []
+
+                        def send_result(self, message_id, result):
+                            self.results.append((message_id, result))
+
+                        def send_error(self, message_id, code, message):
+                            self.errors.append((message_id, code, message))
+
+                    room_item = {
+                        "id": "badezimmer",
+                        "name": "Badezimmer",
+                        "enabled": True,
+                        "area_ids": ["badezimmer"],
+                        "thermostat_entities": [],
+                        "temperature_entities": [],
+                        "window_entities": [],
+                        "tilt_entities": [],
+                        "comfort_temperature": 20,
+                        "night_temperature": 17,
+                        "frost_temperature": 5,
+                        "schedule": {},
+                    }
+                    contacts = [
+                        {
+                            "id": "bathroom-tilt",
+                            "type": "window",
+                            "entity_id": "binary_sensor.fensterkontakt_badezimmer_contact",
+                            "contact_role": "tilt",
+                            "area_id": "badezimmer",
+                            "area_name": "Badezimmer",
+                        },
+                        {
+                            "id": "bathroom-open",
+                            "type": "window",
+                            "entity_id": "binary_sensor.fensterkontakt_badezimmer_1_2_contact",
+                            "contact_role": "open",
+                            "area_id": "badezimmer",
+                            "area_name": "Badezimmer",
+                        },
+                    ]
+
+                    async def save_room(message_id, roles):
+                        connection = CaptureConnection()
+                        await _ws_admin_room_save.__wrapped__(
+                            hass,
+                            connection,
+                            {"id": message_id, "entry_id": entry.entry_id, "item": room_item, "contacts": [{**contact, "contact_role": role} for contact, role in zip(contacts, roles)]},
+                        )
+                        self.assertFalse(connection.errors)
+                        self.assertEqual(connection.results[0][0], message_id)
+                        return connection.results[0][1]
+
+                    first_save = await save_room(101, ("tilt", "open"))
+                    self.assertEqual(first_save["persisted_contact_roles"], {contact["entity_id"]: role for contact, role in zip(contacts, ("tilt", "open"))})
+                    persisted = normalize_management(entry.options["management"])
+                    self.assertEqual({item["entity_id"]: item["contact_role"] for item in persisted["sensors"]["window"]}, {contact["entity_id"]: role for contact, role in zip(contacts, ("tilt", "open"))})
+
+                    second_save = await save_room(102, ("tilt", "open"))
+                    self.assertEqual(second_save["persisted_contact_roles"], first_save["persisted_contact_roles"])
+                    self.assertTrue(await hass.config_entries.async_unload(entry.entry_id))
+                    await hass.async_block_till_done()
+                    self.assertTrue(await hass.config_entries.async_setup(entry.entry_id))
+                    await hass.async_block_till_done()
+                    persisted_after_reload = normalize_management(entry.options["management"])
+                    self.assertEqual({item["entity_id"]: item["contact_role"] for item in persisted_after_reload["sensors"]["window"]}, first_save["persisted_contact_roles"])
+
                     duplicate = await hass.config_entries.flow.async_init(
                         "smart_heating", context={"source": "user"}
                     )
@@ -90,6 +162,7 @@ class RuntimeTests(unittest.TestCase):
                         "smart_heating/admin/get",
                         "smart_heating/admin/person/set",
                         "smart_heating/admin/zone/set",
+                        "smart_heating/admin/room/save",
                         "smart_heating/admin/sensor/set",
                         "smart_heating/admin/controller/set",
                         "smart_heating/admin/outdoor/set",
