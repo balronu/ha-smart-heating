@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased – Phase 87 Lovelace-Integration und Release-Reife / Lovelace integration and release readiness
+
+### Deutsch
+
+- Versionierter Integrationspfad sowie idempotente statische Ressourcen- und
+  Kartenpicker-Registrierung für eine spätere HACS-Installation ergänzt.
+- Der grafische Editor unterstützt Raumfilter, Sortierung, Reihenfolge,
+  sichtbare Bereiche sowie Temperatur-, Fenster- und Sondermodusoptionen.
+- Read-only `smart_heating/plan/get` wird für gleiche Karteninstanzen
+  dedupliziert und bei neuen HA-Zustandsübergaben aktualisiert; kein Polling
+  und keine Schreibschnittstelle.
+- Die Arbeiten bleiben lokal, passiv und nicht auf VM 104 installiert.
+
+### English
+
+- Added the versioned integration resource path plus idempotent static-resource
+  and card-picker registration for a future HACS installation.
+- The visual editor supports room filters, sorting, ordering, visible sections,
+  and temperature, window, and special-mode options.
+- Read-only `smart_heating/plan/get` is deduplicated for identical card
+  instances and refreshed on new HA state handoffs; there is no polling or
+  write interface.
+- The work remains local, passive, and not installed on VM 104.
+
 ## Unreleased – Phase 86 native Lovelace card / native Lovelace card
 
 ### Deutsch

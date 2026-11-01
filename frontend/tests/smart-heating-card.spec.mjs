@@ -30,6 +30,23 @@ test("editor emits the complete visual configuration", async ({ page }) => {
   expect(result.display_mode).toBe("compact"); expect(result.entry_id).toBe("fixture"); expect(result.visible_sections).toContain("rooms");
 });
 
+test("editor persists filter, order, sorting, visibility, and display options", async ({ page }) => {
+  const result = await page.evaluate(async () => { const editor = document.createElement("smart-heating-card-editor"); document.body.append(editor); editor.setConfig({ entry_id: "fixture", visible_sections: ["rooms", "operation"] }); return await new Promise((resolve) => { editor.addEventListener("config-changed", event => resolve(event.detail.config), { once: true }); editor.querySelector("[data-room-filter]").value = "bathroom, Küche"; editor.querySelector("[data-order]").value = "rooms, operation"; editor.querySelector("[data-sort]").value = "name"; editor.querySelector("[data-windows]").checked = false; editor.querySelector("[data-windows]").dispatchEvent(new Event("change", { bubbles: true })); }); });
+  expect(result.room_filter).toEqual(["bathroom", "Küche"]); expect(result.visible_sections.slice(0, 2)).toEqual(["rooms", "operation"]); expect(result.sort).toBe("name"); expect(result.show_windows).toBeFalsy();
+});
+
+test("deduplicates read-only calls for two cards using the same entry", async ({ page }) => {
+  await page.evaluate(() => { const card = document.querySelector("smart-heating-card"); const second = document.createElement("smart-heating-card"); document.body.append(second); second.setConfig({ entry_id: "shared-entry" }); second.hass = window.hass; card.setConfig({ entry_id: "shared-entry" }); card.hass = window.hass; });
+  await page.waitForTimeout(50); const entries = await page.evaluate(() => window.__calls.filter(call => call.entry_id === "shared-entry")); expect(entries).toHaveLength(1); expect(entries[0].type).toBe("smart_heating/plan/get");
+});
+
+test("refreshes only after a new HA state object and never writes", async ({ page }) => {
+  const before = await page.evaluate(() => window.__calls.length);
+  await page.evaluate(() => { const card = document.querySelector("smart-heating-card"); card.hass = { ...window.hass }; });
+  await expect.poll(async () => page.evaluate(() => window.__calls.length)).toBeGreaterThan(before);
+  const calls = await page.evaluate(() => window.__calls); expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
+
 test("updates live data without a polling loop", async ({ page }) => {
   const card = page.locator("smart-heating-card").first();
   await page.evaluate(() => { window.__fixtureState.status.zones[0].window_state = "open"; window.__fixtureState.status.observed.window_status = "open_or_tilted"; document.querySelector("smart-heating-card")._data = structuredClone(window.__fixtureState); document.querySelector("smart-heating-card")._render(); });
