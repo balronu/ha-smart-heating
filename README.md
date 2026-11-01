@@ -1,6 +1,6 @@
-# Smart Heating (Beta 37)
+# Smart Heating (Beta 38)
 
-## Phase 68 – Raumkontaktrollen erhalten
+## Phase 68 – Raumkontaktrollen erhalten (Beta 38)
 
 Die Raumverwaltung übernimmt gespeicherte Fensterkontaktrollen unverändert in
 die Raumdarstellung. Rollen wie `tilt` und `open` bleiben dadurch beim Laden

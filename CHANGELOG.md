@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased – Phase 68 contact-role projection fix
+## 0.1.0-beta.38 – Phase 68 contact-role projection fix
 
 ### Deutsch
 
