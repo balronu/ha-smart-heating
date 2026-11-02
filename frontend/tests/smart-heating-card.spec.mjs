@@ -371,3 +371,15 @@ test("dashboard special-mode tiles show icons and explicit observed activation",
   const calls = await page.evaluate(() => window.__calls);
   expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
 });
+
+
+test("dashboard room cards expose observed temperature and heating status without writes", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  const rooms = card.locator('[data-section="rooms"] .room-grid .room');
+  await expect(rooms.first()).toBeVisible();
+  await expect(rooms.first().locator(".facts")).toContainText("Ist:");
+  await expect(rooms.first().locator(".facts")).toContainText("Soll:");
+  await expect(rooms.first().locator(".facts")).toContainText("Heizung:");
+  const calls = await page.evaluate(() => window.__calls);
+  expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
