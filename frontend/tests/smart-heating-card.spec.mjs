@@ -402,6 +402,36 @@ test.describe("native dashboard beta.51", () => {
     await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");window.hass={...window.hass,states:{...window.hass.states,"input_number.heiztemperatur":{state:"22",attributes:{min:5,max:30,step:0.5}}}};card.hass=window.hass;});
     await expect(card.locator('details[data-panel="diagnostics"]')).toHaveAttribute("open","");
   });
+  test("updates helper states without rebuilding the DOM or losing scroll position",async({page})=>{
+    const card=page.locator("smart-heating-card").first();
+    await page.evaluate(()=>{
+      const card=document.querySelector("smart-heating-card");
+      card.__originalApp=card.querySelector(".sh-app");
+      card.__originalButton=card.querySelector('[data-toggle="input_boolean.party"]');
+      window.scrollTo(0,200);
+      window.hass={...window.hass,states:{...window.hass.states,
+        "input_number.heiztemperatur":{state:"22",attributes:{min:5,max:30,step:0.5}},
+        "input_boolean.party":{state:"on"}}};
+      card.hass=window.hass;
+    });
+    const result=await page.evaluate(()=>{
+      const card=document.querySelector("smart-heating-card");
+      return {sameApp:card.__originalApp===card.querySelector(".sh-app"),
+        sameButton:card.__originalButton===card.querySelector('[data-toggle="input_boolean.party"]'),
+        temp:card.querySelector('[data-temp="input_number.heiztemperatur"] strong')?.textContent,
+        mode:card.querySelector('[data-toggle="input_boolean.party"]')?.getAttribute("aria-pressed")};
+    });
+    expect(result.sameApp).toBe(true);
+    expect(result.sameButton).toBe(true);
+    expect(result.temp).toContain("22");
+    expect(result.mode).toBe("true");
+  });
+  test("opens climate room details through Home Assistant more-info",async({page})=>{
+    const card=page.locator("smart-heating-card").first();
+    await page.evaluate(()=>{window.__moreInfo=[];document.querySelector("smart-heating-card").addEventListener("hass-more-info",e=>window.__moreInfo.push(e.detail.entityId));});
+    const room=card.locator(".sh-room[data-climate]").first();
+    if(await room.count()){await room.click();expect((await page.evaluate(()=>window.__moreInfo)).length).toBe(1);}
+  });
   test("does not overflow at mobile viewport widths",async({page},testInfo)=>{
     const card=page.locator("smart-heating-card").first();
     const result=await card.locator(".sh-app").evaluate(node=>({right:node.getBoundingClientRect().right,viewport:document.documentElement.clientWidth,overflow:node.scrollWidth-node.clientWidth}));
