@@ -27,6 +27,7 @@ from .engine import calculate_status
 from .models import ScheduleValidationError, WeeklySchedule
 from .migration import preview_migration
 from .control import analyze_control_plane
+from .window_detail import classify_window_detail
 from .cleanup import build_cleanup_plan
 from .management import (
     area_suggestions,
@@ -396,20 +397,7 @@ def _observed_status(hass: HomeAssistant, config: dict[str, Any]) -> dict[str, A
         climate = state_of(config.get(CONF_TADO_FALLBACK)) or climate
     outdoor = state_of(config.get(CONF_OUTDOOR_TEMPERATURE))
     window_status = "unknown" if unknown_window else ("open_or_tilted" if windows and any(item["state"].lower() in {"on", "open", "opened", "offen", "true", "tilt", "tilted", "gekippt", "gekipp", "gekippte"} for item in windows) else "closed_or_clear" if windows else "unknown")
-    # Distinguish only explicit open/tilt values. Binary "on" is ambiguous.
-    window_values = [item["state"].strip().lower() for item in windows]
-    if not windows or unknown_window:
-        window_detail_status = "unknown"
-    elif any(value in {"open", "opened", "offen"} for value in window_values):
-        window_detail_status = "open"
-    elif any(value in {"on", "true", "1"} for value in window_values):
-        window_detail_status = "open_or_tilted"
-    elif any(value in {"tilt", "tilted", "gekippt", "gekipp", "gekippte"} for value in window_values):
-        window_detail_status = "tilted"
-    elif all(value in {"off", "false", "0", "closed", "geschlossen"} for value in window_values):
-        window_detail_status = "closed"
-    else:
-        window_detail_status = "unknown"
+    window_detail_status = classify_window_detail(item["state"] for item in windows)
     return {"climate": climate, "outdoor_temperature": outdoor, "windows": windows, "window_status": window_status, "window_detail_status": window_detail_status, "heat_demand_status": (climate or {}).get("hvac_action") or "unknown"}
 
 
