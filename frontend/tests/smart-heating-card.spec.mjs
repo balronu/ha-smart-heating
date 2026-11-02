@@ -432,6 +432,34 @@ test.describe("native dashboard beta.51", () => {
     const room=card.locator(".sh-room[data-climate]").first();
     if(await room.count()){await room.click();expect((await page.evaluate(()=>window.__moreInfo)).length).toBe(1);}
   });
+  test("renders configured custom special modes dynamically",async({page})=>{
+    await page.evaluate(()=>{
+      const card=document.querySelector("smart-heating-card");
+      card._data.management={special_modes:[{id:"custom",name:"Zusatzbetrieb",status_source:"input_boolean.zusatzbetrieb",enabled:true}]};
+      window.hass={...window.hass,states:{...window.hass.states,"input_boolean.zusatzbetrieb":{state:"on"}}};
+      card.hass=window.hass;card._render();
+    });
+    const card=page.locator("smart-heating-card").first();
+    await expect(card.locator('[data-mode-source="input_boolean.zusatzbetrieb"]')).toContainText("Zusatzbetrieb");
+    await expect(card.locator('[data-mode-source="input_boolean.zusatzbetrieb"]')).toHaveAttribute("aria-pressed","true");
+    await expect(card.locator('[data-mode-source="input_boolean.party"]')).toHaveCount(0);
+  });
+  test("shows infrared panel in bathroom and respects opt-in control",async({page})=>{
+    await page.evaluate(()=>{
+      const card=document.querySelector("smart-heating-card");
+      card._data.management={zones:[{id:"bathroom",name:"Badezimmer",type:"infrared",switch_entities:["switch.bad_ir"],thermostats:["climate.bathroom"]}]};
+      window.hass={...window.hass,states:{...window.hass.states,"switch.bad_ir":{state:"on"}}};
+      card.hass=window.hass;card._render();
+    });
+    const card=page.locator("smart-heating-card").first();
+    const ir=card.locator('[data-ir-switch="switch.bad_ir"]');
+    await expect(ir).toContainText("Infrarot-Panel: Ein");
+    await expect(ir).toBeDisabled();
+    await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card.setConfig({...card._config,allow_manual_ir_control:true});card.hass=window.hass;});
+    await expect(ir).toBeEnabled();
+    await ir.click();
+    expect(await page.evaluate(()=>window.__services)).toContainEqual({domain:"switch",service:"turn_off",data:{entity_id:"switch.bad_ir"}});
+  });
   test("does not overflow at mobile viewport widths",async({page},testInfo)=>{
     const card=page.locator("smart-heating-card").first();
     const result=await card.locator(".sh-app").evaluate(node=>({right:node.getBoundingClientRect().right,viewport:document.documentElement.clientWidth,overflow:node.scrollWidth-node.clientWidth}));
