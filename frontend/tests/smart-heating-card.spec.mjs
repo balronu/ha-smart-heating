@@ -403,3 +403,16 @@ test("dashboard displays eight ordered read-only legacy priority cards", async (
   const calls = await page.evaluate(() => window.__calls);
   expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
 });
+
+
+test("dashboard automation badge never assumes an unknown automation is active", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  const badge = card.locator('[data-testid="automation-status"]');
+  await expect(badge).toHaveAttribute("data-state", /^(on|off|unknown)$/);
+  const state = await badge.getAttribute("data-state");
+  if (state === "unknown") await expect(badge).toContainText("unbekannt");
+  if (state === "off") await expect(badge).toContainText("deaktiviert");
+  if (state === "on") await expect(badge).toContainText("aktiv");
+  const calls = await page.evaluate(() => window.__calls);
+  expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
