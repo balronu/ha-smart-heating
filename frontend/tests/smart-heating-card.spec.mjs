@@ -120,3 +120,14 @@ test("beta46 infrared switch shows actual HA on/off state without sending comman
  await expect(card.locator("[data-room=ir]")).toContainText("Eingeschaltet");
  expect(await page.evaluate(()=>window.__calls.every(call=>call.type==="smart_heating/plan/get"))).toBeTruthy();
 });
+
+
+test("beta46 current HA off state overrides stale special-mode active snapshot", async ({ page }) => {
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");window.hass.states={"input_boolean.party":{state:"off"}};card._data.options.management.special_modes=[{id:"party",name:"Party",active:true,status_source:"input_boolean.party",available:true}];card._render();});
+ await expect(page.locator("smart-heating-card").first().locator("[data-special-mode=party]")).toContainText("Inaktiv");
+});
+
+test("beta46 editor persists visible special-mode count", async ({ page }) => {
+ const result=await page.evaluate(async()=>{const editor=document.createElement("smart-heating-card-editor");document.body.append(editor);editor.setConfig({entry_id:"fixture"});return await new Promise(resolve=>{editor.addEventListener("config-changed",e=>resolve(e.detail.config),{once:true});const input=editor.querySelector("[data-visible-modes]");input.value="6";input.dispatchEvent(new Event("change",{bubbles:true}));});});
+ expect(result.visible_mode_count).toBe(6);
+});
