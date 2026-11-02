@@ -55,7 +55,10 @@ def compare_shadow_decision(
     legacy_age_seconds = None
     if legacy_timestamp is not None:
         legacy_age_seconds = (timestamp - legacy_timestamp).total_seconds()
-    if not proven or legacy_target is None:
+    if simulated:
+        result = "comparison_not_possible"
+        reason = "Simulierte Legacy-Daten sind kein Live-Nachweis für eine Übereinstimmung."
+    elif not proven or legacy_target is None:
         result = "comparison_not_possible"
         reason = "Keine nachgewiesene Legacy-Entscheidung oder kein Legacy-Sollwert verfügbar."
     elif legacy_timestamp is None:
