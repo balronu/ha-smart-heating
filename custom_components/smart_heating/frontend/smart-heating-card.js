@@ -70,6 +70,7 @@ class SmartHeatingCard extends HTMLElement {
     const st=id=>this._hass?.states?.[id];
     const valid=id=>st(id)&&!["unknown","unavailable"].includes(st(id).state);
     const automation=st("automation.heizung_automatik_ersetzt_node_red")?.state;
+    const release=this.querySelector(".sh-release");if(release)release.textContent=st("input_boolean.heizung_freigabe")?.state==="on"?"Heizfreigabe: Ein":st("input_boolean.heizung_freigabe")?.state==="off"?"Heizfreigabe: Aus":"Heizfreigabe: Unbekannt";
     const status=this.querySelector(".sh-state");
     if(status)status.textContent=automation==="on"?"● Automatik aktiv":automation==="off"?"○ Automatik aus":"Automatik unbekannt";
     this.querySelectorAll(".sh-tile[data-temp]").forEach(tile=>{
@@ -125,8 +126,9 @@ class SmartHeatingCard extends HTMLElement {
     </style>`;
     this.innerHTML=`<ha-card><div class="sh-app">${css}<div class="sh-head"><div><h2>♨ ${esc(this._config.title||"Smart Heating")}</h2><small>Heizungsautomatik bleibt zuständig · ${esc(this._data?.version||"")}</small></div><span class="sh-state">${automation==="on"?"● Automatik aktiv":automation==="off"?"○ Automatik aus":"Automatik unbekannt"}</span></div>
       ${this._error?`<p class="sh-feedback" role="alert">${esc(this._error)}</p>`:""}
+      <p class="sh-foot sh-release">Heizfreigabe: ${st("input_boolean.heizung_freigabe")?.state==="on"?"Ein":st("input_boolean.heizung_freigabe")?.state==="off"?"Aus":"Unbekannt"}</p>
       <section class="sh-section"><h3>Temperaturen</h3><div class="sh-grid">${tempTile("input_number.heiztemperatur","Heizen","🌡")}${tempTile("input_number.absenktemperatur","Absenken","☾")}</div></section>
-      <div class="sh-bottom"><div><section class="sh-section"><h3>Wochenprogramm</h3>${scheduleHtml}<p class="sh-foot">Nächster Wechsel: ${esc(formatTime(next))}</p></section><section class="sh-section"><h3>Räume</h3>${rooms||'<p class="sh-muted">Keine Räume konfiguriert</p>'}</section></div><div><section class="sh-section"><h3>Sondermodi</h3><div class="sh-modes">${modes}</div></section><section class="sh-section"><details data-panel="diagnostics"><summary>Diagnose & Prioritäten</summary><div class="sh-detail">${this._priorities()}${this._diagnostics()}</div></details></section></div></div>
+      <div class="sh-bottom"><div><section class="sh-section"><h3>Wochenprogramm</h3>${scheduleHtml}<p class="sh-foot">Nächster Wechsel: ${esc(formatTime(next))}</p></section><section class="sh-section"><h3>Räume</h3>${rooms||'<p class="sh-muted">Keine Räume konfiguriert</p>'}<p class="sh-foot">Weitere Räume erscheinen nach ihrer Einrichtung als Smart-Heating-Zonen.</p></section></div><div><section class="sh-section"><h3>Sondermodi</h3><div class="sh-modes">${modes}</div></section><section class="sh-section"><details data-panel="diagnostics"><summary>Diagnose & Prioritäten</summary><div class="sh-detail">${this._priorities()}${this._diagnostics()}</div></details></section></div></div>
       <p class="sh-foot">Temperatur- und Modusänderungen wirken ausschließlich auf vorhandene Home-Assistant-Helfer. Die bestehende Heizungsautomation bleibt unverändert.</p>
     </div></ha-card>`;
     this.querySelectorAll("details").forEach(el=>{el.open=currentOpen.has(el.dataset.panel);});
