@@ -38,8 +38,7 @@ class SmartHeatingCard extends HTMLElement {
     for(const room of this._rooms()){
       for(const ref of [...(room.temperatures||room.temperature_entities||[]),...(room.thermostats||room.thermostat_entities||[]),...(room.switch_entities||room.switches||[])])add(ref);
     }
-    const modes=this._management().special_modes||[];
-    for(const mode of Array.isArray(modes)?modes:[])add(mode.status_source);
+    for(const mode of this._dashboardModes())add(mode.source);
     return [...ids].sort().map(id=>{
       const state=this._hass?.states?.[id];
       return [id,state?.state,state?.attributes?.current_temperature,state?.attributes?.temperature,state?.attributes?.hvac_action];
@@ -69,7 +68,7 @@ class SmartHeatingCard extends HTMLElement {
   _dashboardModes(){
     const configured=this._management().special_modes;
     if(!Array.isArray(configured)||!configured.length){
-      return [["party","Party"],["besuch","Besuch"],["heimweg","Heimweg"],["heizung_sommermodus","Sommermodus"],["schornsteinfeger","Schornsteinfeger"]].filter(([id])=>this._hass?.states?.["input_boolean."+id]).map(([id,name])=>({id,name,status_source:"input_boolean."+id})).map(mode=>({id:mode.id,label:mode.name,source:mode.status_source,icon:"◉",enabled:true}));
+      return [["party","Party"],["besuch","Besuch"],["heimweg","Heimweg"],["heizung_sommermodus","Sommermodus"],["schornsteinfeger","Schornsteinfeger"]].map(([id,name])=>({id,name,status_source:"input_boolean."+id})).map(mode=>({id:mode.id,label:mode.name,source:mode.status_source,icon:"◉",enabled:true}));
     }
     return configured.filter(mode=>mode&&mode.id).map(mode=>{
       const source=typeof mode.status_source==="string"?mode.status_source:"";
@@ -136,7 +135,7 @@ class SmartHeatingCard extends HTMLElement {
     };
     const modes=this._dashboardModes().map(mode=>{
       const state=st(mode.source)?.state,on=state==="on",available=mode.enabled&&["on","off"].includes(state);
-      const canToggle=available&&mode.source.startsWith("input_boolean.");
+      const canToggle=mode.enabled&&mode.source.startsWith("input_boolean.");
       return `<button class="sh-mode ${on?"sh-on":""}" data-mode-source="${esc(mode.source)}" ${canToggle?`data-toggle="${esc(mode.source)}"`:""} ${!canToggle?"disabled":""} aria-pressed="${on}"><span>${mode.icon} ${esc(mode.label)}</span><small>${!available?"Nicht verfügbar":on?"Aktiv":canToggle?"Aus":"Inaktiv · nur Anzeige"}</small></button>`;
     }).join("");
     const schedule=this._data?.schedule||{};
