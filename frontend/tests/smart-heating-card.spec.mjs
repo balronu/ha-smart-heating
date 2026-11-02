@@ -152,3 +152,15 @@ test("beta46 priority navigation expands hidden special mode", async ({ page }) 
  await card.locator("[data-priority-mode=visit]").click();
  await expect(card.locator("[data-special-mode=visit]")).toBeVisible();
 });
+
+
+test("beta46 pinned rooms appear before other configured rooms", async ({ page }) => {
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._config.pinned_rooms=["bedroom"];card._config.visible_room_count=1;card._data.options.management.zones=[{id:"bathroom",name:"Bad"},{id:"bedroom",name:"Schlafzimmer"}];card._render();});
+ const first=page.locator("smart-heating-card").first().locator('[data-section="rooms"] .room').first();
+ await expect(first).toHaveAttribute("data-room","bedroom");
+});
+
+test("beta46 editor saves pinned room selection", async ({ page }) => {
+ const result=await page.evaluate(async()=>{const editor=document.createElement("smart-heating-card-editor");document.body.append(editor);editor.setConfig({entry_id:"fixture"});return await new Promise(resolve=>{editor.addEventListener("config-changed",e=>resolve(e.detail.config),{once:true});const input=editor.querySelector("[data-pinned-rooms]");input.value="bedroom, bathroom";input.dispatchEvent(new Event("change",{bubbles:true}));});});
+ expect(result.pinned_rooms).toEqual(["bedroom","bathroom"]);
+});
