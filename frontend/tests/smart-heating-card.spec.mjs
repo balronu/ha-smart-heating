@@ -312,7 +312,7 @@ test("beta46 does not misrepresent combined backend window status", async ({ pag
 test("all eight reference priorities link to known backend settings sections", async ({ page }) => {
  const links=page.locator("smart-heating-card").first().locator(".priority-chain li a");
  await expect(links).toHaveCount(8);
- const allowed=new Set(["schedule","windows","persons","rooms","special_modes"]);
+ const allowed=new Set(["safety","windows","persons","rooms"]);
  for (const link of await links.all()) {
    const href=await link.getAttribute("href");
    expect(href.startsWith("/smart_heating#section=")).toBe(true);
