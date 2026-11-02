@@ -400,10 +400,10 @@ def _observed_status(hass: HomeAssistant, config: dict[str, Any]) -> dict[str, A
     window_values = [item["state"].strip().lower() for item in windows]
     if not windows or unknown_window:
         window_detail_status = "unknown"
-    elif any(value in {"on", "true", "1"} for value in window_values):
-        window_detail_status = "open_or_tilted"
     elif any(value in {"open", "opened", "offen"} for value in window_values):
         window_detail_status = "open"
+    elif any(value in {"on", "true", "1"} for value in window_values):
+        window_detail_status = "open_or_tilted"
     elif any(value in {"tilt", "tilted", "gekippt", "gekipp", "gekippte"} for value in window_values):
         window_detail_status = "tilted"
     elif all(value in {"off", "false", "0", "closed", "geschlossen"} for value in window_values):
