@@ -691,3 +691,28 @@ test("weekly planner switches days without nested narrow editors", async ({ page
   await expect(page.locator('[data-day-editor="monday"]')).toHaveCount(0);
   await expect(page.locator(".day-grid .day-editor")).toHaveCount(0);
 });
+
+
+test("schedule inputs retain focus and DOM identity while typing", async ({ page }) => {
+  await page.locator('button[data-schedule-edit="monday"]').click();
+  await page.locator('[data-schedule-add="monday"]').click();
+  const input = page.locator('[data-day-editor="monday"] [data-schedule-input="target_temperature"]').first();
+  await input.focus();
+  await input.fill("21");
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue("21");
+  await expect(page.locator(".save-feedback")).toContainText("nicht gespeichert");
+});
+
+test("copying windows uses clickable German weekday choices and keeps changes unsaved", async ({ page }) => {
+  await page.locator('button[data-schedule-edit="monday"]').click();
+  await page.locator('[data-schedule-add="monday"]').click();
+  await page.locator('[data-schedule-copy]').click();
+  await expect(page.locator("[data-copy-dialog]")).toContainText("Dienstag");
+  await expect(page.locator("[data-copy-dialog]")).toContainText("Sonntag");
+  await page.locator('[data-copy-target="tuesday"]').check();
+  await page.locator("[data-copy-apply]").click();
+  await expect(page.locator("[data-copy-dialog]")).toHaveCount(0);
+  await expect(page.locator('[data-schedule-day="tuesday"]')).toContainText("06:00");
+  await expect(page.locator(".save-feedback")).toContainText("nicht gespeichert");
+});
