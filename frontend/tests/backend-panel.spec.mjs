@@ -744,7 +744,9 @@ test("weekday copy tiles remain readable and clickable on responsive screens", a
 test("migration preview is explicitly read-only and cannot activate heating", async ({ page }) => {
   const section = page.locator("details[data-section=migration]");
   await section.locator(":scope > summary").click();
-  await expect(section).toContainText("Keine Änderungen vorgenommen");
+  await expect(section).toContainText("Ungültiger Temperaturwert");
+  await expect(section).toContainText("input_number.heiztemperatur");
+  await expect(section).toContainText("nicht als gültiger Wert bestätigt");
   await expect(section.getByRole("button")).toHaveCount(0);
   await expect(page.locator("main.smart-heating-backend")).toContainText("Passiver Kompatibilitätsmodus");
 });
