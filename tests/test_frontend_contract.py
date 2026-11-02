@@ -39,6 +39,16 @@ class FrontendContractTests(unittest.TestCase):
         self.assertNotIn("smart_heating/admin/zone/set", source)
         self.assertNotIn("smart_heating/admin/person/set", source)
 
+    def test_dashboard_uses_card_width_and_preserves_expansion(self):
+        source = Path("custom_components/smart_heating/frontend/smart-heating-card.js").read_text()
+        self.assertIn("container-type:inline-size", source)
+        self.assertIn("@container (max-width:680px)", source)
+        self.assertIn("align-items:start", source)
+        self.assertIn("const openSections=new Set(", source)
+        self.assertIn("const expandedModes=", source)
+        self.assertIn('node.open=true', source)
+        self.assertIn('extra.forEach(el=>el.hidden=!expandedModes)', source)
+
     def test_integration_registers_one_versioned_extra_js_resource(self):
         source = Path("custom_components/smart_heating/__init__.py").read_text()
         self.assertIn('StaticPathConfig("/smart_heating"', source)
