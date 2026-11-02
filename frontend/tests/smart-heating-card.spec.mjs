@@ -7,8 +7,8 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("smart-heating-card").first().locator(".footer-note")).toContainText("Heizungs-, Thermostat-, Scheduler- und Sondermodus-Steuerung bleibt unverändert");
 });
 
-test("renders detailed passive overview and all weekdays", async ({ page }, testInfo) => {
-  await expect(page.locator("[data-display-mode=detailed]").first()).toBeVisible();
+test("renders dashboard passive overview and all weekdays", async ({ page }, testInfo) => {
+  await expect(page.locator("[data-display-mode=dashboard]").first()).toBeVisible();
   await expect(page.locator("smart-heating-card").first().locator("section[data-section=schedule] .day-row")).toHaveCount(7);
   await expect(page.locator("smart-heating-card").first().locator("section[data-section=rooms] .room strong").first()).toHaveText("Badezimmer");
   await page.screenshot({ path: `test-results/${testInfo.project.name}-lovelace-detailed.png`, fullPage: true });
@@ -67,7 +67,7 @@ test("uses the full narrow viewport without horizontal overflow", async ({ page 
 test("beta46 renders responsive theme-aware rooms and collapsible special modes", async ({ page }) => {
   const card = page.locator("smart-heating-card").first();
   await expect(card.locator("section[data-section=rooms] .room-grid")).toBeVisible();
-  await expect(card.locator("section[data-section=special_modes] details.expandable")).toHaveCount(1);
+  await expect(card.locator("section[data-section=special_modes] .mode-grid")).toHaveCount(1);
   await expect(card.locator("section[data-section=special_modes] .scroll-area")).toBeVisible();
   await expect(card.locator("section[data-section=diagnostics] details.expandable")).toHaveCount(1);
   await expect(card.locator("section[data-section=schedule] .day-row")).toHaveCount(7);
@@ -230,7 +230,7 @@ test("beta46 infrared-only zone is excluded from thermostat temperatures", async
  const card=page.locator("smart-heating-card").first();
  await expect(card.locator('[data-section="rooms"] [data-room="ir"]')).toHaveCount(1);
  await expect(card.locator('[data-section="temperatures"] [data-room="ir"]')).toHaveCount(0);
- await expect(card.locator('[data-section="temperatures"]')).toContainText("Keine thermostatisch geregelten Räume verfügbar.");
+ await expect(card.locator('[data-section="temperatures"]')).toContainText("Heiztemperatur");
 });
 
 
@@ -330,4 +330,13 @@ test("beta46 main card remains within viewport across phone tablet and desktop w
    expect(dimensions.right).toBeLessThanOrEqual(width+2);
    expect(dimensions.bodyWidth).toBeLessThanOrEqual(width+2);
  }
+});
+
+
+test("dashboard mode is available in the Lovelace editor and stays read-only", async ({ page }) => {
+  const editor = page.locator("smart-heating-card-editor").first();
+  await expect(editor.locator('[data-mode] option[value="dashboard"]')).toHaveCount(1);
+  await expect(page.locator("smart-heating-card").first().locator('[data-display-mode="dashboard"]')).toBeVisible();
+  const calls = await page.evaluate(() => window.__calls);
+  expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
 });
