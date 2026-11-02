@@ -7,9 +7,9 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("smart-heating-card").first().locator(".footer-note")).toContainText("Heizungs-, Thermostat-, Scheduler- und Sondermodus-Steuerung bleibt unverändert");
 });
 
-test("renders dashboard passive overview and all weekdays", async ({ page }, testInfo) => {
+test("renders dashboard passive overview and compact weekday groups", async ({ page }, testInfo) => {
   await expect(page.locator("[data-display-mode=dashboard]").first()).toBeVisible();
-  await expect(page.locator("smart-heating-card").first().locator("section[data-section=schedule] .day-row")).toHaveCount(7);
+  await expect(page.locator("smart-heating-card").first().locator("section[data-section=schedule] .day-row").first()).toBeVisible();
   await expect(page.locator("smart-heating-card").first().locator("section[data-section=rooms] .room strong").first()).toHaveText("Badezimmer");
   await page.screenshot({ path: `test-results/${testInfo.project.name}-lovelace-detailed.png`, fullPage: true });
 });
@@ -70,7 +70,7 @@ test("beta46 renders responsive theme-aware rooms and collapsible special modes"
   await expect(card.locator("section[data-section=special_modes] .mode-grid")).toHaveCount(1);
   await expect(card.locator("section[data-section=special_modes] .scroll-area")).toBeVisible();
   await expect(card.locator("section[data-section=diagnostics] details.expandable")).toHaveCount(1);
-  await expect(card.locator("section[data-section=schedule] .day-row")).toHaveCount(7);
+  await expect(card.locator("section[data-section=schedule] .day-row").first()).toBeVisible();
   const style = await card.locator("style[data-smart-heating-card-style]").textContent();
   expect(style).toContain("var(--primary-text-color)");
   expect(style).toContain("var(--card-background-color");
@@ -79,10 +79,9 @@ test("beta46 renders responsive theme-aware rooms and collapsible special modes"
 test("beta46 schedule hides seconds and duplicate weekday abbreviations", async ({ page }) => {
   const card = page.locator("smart-heating-card").first();
   await page.evaluate(() => {const card=document.querySelector("smart-heating-card");card._data.schedule.monday=[{start:"05:30:00",end:"21:00:00"}];card._render();});
-  await expect(card.locator("[data-day=monday]")).toContainText("05:30–21:00");
-  await expect(card.locator("[data-day=monday]")).not.toContainText("05:30:00");
-  const shortDisplay = await card.locator("[data-day=monday] .day-short").evaluate(node=>getComputedStyle(node).display);
-  expect(shortDisplay).toBe("none");
+  await expect(card.locator('[data-days~="monday"]')).toContainText("05:30–21:00");
+  await expect(card.locator('[data-days~="monday"]')).not.toContainText("05:30:00");
+  await expect(card.locator('[data-days~="monday"]')).toHaveCount(1);
 });
 
 
