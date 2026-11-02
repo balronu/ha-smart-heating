@@ -165,3 +165,10 @@ class MigrationTransaction:
             raise RuntimeError("No migration snapshot exists")
         self.transport.restore(self.snapshot_data)
         self.state = MigrationState.ROLLED_BACK
+
+
+def inspect_legacy_helpers(hass: Any) -> dict[str, Any]:
+    """Read known heating helper states without changing Home Assistant."""
+    ids = ("input_boolean.heizung", "input_boolean.heizung_freigabe", "input_boolean.heizung_sommermodus", "input_boolean.party", "input_boolean.besuch", "input_boolean.heimweg", "input_boolean.schornsteinfeger", "input_number.heiztemperatur", "input_number.absenktemperatur")
+    states = {item.entity_id: item for domain in ("input_boolean", "input_number") for item in hass.states.async_all(domain)}
+    return {entity_id: {"state": states[entity_id].state, "available": states[entity_id].state not in ("unknown", "unavailable")} if entity_id in states else {"state": None, "available": False} for entity_id in ids}
