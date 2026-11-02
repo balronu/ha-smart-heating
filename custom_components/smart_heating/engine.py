@@ -24,9 +24,19 @@ def calculate_status(
     active = schedule.active_at(now, timezone)
     next_switch, next_state = schedule.next_switch(now, timezone)
     active_window = schedule.active_window_at(now, timezone)
+    # Legacy summer comfort override depends on measured room temperature.
+    # This remains a passive calculation; no climate services are called.
+    effective_overrides = dict(overrides or {})
+    measured = context.get("room_temperature")
+    comfort = context.get("comfort_temperature")
+    if measured is not None and comfort is not None:
+        try:
+            effective_overrides["need_heat_now"] = float(measured) < float(comfort) - 0.4
+        except (TypeError, ValueError):
+            pass
     decision = evaluate_decision(
         schedule_active=active,
-        overrides=overrides,
+        overrides=effective_overrides,
         comfort_temperature=context.get("comfort_temperature"),
         night_temperature=context.get("night_temperature"),
         chimney_temperature=context.get("chimney_temperature", 25.0),

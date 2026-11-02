@@ -1,3 +1,12 @@
+## v0.1.0-beta.46 (vorbereitet – passiver Betrieb)
+
+- Lovelace-Karte: iPhone-Wochenplan mit vollständigen Wochentagsnamen; 388 UI-Tests nach dem Layout-Fix erfolgreich.
+- Referenz-Wochenplan aus Nutzerangaben: Montag bis Freitag 05:30–21:00, Wochenende 07:00–22:00; kein automatischer Import.
+- Migration: Legacy-Automation, fehlende Helfer und aktive konkurrierende Steuerung werden im read-only Preview als Blocker angezeigt.
+- Sommermodus: passive Komfortanforderung bei Raumtemperatur unter Sollwert minus 0,4 °C, mit Regressionstest.
+- Kein Umschalten der bestehenden Heizungsautomation, keine zusätzlichen Backups, keine Aktivierung der SMART-Steuerung.
+- Vollständige Live-Parität und Reset-Automation sind nicht nachgewiesen; aktive Migration bleibt gesperrt.
+
 ## v0.1.0-beta.43 (vorbereitet)
 
 - Responsiver Kopierdialog mit sechs vollständig anklickbaren Wochentagskacheln, ausgerichteten Checkboxen und lesbaren, nicht umgebrochenen Tagesnamen.

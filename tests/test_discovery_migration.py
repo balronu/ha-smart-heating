@@ -8,7 +8,7 @@ _package.__path__ = [str(Path(__file__).parents[1] / "custom_components" / "smar
 sys.modules.setdefault("custom_components.smart_heating", _package)
 
 from custom_components.smart_heating.discovery import discover_entities
-from custom_components.smart_heating.migration import MigrationState, MigrationTransaction, preview_migration
+from custom_components.smart_heating.migration import MigrationState, MigrationTransaction, preview_migration, inspect_legacy_helpers, inspect_legacy_automation
 
 
 class FakeState:
@@ -80,6 +80,60 @@ class DiscoveryMigrationTests(unittest.TestCase):
         self.assertEqual(result["roles"]["presence_entities"]["selected"], ["person.michael"])
         self.assertEqual(result["selected"]["special_modes"]["party"], "input_boolean.party")
 
+    def test_legacy_automation_state_never_claims_rule_parity(self):
+        class PublicStates(FakeStates):
+            def get(self, entity_id):
+                return next((item for item in self.items if item.entity_id == entity_id), None)
+
+        hass = FakeHass([FakeState("automation.heizung_automatik_ersetzt_node_red", "Legacy", "on")])
+        hass.states = PublicStates(hass.states.items)
+        result = inspect_legacy_automation(hass)
+        self.assertTrue(result["present"])
+        self.assertTrue(result["enabled"])
+        self.assertFalse(result["rules_verified"])
+        self.assertFalse(preview_migration(hass, FakeEntry())["legacy_automation"]["rules_verified"])
+        hass.states.items[0].state = "off"
+        self.assertFalse(inspect_legacy_automation(hass)["enabled"])
+        hass.states.items[0].state = "unavailable"
+        self.assertIsNone(inspect_legacy_automation(hass)["enabled"])
+
+    def test_preview_flags_active_and_unknown_legacy_writer(self):
+        class PublicStates(FakeStates):
+            def get(self, entity_id):
+                return next((item for item in self.items if item.entity_id == entity_id), None)
+
+        hass = FakeHass([FakeState("automation.heizung_automatik_ersetzt_node_red", "Legacy", "on")])
+        hass.states = PublicStates(hass.states.items)
+        active = preview_migration(hass, FakeEntry())
+        self.assertIn("legacy_automation_active", {item["code"] for item in active["conflicts"]})
+        self.assertFalse(active["activation_allowed"])
+        hass.states.items[0].state = "unavailable"
+        unknown = preview_migration(hass, FakeEntry())
+        self.assertIn("legacy_automation_state_unknown", {item["code"] for item in unknown["conflicts"]})
+        hass.states.items[0].state = "off"
+        disabled = preview_migration(hass, FakeEntry())
+        self.assertNotIn("legacy_automation_active", {item["code"] for item in disabled["conflicts"]})
+        self.assertFalse(disabled["activation_allowed"])
+
+    def test_reference_schedule_matches_supplied_weekday_and_weekend_times(self):
+        from custom_components.smart_heating.migration import REFERENCE_SCHEDULE
+
+        for day in ("monday", "tuesday", "wednesday", "thursday", "friday"):
+            self.assertEqual(REFERENCE_SCHEDULE[day], [{"start": "05:30", "end": "21:00"}])
+        for day in ("saturday", "sunday"):
+            self.assertEqual(REFERENCE_SCHEDULE[day], [{"start": "07:00", "end": "22:00"}])
+        self.assertFalse(preview_migration(FakeHass([]), FakeEntry())["activation_allowed"])
+
+    def test_rule_parity_requires_review_of_all_legacy_behaviors(self):
+        result = preview_migration(FakeHass([]), FakeEntry())
+        parity = result["rule_parity"]
+        self.assertFalse(parity["verified"])
+        self.assertIn("priority_order", parity["required"])
+        self.assertIn("reset_automation", parity["required"])
+        self.assertIn("window_handling", parity["required"])
+        self.assertIn("legacy_rules_unverified", {item["code"] for item in result["conflicts"]})
+        self.assertFalse(result["activation_allowed"])
+
     def test_preview_never_imports_fixture_and_reports_conflicts(self):
         hass = FakeHass([FakeState("input_boolean.heizung", "Heizung")])
         result = preview_migration(hass, FakeEntry())
@@ -97,6 +151,22 @@ class DiscoveryMigrationTests(unittest.TestCase):
         self.assertEqual(result["source"], "manual_ui_proposal")
         self.assertEqual(result["proposed_schedule"]["monday"][0]["start"], "05:30:00")
         self.assertEqual(result["rollback"]["prepared"], False)
+
+    def test_preview_exposes_missing_and_unavailable_helpers_without_assuming_off(self):
+        hass = FakeHass([
+            FakeState("input_boolean.party", "Party", "unavailable"),
+            FakeState("input_boolean.besuch", "Besuch", "on"),
+            FakeState("input_number.heiztemperatur", "Heiztemperatur", "21"),
+        ])
+        result = preview_migration(hass, FakeEntry())
+        missing = result["missing_legacy_helpers"]
+        self.assertIn("input_boolean.party", missing)
+        self.assertIn("input_boolean.schornsteinfeger", missing)
+        self.assertNotIn("input_boolean.besuch", missing)
+        self.assertNotIn("input_number.heiztemperatur", missing)
+        self.assertIn("missing_legacy_helpers", {item["code"] for item in result["conflicts"]})
+        self.assertFalse(result["activation_allowed"])
+        self.assertFalse(result["automatic_import"])
 
     def test_transaction_requires_explicit_confirmation_and_rolls_back_on_readback_failure(self):
         plan = {"proposed_schedule": {"monday": [{"start": "05:30:00", "end": "06:00:00"}]}, "activation_allowed": True}
@@ -128,3 +198,42 @@ class DiscoveryMigrationTests(unittest.TestCase):
         result = preview_migration(hass, FakeEntry(), {"monday": [{"start": "05:30", "end": "06:00"}]})
         self.assertTrue(result["installation"]["compatibility_ready"])
         self.assertFalse(result["installation"]["full_mode_ready"])
+
+
+class LegacyHelperInventoryTests(unittest.TestCase):
+    def test_reads_known_helpers_only(self):
+        hass = FakeHass([FakeState("input_boolean.party", "Party", "on"), FakeState("input_number.heiztemperatur", "Komfort", "22"), FakeState("input_boolean.unrelated", "Other", "on")])
+        result = inspect_legacy_helpers(hass)
+        self.assertEqual(result["input_boolean.party"]["state"], "on")
+        self.assertEqual(result["input_number.heiztemperatur"]["state"], "22")
+        self.assertFalse(result["input_boolean.schornsteinfeger"]["available"])
+        self.assertNotIn("input_boolean.unrelated", result)
+
+    def test_invalid_or_unknown_helper_values_are_not_migration_inputs(self):
+        hass = FakeHass([
+            FakeState("input_boolean.party", "Party", "unknown"),
+            FakeState("input_boolean.besuch", "Besuch", "unexpected"),
+            FakeState("input_number.heiztemperatur", "Komfort", "nan"),
+            FakeState("input_number.absenktemperatur", "Absenkung", "17"),
+        ])
+        result = inspect_legacy_helpers(hass)
+        self.assertFalse(result["input_boolean.party"]["available"])
+        self.assertFalse(result["input_boolean.party"]["valid"])
+        self.assertTrue(result["input_boolean.besuch"]["available"])
+        self.assertFalse(result["input_boolean.besuch"]["valid"])
+        self.assertFalse(result["input_number.heiztemperatur"]["valid"])
+        self.assertTrue(result["input_number.absenktemperatur"]["valid"])
+        self.assertFalse(result["input_boolean.schornsteinfeger"]["valid"])
+
+    def test_migration_preview_warns_about_present_invalid_helpers(self):
+        hass = FakeHass([
+            FakeState("input_boolean.party", "Party", "invalid"),
+            FakeState("input_number.heiztemperatur", "Heiztemperatur", "nan"),
+        ])
+        result = preview_migration(hass, FakeEntry())
+        self.assertEqual(set(result["invalid_legacy_helpers"]), {
+            "input_boolean.party", "input_number.heiztemperatur"
+        })
+        self.assertIn("invalid_legacy_helpers", {item["code"] for item in result["conflicts"]})
+        self.assertFalse(result["activation_allowed"])
+        self.assertFalse(result["automatic_import"])

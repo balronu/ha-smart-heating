@@ -16,9 +16,9 @@ REFERENCE_SCHEDULE = {
     "tuesday": [{"start": "05:30", "end": "21:00"}],
     "wednesday": [{"start": "05:30", "end": "21:00"}],
     "thursday": [{"start": "05:30", "end": "21:00"}],
-    "friday": [{"start": "05:30", "end": "22:00"}],
+    "friday": [{"start": "05:30", "end": "21:00"}],
     "saturday": [{"start": "07:00", "end": "22:00"}],
-    "sunday": [{"start": "07:00", "end": "21:00"}],
+    "sunday": [{"start": "07:00", "end": "22:00"}],
 }
 
 
@@ -62,6 +62,22 @@ def build_installation_plan(discovery: Mapping[str, Any], control_plane: Mapping
     }
 
 
+def inspect_legacy_automation(hass: Any) -> dict[str, Any]:
+    """Read the public state of the known legacy automation; never infer its rules."""
+    entity_id = "automation.heizung_automatik_ersetzt_node_red"
+    state = hass.states.get(entity_id) if hasattr(hass.states, "get") else None
+    if state is None:
+        return {"entity_id": entity_id, "present": False, "enabled": None, "rules_verified": False}
+    raw = str(state.state)
+    return {
+        "entity_id": entity_id,
+        "present": True,
+        "enabled": True if raw == "on" else False if raw == "off" else None,
+        "rules_verified": False,
+        "rules_source": "not_available_from_public_state",
+    }
+
+
 def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Build a proposal from public state only; no writes or services."""
     discovery = discover_entities(hass)
@@ -86,6 +102,21 @@ def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] 
     if selected.get("heating_boolean"):
         conflicts.append(_conflict("existing_writer", "error", "The existing heating helper may have writers outside this integration; single-writer safety cannot be proven through supported read-only APIs."))
     installation = build_installation_plan(discovery, control_plane)
+    legacy_helpers = inspect_legacy_helpers(hass)
+    legacy_automation = inspect_legacy_automation(hass)
+    conflicts.append(_conflict("legacy_rules_unverified", "error", "The public automation state does not expose triggers, conditions, actions, or priority order; rule parity requires an independently reviewed configuration export."))
+    if legacy_automation["present"] and legacy_automation["enabled"] is True:
+        conflicts.append(_conflict("legacy_automation_active", "error", "The existing heating automation is active; no second writer may be enabled."))
+    elif legacy_automation["present"] and legacy_automation["enabled"] is None:
+        conflicts.append(_conflict("legacy_automation_state_unknown", "error", "The existing automation state is unavailable; writer ownership cannot be verified."))
+    elif not legacy_automation["present"]:
+        conflicts.append(_conflict("legacy_automation_not_found", "warning", "The known legacy automation was not found in public states; its absence does not prove there are no other writers."))
+    invalid_helpers = [entity_id for entity_id, item in legacy_helpers.items() if item["available"] and not item["valid"]]
+    missing_helpers = [entity_id for entity_id, item in legacy_helpers.items() if not item["available"]]
+    if invalid_helpers:
+        conflicts.append(_conflict("invalid_legacy_helpers", "warning", "Some legacy helper values are present but invalid; review the listed entities before migration."))
+    if missing_helpers:
+        conflicts.append(_conflict("missing_legacy_helpers", "warning", "Legacy helper values are missing or unavailable; they cannot be imported or assumed to be off."))
     return {
         "entry_id": entry.entry_id,
         "mode": "preview_only",
@@ -96,6 +127,11 @@ def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] 
         "discovery": discovery,
         "control_plane": control_plane,
         "installation": installation,
+        "legacy_helpers": legacy_helpers,
+        "legacy_automation": legacy_automation,
+        "rule_parity": {"verified": False, "required": ["triggers", "conditions", "actions", "priority_order", "window_handling", "presence_handling", "special_modes", "setpoints", "reset_automation"], "source": "configuration_review_required"},
+        "invalid_legacy_helpers": invalid_helpers,
+        "missing_legacy_helpers": missing_helpers,
         "conflicts": conflicts,
         "activation_allowed": False,
         "rollback": {"prepared": False, "activation_required": True, "description": "Production activation is locked until the old writer is explicitly and safely replaced."},
@@ -165,3 +201,29 @@ class MigrationTransaction:
             raise RuntimeError("No migration snapshot exists")
         self.transport.restore(self.snapshot_data)
         self.state = MigrationState.ROLLED_BACK
+
+
+def inspect_legacy_helpers(hass: Any) -> dict[str, Any]:
+    """Read and validate allowlisted heating helper states without writes.
+
+    Unknown/missing or malformed values are never treated as valid migration
+    inputs. The raw state remains visible for user review.
+    """
+    from math import isfinite
+
+    ids = ("input_boolean.heizung", "input_boolean.heizung_freigabe", "input_boolean.heizung_sommermodus", "input_boolean.party", "input_boolean.besuch", "input_boolean.heimweg", "input_boolean.schornsteinfeger", "input_number.heiztemperatur", "input_number.absenktemperatur")
+    states = {item.entity_id: item for domain in ("input_boolean", "input_number") for item in hass.states.async_all(domain)}
+    result = {}
+    for entity_id in ids:
+        item = states.get(entity_id)
+        raw = str(item.state) if item is not None else None
+        available = raw is not None and raw.lower() not in ("unknown", "unavailable", "")
+        if entity_id.startswith("input_boolean."):
+            valid = available and raw in ("on", "off")
+        else:
+            try:
+                valid = available and isfinite(float(raw))
+            except (TypeError, ValueError, OverflowError):
+                valid = False
+        result[entity_id] = {"state": raw, "available": available, "valid": bool(valid)}
+    return result

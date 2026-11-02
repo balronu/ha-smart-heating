@@ -179,6 +179,29 @@ class ScheduleTests(unittest.TestCase):
                 decision = evaluate_decision(schedule_active=False, overrides=flags, comfort_temperature=22, night_temperature=17)
                 self.assertEqual((decision.mode, decision.target_hvac_mode, decision.target_temperature), (mode, hvac, target))
 
+    def test_summer_room_demand_override_matches_uploaded_automation(self):
+        for schedule_active in (True, False):
+            decision = evaluate_decision(schedule_active=schedule_active, overrides={"summer": True, "need_heat_now": True}, comfort_temperature=22, night_temperature=17)
+            self.assertEqual(decision.mode, "comfort" if schedule_active else "night")
+        self.assertEqual(evaluate_decision(schedule_active=True, overrides={"summer": True, "need_heat_now": False}, comfort_temperature=22, night_temperature=17).mode, "summer")
+
+    def test_status_derives_summer_override_from_room_temperature(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "05:30", "end": "21:00"}]})
+        base = {
+            "now": datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            "timezone": "Europe/Berlin",
+            "overrides": {"summer": True},
+        }
+        for room_temp, expected in ((21.59, "comfort"), (21.6, "summer"), (22.0, "summer")):
+            with self.subTest(room_temp=room_temp):
+                status = calculate_status(
+                    schedule, **base,
+                    context={"room_temperature": room_temp, "comfort_temperature": 22.0, "night_temperature": 17.0},
+                )
+                self.assertEqual(status["actual_mode"], expected)
+                self.assertFalse(status["control_enabled"])
+                self.assertEqual(status["shadow"]["commands"], [])
+
     def test_summer_modes_are_explicit_and_safe(self):
         compatibility = evaluate_decision(schedule_active=True, overrides={"summer": True}, comfort_temperature=22, night_temperature=17)
         hvac_off = evaluate_decision(schedule_active=True, overrides={"summer": True}, comfort_temperature=22, night_temperature=17, summer_mode="hvac_off")

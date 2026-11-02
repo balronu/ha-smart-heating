@@ -171,7 +171,7 @@ def decision_for_state(*, schedule_active: bool, overrides: Mapping[str, bool] |
         return "away", "Nobody home"
     if not schedule_active:
         return ("party" if overrides.get("party") else "night"), "Schedule inactive"
-    if overrides.get("summer") and not any(overrides.get(key) for key in ("party", "return_home")):
+    if overrides.get("summer") and not any(overrides.get(key) for key in ("party", "return_home", "need_heat_now")):
         return "summer", "Summer mode"
     return "comfort", "Schedule active"
 
@@ -219,7 +219,7 @@ def evaluate_decision(
         if flags.get("party"):
             return HeatingDecision("party", "Schedule inactive; Party keeps comfort temperature", comfort_temperature, "heat", "reference_priority")
         return HeatingDecision("night", "Schedule inactive", night_temperature, "heat", "reference_priority")
-    if flags.get("summer") and not flags.get("party") and not flags.get("return_home"):
+    if flags.get("summer") and not any(flags.get(key) for key in ("party", "return_home", "need_heat_now")):
         hvac = "off" if summer_mode == "hvac_off" and hvac_supports_off else "heat"
         return HeatingDecision("summer", "Summer mode", night_temperature, hvac, "reference_priority")
     return HeatingDecision("comfort", "Schedule active", comfort_temperature, "heat", "reference_priority")

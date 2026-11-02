@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
   await page.evaluate(() => localStorage.clear());
   await page.waitForTimeout(50);
   await expect(page.locator("main.smart-heating-backend")).toBeVisible();
-  await expect(page.locator("details[data-section]")).toHaveCount(8);
+  await expect(page.locator("details[data-section]")).toHaveCount(9);
   await expect(page.locator("details[open]")).toHaveCount(0);
 });
 
@@ -738,4 +738,56 @@ test("weekday copy tiles remain readable and clickable on responsive screens", a
   await tiles.filter({ hasText: "Dienstag" }).click();
   await expect(page.locator('[data-copy-target="tuesday"]')).toBeChecked();
   await expect(page.locator('[data-copy-target="wednesday"]')).not.toBeChecked();
+});
+
+
+test("migration preview is explicitly read-only and cannot activate heating", async ({ page }) => {
+  const section = page.locator("details[data-section=migration]");
+  await section.locator(":scope > summary").click();
+  await expect(section).toContainText("Ungültiger Temperaturwert");
+  await expect(section).toContainText("input_number.heiztemperatur");
+  await expect(section).toContainText("nicht als gültiger Wert bestätigt");
+  await expect(section.getByRole("button")).toHaveCount(0);
+  await expect(page.locator("main.smart-heating-backend")).toContainText("Passiver Kompatibilitätsmodus");
+});
+
+
+test("priority deep link opens only the requested backend section", async ({ page }) => {
+  await page.evaluate(() => { window.location.hash = "#section=windows"; document.querySelector("smart-heating-backend-panel")._openLinkedZone(); });
+  await expect(page.locator("details[data-section=windows]")).toHaveAttribute("open", "");
+  await expect(page.locator("details[data-section=persons]")).not.toHaveAttribute("open", "");
+});
+
+test("invalid priority section hash is ignored without opening settings", async ({ page }) => {
+  await page.evaluate(() => { window.location.hash = "#section=not-a-section"; document.querySelector("smart-heating-backend-panel")._openLinkedZone(); });
+  await expect(page.locator("details[data-section][open]")).toHaveCount(0);
+});
+
+
+test("migration panel fails closed on an unsafe preview payload", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel=document.querySelector("smart-heating-backend-panel");
+    panel._migrationPreview={mode:"preview_only",automatic_import:true,activation_allowed:true,legacy_helpers:{"input_boolean.heizung":{state:"on",valid:true}}};
+    panel._render();
+  });
+  const section=page.locator("details[data-section=migration]");
+  await section.locator(":scope > summary").click();
+  await expect(section).toContainText("Antwort entspricht nicht dem sicheren Vorschaumodus");
+  await expect(section).not.toContainText("input_boolean.heizung");
+  await expect(section.getByRole("button")).toHaveCount(0);
+});
+
+
+test("migration preview remains non-interactive if backend is unavailable", async ({ page }) => {
+ await page.evaluate(() => {
+   const panel=document.querySelector("smart-heating-backend-panel");
+   panel._migrationPreview=null;
+   panel._migrationError="Backend nicht erreichbar";
+   panel._render();
+ });
+ const section=page.locator("details[data-section=migration]");
+ await section.locator(":scope > summary").click();
+ await expect(section).toContainText("Backend nicht erreichbar");
+ await expect(section).toContainText("Keine Änderungen vorgenommen");
+ await expect(section.getByRole("button")).toHaveCount(0);
 });
