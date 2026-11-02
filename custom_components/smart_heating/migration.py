@@ -104,6 +104,7 @@ def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] 
     installation = build_installation_plan(discovery, control_plane)
     legacy_helpers = inspect_legacy_helpers(hass)
     legacy_automation = inspect_legacy_automation(hass)
+    conflicts.append(_conflict("legacy_rules_unverified", "error", "The public automation state does not expose triggers, conditions, actions, or priority order; rule parity requires an independently reviewed configuration export."))
     if legacy_automation["present"] and legacy_automation["enabled"] is True:
         conflicts.append(_conflict("legacy_automation_active", "error", "The existing heating automation is active; no second writer may be enabled."))
     elif legacy_automation["present"] and legacy_automation["enabled"] is None:
@@ -128,6 +129,7 @@ def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] 
         "installation": installation,
         "legacy_helpers": legacy_helpers,
         "legacy_automation": legacy_automation,
+        "rule_parity": {"verified": False, "required": ["triggers", "conditions", "actions", "priority_order", "window_handling", "presence_handling", "special_modes", "setpoints", "reset_automation"], "source": "configuration_review_required"},
         "invalid_legacy_helpers": invalid_helpers,
         "missing_legacy_helpers": missing_helpers,
         "conflicts": conflicts,
