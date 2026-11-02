@@ -315,7 +315,7 @@ test("all eight reference priorities link to known backend settings sections", a
  const allowed=new Set(["schedule","windows","persons","rooms","special_modes"]);
  for (const link of await links.all()) {
    const href=await link.getAttribute("href");
-   expect(href).toMatch(/^\\/smart_heating#section=/);
+   expect(href.startsWith("/smart_heating#section=")).toBe(true);
    expect(allowed.has(href.split("#section=")[1])).toBe(true);
  }
 });
