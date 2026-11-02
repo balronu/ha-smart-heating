@@ -202,3 +202,9 @@ test("beta46 stale infrared button cannot reverse a newer HA state", async ({ pa
  await page.locator("smart-heating-card").first().locator("[data-ir-switch]").first().click();
  expect(await page.evaluate(()=>window.__serviceCalls.length)).toBe(0);
 });
+
+
+test("beta46 pinned room matches display name when ID differs", async ({ page }) => {
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._config.pinned_rooms=["Schlafzimmer"];card._data.options.management.zones=[{id:"bathroom",name:"Bad"},{id:"bedroom",name:"Schlafzimmer"}];card._render();});
+ await expect(page.locator("smart-heating-card").first().locator('[data-section="rooms"] .room').first()).toHaveAttribute("data-room","bedroom");
+});
