@@ -195,3 +195,10 @@ test("beta46 footer distinguishes opt-in infrared control from passive heating c
  await expect(footer).toContainText("Infrarot-Schaltflächen");
  await expect(footer).toContainText("manuelle Switch-Aktionen");
 });
+
+
+test("beta46 stale infrared button cannot reverse a newer HA state", async ({ page }) => {
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");window.hass.states={"switch.ir":{state:"off"}};window.__serviceCalls=[];window.hass.callService=async(...args)=>window.__serviceCalls.push(args);card._config.allow_manual_ir_control=true;card._data.options.management.zones=[{id:"ir",name:"IR",type:"infrared",switch_entities:["switch.ir"]}];card._render();window.hass.states["switch.ir"].state="on";});
+ await page.locator("smart-heating-card").first().locator("[data-ir-switch]").first().click();
+ expect(await page.evaluate(()=>window.__serviceCalls.length)).toBe(0);
+});
