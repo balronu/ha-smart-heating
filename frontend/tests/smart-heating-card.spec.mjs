@@ -242,3 +242,10 @@ test("beta46 renders eight legacy priority stages without fabricating unavailabl
  await expect(chain.locator("li").nth(7)).toContainText("Komfortbetrieb");
  await expect(chain).toContainText("unbekannt");
 });
+
+
+test("beta46 room settings link targets exact backend zone without write", async ({ page }) => {
+ const card=page.locator("smart-heating-card").first();
+ await expect(card.locator('[data-section="rooms"] [data-room="bathroom"] .room-settings-link')).toHaveAttribute("href", "/smart_heating#zone=bathroom");
+ expect(await page.evaluate(()=>window.__calls.every(call=>call.type==="smart_heating/plan/get"))).toBeTruthy();
+});
