@@ -8,7 +8,7 @@ _package.__path__ = [str(Path(__file__).parents[1] / "custom_components" / "smar
 sys.modules.setdefault("custom_components.smart_heating", _package)
 
 from custom_components.smart_heating.discovery import discover_entities
-from custom_components.smart_heating.migration import MigrationState, MigrationTransaction, preview_migration
+from custom_components.smart_heating.migration import MigrationState, MigrationTransaction, preview_migration, inspect_legacy_helpers
 
 
 class FakeState:
@@ -128,3 +128,42 @@ class DiscoveryMigrationTests(unittest.TestCase):
         result = preview_migration(hass, FakeEntry(), {"monday": [{"start": "05:30", "end": "06:00"}]})
         self.assertTrue(result["installation"]["compatibility_ready"])
         self.assertFalse(result["installation"]["full_mode_ready"])
+
+
+class LegacyHelperInventoryTests(unittest.TestCase):
+    def test_reads_known_helpers_only(self):
+        hass = FakeHass([FakeState("input_boolean.party", "Party", "on"), FakeState("input_number.heiztemperatur", "Komfort", "22"), FakeState("input_boolean.unrelated", "Other", "on")])
+        result = inspect_legacy_helpers(hass)
+        self.assertEqual(result["input_boolean.party"]["state"], "on")
+        self.assertEqual(result["input_number.heiztemperatur"]["state"], "22")
+        self.assertFalse(result["input_boolean.schornsteinfeger"]["available"])
+        self.assertNotIn("input_boolean.unrelated", result)
+
+    def test_invalid_or_unknown_helper_values_are_not_migration_inputs(self):
+        hass = FakeHass([
+            FakeState("input_boolean.party", "Party", "unknown"),
+            FakeState("input_boolean.besuch", "Besuch", "unexpected"),
+            FakeState("input_number.heiztemperatur", "Komfort", "nan"),
+            FakeState("input_number.absenktemperatur", "Absenkung", "17"),
+        ])
+        result = inspect_legacy_helpers(hass)
+        self.assertFalse(result["input_boolean.party"]["available"])
+        self.assertFalse(result["input_boolean.party"]["valid"])
+        self.assertTrue(result["input_boolean.besuch"]["available"])
+        self.assertFalse(result["input_boolean.besuch"]["valid"])
+        self.assertFalse(result["input_number.heiztemperatur"]["valid"])
+        self.assertTrue(result["input_number.absenktemperatur"]["valid"])
+        self.assertFalse(result["input_boolean.schornsteinfeger"]["valid"])
+
+    def test_migration_preview_warns_about_present_invalid_helpers(self):
+        hass = FakeHass([
+            FakeState("input_boolean.party", "Party", "invalid"),
+            FakeState("input_number.heiztemperatur", "Heiztemperatur", "nan"),
+        ])
+        result = preview_migration(hass, FakeEntry())
+        self.assertEqual(set(result["invalid_legacy_helpers"]), {
+            "input_boolean.party", "input_number.heiztemperatur"
+        })
+        self.assertIn("invalid_legacy_helpers", {item["code"] for item in result["conflicts"]})
+        self.assertFalse(result["activation_allowed"])
+        self.assertFalse(result["automatic_import"])
