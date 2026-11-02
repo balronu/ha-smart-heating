@@ -68,3 +68,11 @@ class WindowDetailContractTests(unittest.TestCase):
         source = Path("custom_components/smart_heating/frontend/smart-heating-card.js").read_text()
         self.assertIn('observed.window_detail_status||observed.window_status', source)
         self.assertIn('nicht unterscheidbar', source)
+
+    def test_explicit_open_evidence_takes_precedence_over_ambiguous_binary_on(self):
+        source = Path("custom_components/smart_heating/__init__.py").read_text()
+        start = source.index('    window_values = [item["state"].strip().lower() for item in windows]')
+        end = source.index('    return {"climate": climate', start)
+        block = source[start:end]
+        self.assertLess(block.index('{"open", "opened", "offen"}'), block.index('{"on", "true", "1"}'))
+        self.assertLess(block.index('{"on", "true", "1"}'), block.index('{"tilt", "tilted", "gekippt", "gekipp", "gekippte"}'))
