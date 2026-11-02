@@ -750,3 +750,15 @@ test("migration preview is explicitly read-only and cannot activate heating", as
   await expect(section.getByRole("button")).toHaveCount(0);
   await expect(page.locator("main.smart-heating-backend")).toContainText("Passiver Kompatibilitätsmodus");
 });
+
+
+test("priority deep link opens only the requested backend section", async ({ page }) => {
+  await page.evaluate(() => { window.location.hash = "#section=windows"; document.querySelector("smart-heating-backend-panel")._openLinkedZone(); });
+  await expect(page.locator("details[data-section=windows]")).toHaveAttribute("open", "");
+  await expect(page.locator("details[data-section=persons]")).not.toHaveAttribute("open", "");
+});
+
+test("invalid priority section hash is ignored without opening settings", async ({ page }) => {
+  await page.evaluate(() => { window.location.hash = "#section=not-a-section"; document.querySelector("smart-heating-backend-panel")._openLinkedZone(); });
+  await expect(page.locator("details[data-section][open]")).toHaveCount(0);
+});
