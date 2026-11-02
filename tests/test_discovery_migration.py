@@ -8,7 +8,7 @@ _package.__path__ = [str(Path(__file__).parents[1] / "custom_components" / "smar
 sys.modules.setdefault("custom_components.smart_heating", _package)
 
 from custom_components.smart_heating.discovery import discover_entities
-from custom_components.smart_heating.migration import MigrationState, MigrationTransaction, preview_migration, inspect_legacy_helpers
+from custom_components.smart_heating.migration import MigrationState, MigrationTransaction, preview_migration, inspect_legacy_helpers, inspect_legacy_automation
 
 
 class FakeState:
@@ -79,6 +79,13 @@ class DiscoveryMigrationTests(unittest.TestCase):
         self.assertEqual(result["roles"]["window_entities"]["selected"], ["binary_sensor.fenster"])
         self.assertEqual(result["roles"]["presence_entities"]["selected"], ["person.michael"])
         self.assertEqual(result["selected"]["special_modes"]["party"], "input_boolean.party")
+
+    def test_legacy_automation_state_never_claims_rule_parity(self):
+        hass = FakeHass([FakeState("automation.heizung_automatik_ersetzt_node_red", "Legacy", "on")])
+        result = inspect_legacy_automation(hass)
+        self.assertFalse(result["present"])  # FakeStates has no public get adapter
+        self.assertFalse(result["rules_verified"])
+        self.assertFalse(preview_migration(hass, FakeEntry())["legacy_automation"]["rules_verified"])
 
     def test_preview_never_imports_fixture_and_reports_conflicts(self):
         hass = FakeHass([FakeState("input_boolean.heizung", "Heizung")])
