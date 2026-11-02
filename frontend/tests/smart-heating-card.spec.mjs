@@ -11,7 +11,7 @@ test("renders dashboard passive overview and compact weekday groups", async ({ p
   await expect(page.locator("[data-display-mode=dashboard]").first()).toBeVisible();
   await expect(page.locator("smart-heating-card").first().locator("section[data-section=schedule] .day-row").first()).toBeVisible();
   await expect(page.locator("smart-heating-card").first().locator("section[data-section=rooms] .room strong").first()).toHaveText("Badezimmer");
-  await page.screenshot({ path: `test-results/${testInfo.project.name}-lovelace-detailed.png`, fullPage: true });
+  await page.screenshot({ path: `test-results/${testInfo.project.name}-dashboard-reference.png`, fullPage: true });
 });
 
 test("supports compact and individual configuration modes without writes", async ({ page }) => {
@@ -415,4 +415,21 @@ test("dashboard automation badge never assumes an unknown automation is active",
   if (state === "on") await expect(badge).toContainText("aktiv");
   const calls = await page.evaluate(() => window.__calls);
   expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
+
+
+test("dashboard stays within viewport and exports visual evidence on each device", async ({ page }, testInfo) => {
+  const dashboard = page.locator("smart-heating-card .dashboard-layout").first();
+  await expect(dashboard).toBeVisible();
+  const geometry = await dashboard.evaluate(node => {
+    const bounds = node.getBoundingClientRect();
+    const viewport = document.documentElement.clientWidth;
+    const overflowing = [...node.querySelectorAll(".card-section, .room, .temperature-tile, .mode, .priority-cards li")]
+      .filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && (r.right > viewport + 2 || r.left < -2); })
+      .map(el => ({ className: el.className, right: Math.round(el.getBoundingClientRect().right) }));
+    return { viewport, dashboardRight: bounds.right, overflowing };
+  });
+  expect(geometry.dashboardRight).toBeLessThanOrEqual(geometry.viewport + 2);
+  expect(geometry.overflowing).toEqual([]);
+  await page.screenshot({ path: `test-results/${testInfo.project.name}-dashboard-viewport.png`, fullPage: true });
 });
