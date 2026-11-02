@@ -104,6 +104,12 @@ def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] 
     installation = build_installation_plan(discovery, control_plane)
     legacy_helpers = inspect_legacy_helpers(hass)
     legacy_automation = inspect_legacy_automation(hass)
+    if legacy_automation["present"] and legacy_automation["enabled"] is True:
+        conflicts.append(_conflict("legacy_automation_active", "error", "The existing heating automation is active; no second writer may be enabled."))
+    elif legacy_automation["present"] and legacy_automation["enabled"] is None:
+        conflicts.append(_conflict("legacy_automation_state_unknown", "error", "The existing automation state is unavailable; writer ownership cannot be verified."))
+    elif not legacy_automation["present"]:
+        conflicts.append(_conflict("legacy_automation_not_found", "warning", "The known legacy automation was not found in public states; its absence does not prove there are no other writers."))
     invalid_helpers = [entity_id for entity_id, item in legacy_helpers.items() if item["available"] and not item["valid"]]
     missing_helpers = [entity_id for entity_id, item in legacy_helpers.items() if not item["available"]]
     if invalid_helpers:
