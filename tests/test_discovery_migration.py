@@ -8,7 +8,7 @@ _package.__path__ = [str(Path(__file__).parents[1] / "custom_components" / "smar
 sys.modules.setdefault("custom_components.smart_heating", _package)
 
 from custom_components.smart_heating.discovery import discover_entities
-from custom_components.smart_heating.migration import MigrationState, MigrationTransaction, preview_migration
+from custom_components.smart_heating.migration import MigrationState, MigrationTransaction, preview_migration, inspect_legacy_helpers
 
 
 class FakeState:
@@ -128,3 +128,13 @@ class DiscoveryMigrationTests(unittest.TestCase):
         result = preview_migration(hass, FakeEntry(), {"monday": [{"start": "05:30", "end": "06:00"}]})
         self.assertTrue(result["installation"]["compatibility_ready"])
         self.assertFalse(result["installation"]["full_mode_ready"])
+
+
+class LegacyHelperInventoryTests(unittest.TestCase):
+    def test_reads_known_helpers_only(self):
+        hass = FakeHass([FakeState("input_boolean.party", "Party", "on"), FakeState("input_number.heiztemperatur", "Komfort", "22"), FakeState("input_boolean.unrelated", "Other", "on")])
+        result = inspect_legacy_helpers(hass)
+        self.assertEqual(result["input_boolean.party"]["state"], "on")
+        self.assertEqual(result["input_number.heiztemperatur"]["state"], "22")
+        self.assertFalse(result["input_boolean.schornsteinfeger"]["available"])
+        self.assertNotIn("input_boolean.unrelated", result)
