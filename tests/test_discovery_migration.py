@@ -154,3 +154,16 @@ class LegacyHelperInventoryTests(unittest.TestCase):
         self.assertFalse(result["input_number.heiztemperatur"]["valid"])
         self.assertTrue(result["input_number.absenktemperatur"]["valid"])
         self.assertFalse(result["input_boolean.schornsteinfeger"]["valid"])
+
+    def test_migration_preview_warns_about_present_invalid_helpers(self):
+        hass = FakeHass([
+            FakeState("input_boolean.party", "Party", "invalid"),
+            FakeState("input_number.heiztemperatur", "Heiztemperatur", "nan"),
+        ])
+        result = preview_migration(hass, FakeEntry())
+        self.assertEqual(set(result["invalid_legacy_helpers"]), {
+            "input_boolean.party", "input_number.heiztemperatur"
+        })
+        self.assertIn("invalid_legacy_helpers", {item["code"] for item in result["conflicts"]})
+        self.assertFalse(result["activation_allowed"])
+        self.assertFalse(result["automatic_import"])
