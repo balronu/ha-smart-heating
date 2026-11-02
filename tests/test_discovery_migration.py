@@ -115,6 +115,16 @@ class DiscoveryMigrationTests(unittest.TestCase):
         self.assertNotIn("legacy_automation_active", {item["code"] for item in disabled["conflicts"]})
         self.assertFalse(disabled["activation_allowed"])
 
+    def test_rule_parity_requires_review_of_all_legacy_behaviors(self):
+        result = preview_migration(FakeHass([]), FakeEntry())
+        parity = result["rule_parity"]
+        self.assertFalse(parity["verified"])
+        self.assertIn("priority_order", parity["required"])
+        self.assertIn("reset_automation", parity["required"])
+        self.assertIn("window_handling", parity["required"])
+        self.assertIn("legacy_rules_unverified", {item["code"] for item in result["conflicts"]})
+        self.assertFalse(result["activation_allowed"])
+
     def test_preview_never_imports_fixture_and_reports_conflicts(self):
         hass = FakeHass([FakeState("input_boolean.heizung", "Heizung")])
         result = preview_migration(hass, FakeEntry())
