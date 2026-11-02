@@ -307,3 +307,15 @@ test("beta46 does not misrepresent combined backend window status", async ({ pag
  await expect(chain.nth(2)).toContainText("nicht offen");
  await expect(chain.nth(3)).toContainText("nicht gekippt");
 });
+
+
+test("all eight reference priorities link to known backend settings sections", async ({ page }) => {
+ const links=page.locator("smart-heating-card").first().locator(".priority-chain li a");
+ await expect(links).toHaveCount(8);
+ const allowed=new Set(["schedule","windows","persons","rooms","special_modes"]);
+ for (const link of await links.all()) {
+   const href=await link.getAttribute("href");
+   expect(href).toMatch(/^\\/smart_heating#section=/);
+   expect(allowed.has(href.split("#section=")[1])).toBe(true);
+ }
+});
