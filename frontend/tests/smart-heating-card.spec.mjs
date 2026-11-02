@@ -341,3 +341,13 @@ test("dashboard mode is available in the Lovelace editor and stays read-only", a
   const calls = await page.evaluate(() => window.__calls);
   expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
 });
+
+
+test("dashboard displays four read-only operational status tiles", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  await expect(card.locator('[data-section="operation"] .status-overview article')).toHaveCount(4);
+  await expect(card.locator('[data-section="operation"]')).toContainText("Heizfreigabe");
+  await expect(card.locator('[data-section="operation"]')).toContainText("Nächster Wechsel");
+  const calls = await page.evaluate(() => window.__calls);
+  expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
