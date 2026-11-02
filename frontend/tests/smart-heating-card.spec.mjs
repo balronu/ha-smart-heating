@@ -84,3 +84,19 @@ test("beta46 schedule hides seconds and duplicate weekday abbreviations", async 
   const shortDisplay = await card.locator("[data-day=monday] .day-short").evaluate(node=>getComputedStyle(node).display);
   expect(shortDisplay).toBe("none");
 });
+
+
+test("beta46 priority chips navigate to the matching mode without writes", async ({ page }) => {
+ const card=page.locator("smart-heating-card").first();
+ await expect(card.locator("[data-priority-mode=party]")).toBeVisible();
+ await card.locator("[data-priority-mode=party]").click();
+ await expect(card.locator("[data-special-mode=party]")).toBeVisible();
+ expect(await page.evaluate(()=>window.__calls.every(call=>call.type==="smart_heating/plan/get"))).toBeTruthy();
+});
+
+test("beta46 infrared zone is shown separately without thermostat write", async ({ page }) => {
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._data.options.management.zones.push({id:"ir",name:"Infrarotheizung",type:"infrared",switch_entities:["switch.ir"]});card._render();});
+ const card=page.locator("smart-heating-card").first();
+ await expect(card.locator("[data-room=ir]")).toContainText("Infrarot");
+ expect(await page.evaluate(()=>window.__calls.every(call=>call.type==="smart_heating/plan/get"))).toBeTruthy();
+});
