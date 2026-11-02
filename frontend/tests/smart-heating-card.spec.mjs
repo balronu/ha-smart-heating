@@ -131,3 +131,24 @@ test("beta46 editor persists visible special-mode count", async ({ page }) => {
  const result=await page.evaluate(async()=>{const editor=document.createElement("smart-heating-card-editor");document.body.append(editor);editor.setConfig({entry_id:"fixture"});return await new Promise(resolve=>{editor.addEventListener("config-changed",e=>resolve(e.detail.config),{once:true});const input=editor.querySelector("[data-visible-modes]");input.value="6";input.dispatchEvent(new Event("change",{bubbles:true}));});});
  expect(result.visible_mode_count).toBe(6);
 });
+
+
+test("beta46 additional special modes expand and collapse on demand", async ({ page }) => {
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._config.visible_mode_count=2;card._data.options.management.special_modes=Array.from({length:5},(_,i)=>({id:"mode"+i,name:"Modus "+i,available:true}));card._render();});
+ const card=page.locator("smart-heating-card").first();
+ const extra=card.locator("[data-extra-mode]");
+ await expect(extra).toHaveCount(3);
+ await expect(extra.first()).toBeHidden();
+ await card.locator("[data-mode-more]").click();
+ await expect(extra.first()).toBeVisible();
+ await card.locator("[data-mode-more]").click();
+ await expect(extra.first()).toBeHidden();
+});
+
+test("beta46 priority navigation expands hidden special mode", async ({ page }) => {
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._config.visible_mode_count=1;card._data.options.management.special_modes=[{id:"party",name:"Party",priority:100},{id:"visit",name:"Besuch",priority:50}];card._render();});
+ const card=page.locator("smart-heating-card").first();
+ await expect(card.locator("[data-special-mode=visit]")).toBeHidden();
+ await card.locator("[data-priority-mode=visit]").click();
+ await expect(card.locator("[data-special-mode=visit]")).toBeVisible();
+});
