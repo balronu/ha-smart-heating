@@ -68,7 +68,9 @@ class SmartHeatingCard extends HTMLElement {
 
   _dashboardModes(){
     const configured=this._management().special_modes;
-    if(!Array.isArray(configured)||!configured.length)return [];
+    if(!Array.isArray(configured)||!configured.length){
+      return [["party","Party"],["besuch","Besuch"],["heimweg","Heimweg"],["heizung_sommermodus","Sommermodus"],["schornsteinfeger","Schornsteinfeger"]].filter(([id])=>this._hass?.states?.["input_boolean."+id]).map(([id,name])=>({id,name,status_source:"input_boolean."+id})).map(mode=>({id:mode.id,label:mode.name,source:mode.status_source,icon:"◉",enabled:true}));
+    }
     return configured.filter(mode=>mode&&mode.id).map(mode=>{
       const source=typeof mode.status_source==="string"?mode.status_source:"";
       const label=String(mode.name||mode.id);
