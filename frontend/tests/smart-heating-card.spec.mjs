@@ -112,3 +112,11 @@ test("beta46 prioritizes chimney sweep over numeric mode priorities", async ({ p
  await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._data.options.management.special_modes=[{id:"party",name:"Party",priority:9999},{id:"chimney_sweep",name:"Schornsteinfeger",priority:1}];card._render();});
  await expect(card.locator("[data-priority-mode]").first()).toHaveAttribute("data-priority-mode","chimney_sweep");
 });
+
+
+test("beta46 infrared switch shows actual HA on/off state without sending commands", async ({ page }) => {
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");window.hass.states={"switch.ir":{"state":"on"},"input_boolean.party":{"state":"on"}};card._data.options.management.zones.push({id:"ir",name:"Infrarotheizung",type:"infrared",switch_entities:["switch.ir"]});card._render();});
+ const card=page.locator("smart-heating-card").first();
+ await expect(card.locator("[data-room=ir]")).toContainText("Eingeschaltet");
+ expect(await page.evaluate(()=>window.__calls.every(call=>call.type==="smart_heating/plan/get"))).toBeTruthy();
+});
