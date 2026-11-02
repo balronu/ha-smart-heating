@@ -40,11 +40,24 @@ test("deduplicates read-only calls for two cards using the same entry", async ({
   await page.waitForTimeout(50); const entries = await page.evaluate(() => window.__calls.filter(call => call.entry_id === "shared-entry")); expect(entries).toHaveLength(1); expect(entries[0].type).toBe("smart_heating/plan/get");
 });
 
-test("refreshes only after a new HA state object and never writes", async ({ page }) => {
-  const before = await page.evaluate(() => window.__calls.length);
+test("does not rerender or refetch on unrelated HA state object updates", async ({ page }) => {
+  const before = await page.evaluate(() => {
+    const card = document.querySelector("smart-heating-card");
+    card.__renderCount = 0;
+    const original = card._render.bind(card);
+    card._render = (...args) => { card.__renderCount++; return original(...args); };
+    return { calls: window.__calls.length, html: card.innerHTML };
+  });
   await page.evaluate(() => { const card = document.querySelector("smart-heating-card"); card.hass = { ...window.hass }; });
-  await expect.poll(async () => page.evaluate(() => window.__calls.length)).toBeGreaterThan(before);
-  const calls = await page.evaluate(() => window.__calls); expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+  const after = await page.evaluate(() => {
+    const card = document.querySelector("smart-heating-card");
+    return { calls: window.__calls.length, html: card.innerHTML, renders: card.__renderCount };
+  });
+  expect(after.calls).toBe(before.calls);
+  expect(after.renders).toBe(0);
+  expect(after.html).toBe(before.html);
+  const calls = await page.evaluate(() => window.__calls);
+  expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
 });
 
 test("updates live data without a polling loop", async ({ page }) => {

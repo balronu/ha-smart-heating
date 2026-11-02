@@ -39,6 +39,13 @@ class FrontendContractTests(unittest.TestCase):
         self.assertNotIn("smart_heating/admin/zone/set", source)
         self.assertNotIn("smart_heating/admin/person/set", source)
 
+    def test_card_does_not_rerender_on_unrelated_hass_updates(self):
+        source = Path("custom_components/smart_heating/frontend/smart-heating-card.js").read_text()
+        self.assertIn("const signature=this._visibleStateSignature()", source)
+        self.assertIn("if(signature!==this._lastVisibleStateSignature)", source)
+        self.assertIn("this._lastVisibleStateSignature=this._visibleStateSignature()", source)
+        self.assertIn("if(!this._loaded){this._load();return;}", source)
+
     def test_dashboard_uses_card_width_and_preserves_expansion(self):
         source = Path("custom_components/smart_heating/frontend/smart-heating-card.js").read_text()
         self.assertIn("container-type:inline-size", source)
