@@ -32,7 +32,7 @@ class SmartHeatingCard extends HTMLElement {
     }
   }
   _visibleStateSignature(){
-    const ids=new Set();
+    const ids=new Set(["input_number.heiztemperatur","input_number.absenktemperatur","input_boolean.party","input_boolean.besuch","input_boolean.heimweg","input_boolean.heizung_sommermodus","automation.heizung_automatik_ersetzt_node_red"]);
     const add=(ref)=>{const id=typeof ref==="string"?ref:ref?.entity_id;if(typeof id==="string"&&id.includes("."))ids.add(id);};
     for(const room of this._rooms()){
       for(const ref of [...(room.temperatures||room.temperature_entities||[]),...(room.thermostats||room.thermostat_entities||[]),...(room.switch_entities||room.switches||[])])add(ref);
