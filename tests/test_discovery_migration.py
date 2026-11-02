@@ -81,11 +81,21 @@ class DiscoveryMigrationTests(unittest.TestCase):
         self.assertEqual(result["selected"]["special_modes"]["party"], "input_boolean.party")
 
     def test_legacy_automation_state_never_claims_rule_parity(self):
+        class PublicStates(FakeStates):
+            def get(self, entity_id):
+                return next((item for item in self.items if item.entity_id == entity_id), None)
+
         hass = FakeHass([FakeState("automation.heizung_automatik_ersetzt_node_red", "Legacy", "on")])
+        hass.states = PublicStates(hass.states.items)
         result = inspect_legacy_automation(hass)
-        self.assertFalse(result["present"])  # FakeStates has no public get adapter
+        self.assertTrue(result["present"])
+        self.assertTrue(result["enabled"])
         self.assertFalse(result["rules_verified"])
         self.assertFalse(preview_migration(hass, FakeEntry())["legacy_automation"]["rules_verified"])
+        hass.states.items[0].state = "off"
+        self.assertFalse(inspect_legacy_automation(hass)["enabled"])
+        hass.states.items[0].state = "unavailable"
+        self.assertIsNone(inspect_legacy_automation(hass)["enabled"])
 
     def test_preview_never_imports_fixture_and_reports_conflicts(self):
         hass = FakeHass([FakeState("input_boolean.heizung", "Heizung")])
