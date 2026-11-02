@@ -1,3 +1,10 @@
+## v0.1.0-beta.43 (vorbereitet)
+
+- Responsiver Kopierdialog mit sechs vollständig anklickbaren Wochentagskacheln, ausgerichteten Checkboxen und lesbaren, nicht umgebrochenen Tagesnamen.
+- Kompakter Tageseditor mit angepassten Aktionsschaltflächen und zweispaltigen Zeitfeldern auf Mobilgeräten.
+- Geräteübergreifender Playwright-Test auf Lesbarkeit und Bedienbarkeit der Kopierauswahl.
+- Keine Änderungen an Heizungslogik oder produktiver Home-Assistant-Installation.
+
 
 ## v0.1.0-beta.42 (vorbereitet)
 

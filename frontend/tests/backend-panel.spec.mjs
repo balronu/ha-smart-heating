@@ -449,7 +449,7 @@ test("edits only the selected day and saves with visible confirmation", async ({
   await expect(page.locator("[data-schedule-day=wednesday] [data-day-summary]")).toContainText("06:00–08:30");
 });
 
-test("shows unsaved state before saving and stacks time fields on a narrow phone", async ({ page }) => {
+test("shows unsaved state and fits compact time fields on a narrow phone", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
   await page.evaluate(() => { const meta = document.createElement("meta"); meta.name = "viewport"; meta.content = "width=device-width, initial-scale=1"; document.head.append(meta); });
   await page.waitForTimeout(50);
@@ -461,7 +461,8 @@ test("shows unsaved state before saving and stacks time fields on a narrow phone
     const labels = [...row.querySelectorAll("label")].map((label) => label.getBoundingClientRect());
     return labels.map((box) => ({ top: Math.round(box.top), left: Math.round(box.left), right: Math.round(box.right) }));
   });
-  expect(layout[1].top).toBeGreaterThan(layout[0].top);
+  expect(layout[1].top).toBe(layout[0].top);
+  expect(layout[1].left).toBeGreaterThan(layout[0].left);
   expect(layout[0].right).toBeLessThanOrEqual(320);
   expect(layout[1].right).toBeLessThanOrEqual(320);
 });
@@ -716,4 +717,25 @@ test("copying windows uses clickable German weekday choices and keeps changes un
   await expect(page.locator("[data-copy-dialog]")).toHaveCount(0);
   await expect(page.locator('[data-schedule-day="tuesday"]')).toContainText("06:00");
   await expect(page.locator(".planner-actions .save-feedback")).toContainText("nicht gespeichert");
+});
+
+
+test("weekday copy tiles remain readable and clickable on responsive screens", async ({ page }) => {
+  await page.locator('button[data-schedule-edit="monday"]').click();
+  await page.locator('[data-schedule-copy]').click();
+  const tiles = page.locator('[data-copy-dialog] label.copy-day');
+  await expect(tiles).toHaveCount(6);
+  for (const tile of await tiles.all()) {
+    const label = tile.locator("span");
+    await expect(label).toHaveCSS("white-space", "nowrap");
+    const fits = await tile.evaluate((node) => {
+      const text = node.querySelector("span");
+      const box = text.getBoundingClientRect();
+      return box.right <= node.getBoundingClientRect().right + 1 && text.scrollWidth <= text.clientWidth + 1;
+    });
+    expect(fits).toBe(true);
+  }
+  await tiles.filter({ hasText: "Dienstag" }).click();
+  await expect(page.locator('[data-copy-target="tuesday"]')).toBeChecked();
+  await expect(page.locator('[data-copy-target="wednesday"]')).not.toBeChecked();
 });
