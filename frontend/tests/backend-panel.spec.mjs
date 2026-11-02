@@ -430,8 +430,8 @@ test("shows the graphical weekly planner with day, time, and target controls", a
   await expect(page.locator("[data-schedule-day]")).toHaveCount(7);
   await page.locator("button[data-schedule-edit=monday]").click();
   await page.locator("button[data-schedule-add=monday]").click();
-  await expect(page.locator("fieldset[data-schedule-day=monday] input[type=time]")).toHaveCount(2);
-  await expect(page.locator("fieldset[data-schedule-day=monday] input[type=number]")).toHaveCount(1);
+  await expect(page.locator("[data-day-editor=monday] input[type=time]")).toHaveCount(2);
+  await expect(page.locator("[data-day-editor=monday] input[type=number]")).toHaveCount(1);
 });
 
 test("edits only the selected day and saves with visible confirmation", async ({ page }) => {
