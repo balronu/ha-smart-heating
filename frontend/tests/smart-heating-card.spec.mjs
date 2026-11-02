@@ -208,3 +208,10 @@ test("beta46 pinned room matches display name when ID differs", async ({ page })
  await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._config.pinned_rooms=["Schlafzimmer"];card._data.options.management.zones=[{id:"bathroom",name:"Bad"},{id:"bedroom",name:"Schlafzimmer"}];card._render();});
  await expect(page.locator("smart-heating-card").first().locator('[data-section="rooms"] .room').first()).toHaveAttribute("data-room","bedroom");
 });
+
+
+test("beta46 pinned room ordering remains stable for unpinned rooms", async ({ page }) => {
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._config.pinned_rooms=["Schlafzimmer"];card._data.options.management.zones=[{id:"bathroom",name:"Bad"},{id:"kitchen",name:"Küche"},{id:"bedroom",name:"Schlafzimmer"}];card._render();});
+ const ids=await page.locator("smart-heating-card").first().locator('[data-section="rooms"] .room').evaluateAll(nodes=>nodes.map(node=>node.dataset.room));
+ expect(ids).toEqual(["bedroom","bathroom","kitchen"]);
+});
