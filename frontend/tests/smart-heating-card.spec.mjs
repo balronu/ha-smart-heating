@@ -7,11 +7,11 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("smart-heating-card").first().locator(".footer-note")).toContainText("Heizungs-, Thermostat-, Scheduler- und Sondermodus-Steuerung bleibt unverändert");
 });
 
-test("renders detailed passive overview and all weekdays", async ({ page }, testInfo) => {
-  await expect(page.locator("[data-display-mode=detailed]").first()).toBeVisible();
-  await expect(page.locator("smart-heating-card").first().locator("section[data-section=schedule] .day-row")).toHaveCount(7);
+test("renders dashboard passive overview and compact weekday groups", async ({ page }, testInfo) => {
+  await expect(page.locator("[data-display-mode=dashboard]").first()).toBeVisible();
+  await expect(page.locator("smart-heating-card").first().locator("section[data-section=schedule] .day-row").first()).toBeVisible();
   await expect(page.locator("smart-heating-card").first().locator("section[data-section=rooms] .room strong").first()).toHaveText("Badezimmer");
-  await page.screenshot({ path: `test-results/${testInfo.project.name}-lovelace-detailed.png`, fullPage: true });
+  await page.screenshot({ path: `test-results/${testInfo.project.name}-dashboard-reference.png`, fullPage: true });
 });
 
 test("supports compact and individual configuration modes without writes", async ({ page }) => {
@@ -67,10 +67,10 @@ test("uses the full narrow viewport without horizontal overflow", async ({ page 
 test("beta46 renders responsive theme-aware rooms and collapsible special modes", async ({ page }) => {
   const card = page.locator("smart-heating-card").first();
   await expect(card.locator("section[data-section=rooms] .room-grid")).toBeVisible();
-  await expect(card.locator("section[data-section=special_modes] details.expandable")).toHaveCount(1);
+  await expect(card.locator("section[data-section=special_modes] .mode-grid")).toHaveCount(1);
   await expect(card.locator("section[data-section=special_modes] .scroll-area")).toBeVisible();
   await expect(card.locator("section[data-section=diagnostics] details.expandable")).toHaveCount(1);
-  await expect(card.locator("section[data-section=schedule] .day-row")).toHaveCount(7);
+  await expect(card.locator("section[data-section=schedule] .day-row").first()).toBeVisible();
   const style = await card.locator("style[data-smart-heating-card-style]").textContent();
   expect(style).toContain("var(--primary-text-color)");
   expect(style).toContain("var(--card-background-color");
@@ -79,10 +79,9 @@ test("beta46 renders responsive theme-aware rooms and collapsible special modes"
 test("beta46 schedule hides seconds and duplicate weekday abbreviations", async ({ page }) => {
   const card = page.locator("smart-heating-card").first();
   await page.evaluate(() => {const card=document.querySelector("smart-heating-card");card._data.schedule.monday=[{start:"05:30:00",end:"21:00:00"}];card._render();});
-  await expect(card.locator("[data-day=monday]")).toContainText("05:30–21:00");
-  await expect(card.locator("[data-day=monday]")).not.toContainText("05:30:00");
-  const shortDisplay = await card.locator("[data-day=monday] .day-short").evaluate(node=>getComputedStyle(node).display);
-  expect(shortDisplay).toBe("none");
+  await expect(card.locator('[data-days~="monday"]')).toContainText("05:30–21:00");
+  await expect(card.locator('[data-days~="monday"]')).not.toContainText("05:30:00");
+  await expect(card.locator('[data-days~="monday"]')).toHaveCount(1);
 });
 
 
@@ -230,7 +229,7 @@ test("beta46 infrared-only zone is excluded from thermostat temperatures", async
  const card=page.locator("smart-heating-card").first();
  await expect(card.locator('[data-section="rooms"] [data-room="ir"]')).toHaveCount(1);
  await expect(card.locator('[data-section="temperatures"] [data-room="ir"]')).toHaveCount(0);
- await expect(card.locator('[data-section="temperatures"]')).toContainText("Keine thermostatisch geregelten Räume verfügbar.");
+ await expect(card.locator('[data-section="temperatures"]')).toContainText("Heiztemperatur");
 });
 
 
@@ -330,4 +329,107 @@ test("beta46 main card remains within viewport across phone tablet and desktop w
    expect(dimensions.right).toBeLessThanOrEqual(width+2);
    expect(dimensions.bodyWidth).toBeLessThanOrEqual(width+2);
  }
+});
+
+
+test("dashboard mode is available in the Lovelace editor and stays read-only", async ({ page }) => {
+  await page.evaluate(() => { const editor = document.createElement("smart-heating-card-editor"); document.body.append(editor); editor.setConfig({ entry_id: "fixture-dashboard", display_mode: "dashboard" }); });
+  const editor = page.locator("smart-heating-card-editor").last();
+  await expect(editor.locator('[data-mode] option[value="dashboard"]')).toHaveCount(1);
+  await expect(page.locator("smart-heating-card").first().locator('[data-display-mode="dashboard"]')).toBeVisible();
+  const calls = await page.evaluate(() => window.__calls);
+  expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
+
+
+test("dashboard displays four read-only operational status tiles", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  await expect(card.locator('[data-section="operation"] .status-overview article')).toHaveCount(4);
+  await expect(card.locator('[data-section="operation"]')).toContainText("Heizfreigabe");
+  await expect(card.locator('[data-section="operation"]')).toContainText("Nächster Wechsel");
+  const calls = await page.evaluate(() => window.__calls);
+  expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
+
+
+test("temperature adjustment controls remain safely disabled in compatibility mode", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  const controls = card.locator('[data-section="temperatures"] .temperature-controls button');
+  await expect(controls).toHaveCount(4);
+  for (const control of await controls.all()) await expect(control).toBeDisabled();
+  await expect(card.locator('[data-section="temperatures"]')).toContainText("Bedienung gesperrt");
+  const calls = await page.evaluate(() => window.__calls);
+  expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
+
+
+test("dashboard special-mode tiles show icons and explicit observed activation", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  const modes = card.locator('[data-section="special_modes"] .mode');
+  await expect(modes.first().locator(".mode-icon")).toBeVisible();
+  await expect(modes.first()).toHaveAttribute("data-active", /^(true|false)$/);
+  const calls = await page.evaluate(() => window.__calls);
+  expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
+
+
+test("dashboard room cards expose observed temperature and heating status without writes", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  const rooms = card.locator('[data-section="rooms"] .room-grid .room');
+  await expect(rooms.first()).toBeVisible();
+  await expect(rooms.first().locator(".facts")).toContainText("Ist:");
+  await expect(rooms.first().locator(".facts")).toContainText("Soll:");
+  await expect(rooms.first().locator(".facts")).toContainText("Heizung:");
+  const calls = await page.evaluate(() => window.__calls);
+  expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
+
+
+test("dashboard header includes accessible brand and explanatory subtitle", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  await expect(card.locator(".dashboard-layout .header-logo")).toBeVisible();
+  await expect(card.locator(".dashboard-layout .header-subtitle")).toContainText("Zentrale Heizungssteuerung");
+  await expect(card.locator(".dashboard-layout .card-header h1")).toBeVisible();
+});
+
+
+test("dashboard displays eight ordered read-only legacy priority cards", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  const priorities = card.locator('[data-section="shadow"] .priority-cards li');
+  await expect(priorities).toHaveCount(8);
+  await expect(priorities.first()).toContainText("Schornsteinfeger");
+  await expect(priorities.nth(1)).toContainText("Heizfreigabe");
+  await expect(priorities.last()).toContainText("Komfortbetrieb");
+  const calls = await page.evaluate(() => window.__calls);
+  expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
+
+
+test("dashboard automation badge never assumes an unknown automation is active", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  const badge = card.locator('[data-testid="automation-status"]');
+  await expect(badge).toHaveAttribute("data-state", /^(on|off|unknown)$/);
+  const state = await badge.getAttribute("data-state");
+  if (state === "unknown") await expect(badge).toContainText("unbekannt");
+  if (state === "off") await expect(badge).toContainText("deaktiviert");
+  if (state === "on") await expect(badge).toContainText("aktiv");
+  const calls = await page.evaluate(() => window.__calls);
+  expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
+
+
+test("dashboard stays within viewport and exports visual evidence on each device", async ({ page }, testInfo) => {
+  const dashboard = page.locator("smart-heating-card .dashboard-layout").first();
+  await expect(dashboard).toBeVisible();
+  const geometry = await dashboard.evaluate(node => {
+    const bounds = node.getBoundingClientRect();
+    const viewport = document.documentElement.clientWidth;
+    const overflowing = [...node.querySelectorAll(".card-section, .room, .temperature-tile, .mode, .priority-cards li")]
+      .filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && (r.right > viewport + 2 || r.left < -2); })
+      .map(el => ({ className: el.className, right: Math.round(el.getBoundingClientRect().right) }));
+    return { viewport, dashboardRight: bounds.right, overflowing };
+  });
+  expect(geometry.dashboardRight).toBeLessThanOrEqual(geometry.viewport + 2);
+  expect(geometry.overflowing).toEqual([]);
+  await page.screenshot({ path: `test-results/${testInfo.project.name}-dashboard-viewport.png`, fullPage: true });
 });
