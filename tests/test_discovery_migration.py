@@ -98,6 +98,22 @@ class DiscoveryMigrationTests(unittest.TestCase):
         self.assertEqual(result["proposed_schedule"]["monday"][0]["start"], "05:30:00")
         self.assertEqual(result["rollback"]["prepared"], False)
 
+    def test_preview_exposes_missing_and_unavailable_helpers_without_assuming_off(self):
+        hass = FakeHass([
+            FakeState("input_boolean.party", "Party", "unavailable"),
+            FakeState("input_boolean.besuch", "Besuch", "on"),
+            FakeState("input_number.heiztemperatur", "Heiztemperatur", "21"),
+        ])
+        result = preview_migration(hass, FakeEntry())
+        missing = result["missing_legacy_helpers"]
+        self.assertIn("input_boolean.party", missing)
+        self.assertIn("input_boolean.schornsteinfeger", missing)
+        self.assertNotIn("input_boolean.besuch", missing)
+        self.assertNotIn("input_number.heiztemperatur", missing)
+        self.assertIn("missing_legacy_helpers", {item["code"] for item in result["conflicts"]})
+        self.assertFalse(result["activation_allowed"])
+        self.assertFalse(result["automatic_import"])
+
     def test_transaction_requires_explicit_confirmation_and_rolls_back_on_readback_failure(self):
         plan = {"proposed_schedule": {"monday": [{"start": "05:30:00", "end": "06:00:00"}]}, "activation_allowed": True}
         transport = FakeTransport(readback_ok=False)
