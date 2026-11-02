@@ -188,3 +188,10 @@ test("beta46 priority strip reflects live HA off state instead of stale snapshot
  await expect(chip).toContainText("Party");
  await expect(chip).not.toContainText("●");
 });
+
+
+test("beta46 footer distinguishes opt-in infrared control from passive heating controls", async ({ page }) => {
+ const footer=page.locator("smart-heating-card").first().locator(".footer-note");
+ await expect(footer).toContainText("Infrarot-Schaltflächen");
+ await expect(footer).toContainText("manuelle Switch-Aktionen");
+});
