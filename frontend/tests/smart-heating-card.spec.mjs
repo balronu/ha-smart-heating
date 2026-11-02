@@ -296,3 +296,14 @@ test("beta46 comfort is explicitly a lower-priority fallback", async ({ page }) 
  await expect(last).toContainText("Komfortbetrieb");
  await expect(last).toContainText("nur wenn keine höhere Regel greift");
 });
+
+
+test("beta46 does not misrepresent combined backend window status", async ({ page }) => {
+ const chain=page.locator("smart-heating-card").first().locator(".priority-chain li");
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._data.status.observed.window_status="open_or_tilted";card._render();});
+ await expect(chain.nth(2)).toContainText("nicht unterscheidbar");
+ await expect(chain.nth(3)).toContainText("nicht unterscheidbar");
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._data.status.observed.window_status="closed_or_clear";card._render();});
+ await expect(chain.nth(2)).toContainText("nicht offen");
+ await expect(chain.nth(3)).toContainText("nicht gekippt");
+});
