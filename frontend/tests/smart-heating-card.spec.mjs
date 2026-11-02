@@ -232,3 +232,13 @@ test("beta46 infrared-only zone is excluded from thermostat temperatures", async
  await expect(card.locator('[data-section="temperatures"] [data-room="ir"]')).toHaveCount(0);
  await expect(card.locator('[data-section="temperatures"]')).toContainText("Keine thermostatisch geregelten Räume verfügbar.");
 });
+
+
+test("beta46 renders eight legacy priority stages without fabricating unavailable status", async ({ page }) => {
+ const chain=page.locator("smart-heating-card").first().locator(".priority-chain");
+ await expect(chain.locator("li")).toHaveCount(8);
+ await expect(chain.locator("li").first()).toContainText("Schornsteinfeger");
+ await expect(chain.locator("li").nth(1)).toContainText("Heizfreigabe");
+ await expect(chain.locator("li").nth(7)).toContainText("Komfortbetrieb");
+ await expect(chain).toContainText("unbekannt");
+});
