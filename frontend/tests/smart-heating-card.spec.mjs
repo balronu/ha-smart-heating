@@ -164,3 +164,19 @@ test("beta46 editor saves pinned room selection", async ({ page }) => {
  const result=await page.evaluate(async()=>{const editor=document.createElement("smart-heating-card-editor");document.body.append(editor);editor.setConfig({entry_id:"fixture"});return await new Promise(resolve=>{editor.addEventListener("config-changed",e=>resolve(e.detail.config),{once:true});const input=editor.querySelector("[data-pinned-rooms]");input.value="bedroom, bathroom";input.dispatchEvent(new Event("change",{bubbles:true}));});});
  expect(result.pinned_rooms).toEqual(["bedroom","bathroom"]);
 });
+
+
+test("beta46 infrared controls remain disabled by default", async ({ page }) => {
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");window.hass.states={"switch.ir":{state:"off"}};card._data.options.management.zones=[{id:"ir",name:"IR",type:"infrared",switch_entities:["switch.ir"]}];card._render();});
+ await expect(page.locator("smart-heating-card").first().locator("[data-ir-switch]")).toHaveCount(0);
+});
+
+test("beta46 explicitly enabled infrared control calls switch only on click", async ({ page }) => {
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");window.hass.states={"switch.ir":{state:"off"}};window.__serviceCalls=[];window.hass.callService=async(domain,service,data)=>window.__serviceCalls.push({domain,service,data});card._config.allow_manual_ir_control=true;card._data.options.management.zones=[{id:"ir",name:"IR",type:"infrared",switch_entities:["switch.ir"]}];card._render();});
+ const button=page.locator("smart-heating-card").first().locator("[data-ir-switch]");
+ await expect(button).toBeVisible();
+ expect(await page.evaluate(()=>window.__serviceCalls.length)).toBe(0);
+ await button.click();
+ await expect.poll(()=>page.evaluate(()=>window.__serviceCalls.length)).toBe(1);
+ expect(await page.evaluate(()=>window.__serviceCalls[0])).toEqual({domain:"switch",service:"turn_on",data:{entity_id:"switch.ir"}});
+});
