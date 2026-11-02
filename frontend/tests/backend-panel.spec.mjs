@@ -762,3 +762,17 @@ test("invalid priority section hash is ignored without opening settings", async 
   await page.evaluate(() => { window.location.hash = "#section=not-a-section"; document.querySelector("smart-heating-backend-panel")._openLinkedZone(); });
   await expect(page.locator("details[data-section][open]")).toHaveCount(0);
 });
+
+
+test("migration panel fails closed on an unsafe preview payload", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel=document.querySelector("smart-heating-backend-panel");
+    panel._migrationPreview={mode:"preview_only",automatic_import:true,activation_allowed:true,legacy_helpers:{"input_boolean.heizung":{state:"on",valid:true}}};
+    panel._render();
+  });
+  const section=page.locator("details[data-section=migration]");
+  await section.locator(":scope > summary").click();
+  await expect(section).toContainText("Antwort entspricht nicht dem sicheren Vorschaumodus");
+  await expect(section).not.toContainText("input_boolean.heizung");
+  await expect(section.getByRole("button")).toHaveCount(0);
+});
