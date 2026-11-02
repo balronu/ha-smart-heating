@@ -383,3 +383,11 @@ test("dashboard room cards expose observed temperature and heating status withou
   const calls = await page.evaluate(() => window.__calls);
   expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
 });
+
+
+test("dashboard header includes accessible brand and explanatory subtitle", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  await expect(card.locator(".dashboard-layout .header-logo")).toBeVisible();
+  await expect(card.locator(".dashboard-layout .header-subtitle")).toContainText("Zentrale Heizungssteuerung");
+  await expect(card.locator(".dashboard-layout .card-header h1")).toBeVisible();
+});
