@@ -274,8 +274,8 @@ test("beta46 chimney sweep priority uses actual helper state", async ({ page }) 
 test("beta46 presence priority requires explicit backend evidence", async ({ page }) => {
  const item=page.locator("smart-heating-card").first().locator(".priority-chain li").nth(4);
  await expect(item).toContainText("Status nicht nachgewiesen");
- await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._data.status.presence_status="away";card._render();});
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._data.status.presence={status:"away"};card._render();});
  await expect(item).toContainText("abwesend");
- await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._data.status.presence_status="home";card._render();});
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._data.status.presence={status:"home"};card._render();});
  await expect(item).toContainText("anwesend");
 });
