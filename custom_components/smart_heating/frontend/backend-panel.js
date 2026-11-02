@@ -169,6 +169,15 @@ class SmartHeatingBackendPanel extends HTMLElement {
   }
   _openLinkedZone() {
     const hash = window.location.hash || "";
+    if (hash.startsWith("#section=")) {
+      let sectionId;
+      try { sectionId = decodeURIComponent(hash.slice(9)); } catch { return; }
+      const section = [...this.querySelectorAll("details[data-section]")].find(node => node.dataset.section === sectionId);
+      if (!section) return;
+      section.open = true;
+      section.scrollIntoView({block:"start",behavior:"instant"});
+      return;
+    }
     if (!hash.startsWith("#zone=")) return;
     let zoneId;
     try { zoneId = decodeURIComponent(hash.slice(6)); } catch { return; }
