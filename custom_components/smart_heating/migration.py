@@ -88,8 +88,11 @@ def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] 
     installation = build_installation_plan(discovery, control_plane)
     legacy_helpers = inspect_legacy_helpers(hass)
     invalid_helpers = [entity_id for entity_id, item in legacy_helpers.items() if item["available"] and not item["valid"]]
+    missing_helpers = [entity_id for entity_id, item in legacy_helpers.items() if not item["available"]]
     if invalid_helpers:
         conflicts.append(_conflict("invalid_legacy_helpers", "warning", "Some legacy helper values are present but invalid; review the listed entities before migration."))
+    if missing_helpers:
+        conflicts.append(_conflict("missing_legacy_helpers", "warning", "Legacy helper values are missing or unavailable; they cannot be imported or assumed to be off."))
     return {
         "entry_id": entry.entry_id,
         "mode": "preview_only",
@@ -102,6 +105,7 @@ def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] 
         "installation": installation,
         "legacy_helpers": legacy_helpers,
         "invalid_legacy_helpers": invalid_helpers,
+        "missing_legacy_helpers": missing_helpers,
         "conflicts": conflicts,
         "activation_allowed": False,
         "rollback": {"prepared": False, "activation_required": True, "description": "Production activation is locked until the old writer is explicitly and safely replaced."},
