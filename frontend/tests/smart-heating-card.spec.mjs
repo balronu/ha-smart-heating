@@ -319,3 +319,15 @@ test("all eight reference priorities link to known backend settings sections", a
    expect(allowed.has(href.split("#section=")[1])).toBe(true);
  }
 });
+
+
+test("beta46 main card remains within viewport across phone tablet and desktop widths", async ({ page }) => {
+ const card=page.locator("smart-heating-card").first();
+ for (const width of [375,768,1280]) {
+   await page.setViewportSize({width,height:900});
+   await expect(card.locator("section[data-section=rooms]")).toBeVisible();
+   const dimensions=await card.evaluate(node=>({right:node.getBoundingClientRect().right,bodyWidth:document.body.scrollWidth,viewport:window.innerWidth}));
+   expect(dimensions.right).toBeLessThanOrEqual(width+2);
+   expect(dimensions.bodyWidth).toBeLessThanOrEqual(width+2);
+ }
+});
