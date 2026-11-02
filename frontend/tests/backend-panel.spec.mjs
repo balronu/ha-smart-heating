@@ -597,8 +597,9 @@ test("keeps a compact seven-day overview and copies a day without opening all ed
   await expect(page.locator("[data-day-editor]")).toHaveCount(0);
   await page.locator("button[data-schedule-edit=monday]").click();
   await page.locator("button[data-schedule-add=monday]").click();
-  await page.evaluate(() => window.prompt = () => "friday");
   await page.locator("button[data-schedule-copy]").click();
+  await page.locator('[data-copy-target="friday"]').check();
+  await page.locator("[data-copy-apply]").click();
   await expect(page.locator("fieldset[data-schedule-day=friday] [data-day-summary]")).toContainText("06:00–22:00");
   await expect(page.locator("[data-day-editor]")).toHaveCount(1);
 });
@@ -701,7 +702,7 @@ test("schedule inputs retain focus and DOM identity while typing", async ({ page
   await input.fill("21");
   await expect(input).toBeFocused();
   await expect(input).toHaveValue("21");
-  await expect(page.locator(".save-feedback")).toContainText("nicht gespeichert");
+  await expect(page.locator(".planner-actions .save-feedback")).toContainText("nicht gespeichert");
 });
 
 test("copying windows uses clickable German weekday choices and keeps changes unsaved", async ({ page }) => {
@@ -714,5 +715,5 @@ test("copying windows uses clickable German weekday choices and keeps changes un
   await page.locator("[data-copy-apply]").click();
   await expect(page.locator("[data-copy-dialog]")).toHaveCount(0);
   await expect(page.locator('[data-schedule-day="tuesday"]')).toContainText("06:00");
-  await expect(page.locator(".save-feedback")).toContainText("nicht gespeichert");
+  await expect(page.locator(".planner-actions .save-feedback")).toContainText("nicht gespeichert");
 });
