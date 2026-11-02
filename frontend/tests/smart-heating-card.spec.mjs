@@ -97,7 +97,7 @@ test("beta46 priority chips navigate to the matching mode without writes", async
 test("beta46 infrared zone is shown separately without thermostat write", async ({ page }) => {
  await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._data.options.management.zones.push({id:"ir",name:"Infrarotheizung",type:"infrared",switch_entities:["switch.ir"]});card._render();});
  const card=page.locator("smart-heating-card").first();
- await expect(card.locator("[data-room=ir]")).toContainText("Infrarot");
+ await expect(card.locator('[data-section="rooms"] [data-room="ir"]')).toContainText("Infrarot");
  expect(await page.evaluate(()=>window.__calls.every(call=>call.type==="smart_heating/plan/get"))).toBeTruthy();
 });
 
@@ -117,7 +117,7 @@ test("beta46 prioritizes chimney sweep over numeric mode priorities", async ({ p
 test("beta46 infrared switch shows actual HA on/off state without sending commands", async ({ page }) => {
  await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");window.hass.states={"switch.ir":{"state":"on"},"input_boolean.party":{"state":"on"}};card._data.options.management.zones.push({id:"ir",name:"Infrarotheizung",type:"infrared",switch_entities:["switch.ir"]});card._render();});
  const card=page.locator("smart-heating-card").first();
- await expect(card.locator("[data-room=ir]")).toContainText("Eingeschaltet");
+ await expect(card.locator('[data-section="rooms"] [data-room="ir"]')).toContainText("Eingeschaltet");
  expect(await page.evaluate(()=>window.__calls.every(call=>call.type==="smart_heating/plan/get"))).toBeTruthy();
 });
 
