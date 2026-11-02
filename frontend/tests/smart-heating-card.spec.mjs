@@ -180,3 +180,11 @@ test("beta46 explicitly enabled infrared control calls switch only on click", as
  await expect.poll(()=>page.evaluate(()=>window.__serviceCalls.length)).toBe(1);
  expect(await page.evaluate(()=>window.__serviceCalls[0])).toEqual({domain:"switch",service:"turn_on",data:{entity_id:"switch.ir"}});
 });
+
+
+test("beta46 priority strip reflects live HA off state instead of stale snapshot", async ({ page }) => {
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");window.hass.states={"input_boolean.party":{state:"off"}};card._data.options.management.special_modes=[{id:"party",name:"Party",active:true,priority:50,status_source:"input_boolean.party"}];card._render();});
+ const chip=page.locator("smart-heating-card").first().locator("[data-priority-mode=party]");
+ await expect(chip).toContainText("Party");
+ await expect(chip).not.toContainText("●");
+});
