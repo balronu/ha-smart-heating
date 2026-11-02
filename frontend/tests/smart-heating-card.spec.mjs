@@ -223,3 +223,12 @@ test("beta46 successful infrared retry clears prior service error", async ({ pag
  expect(await page.evaluate(()=>document.querySelector("smart-heating-card")._error)).toBeNull();
  await expect(page.locator("smart-heating-card").first().locator('[data-testid="error"]')).toHaveCount(0);
 });
+
+
+test("beta46 infrared-only zone is excluded from thermostat temperatures", async ({ page }) => {
+ await page.evaluate(() => { const card=document.querySelector("smart-heating-card"); card._data.options.management.zones=[{id:"ir",name:"IR Panel",type:"infrared",switch_entities:["switch.ir"]}]; card._render(); });
+ const card=page.locator("smart-heating-card").first();
+ await expect(card.locator('[data-section="rooms"] [data-room="ir"]')).toHaveCount(1);
+ await expect(card.locator('[data-section="temperatures"] [data-room="ir"]')).toHaveCount(0);
+ await expect(card.locator('[data-section="temperatures"]')).toContainText("Keine thermostatisch geregelten Räume verfügbar.");
+});
