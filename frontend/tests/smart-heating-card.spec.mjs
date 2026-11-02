@@ -392,7 +392,7 @@ test.describe("native dashboard beta.51", () => {
     await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");delete window.hass.states["input_number.heiztemperatur"];delete window.hass.states["input_boolean.party"];card._render();});
     const card=page.locator("smart-heating-card").first();
     await expect(card.locator('[data-entity="input_number.heiztemperatur"][data-adjust="1"]')).toBeDisabled();
-    await expect(card.locator('[data-toggle="input_boolean.party"]')).toBeDisabled();
+    await expect(card.locator('[data-mode-source="input_boolean.party"]')).toHaveCount(0);
     expect(await page.evaluate(()=>window.__services)).toEqual([]);
   });
   test("diagnostics remain expanded after relevant state updates",async({page})=>{
@@ -435,7 +435,7 @@ test.describe("native dashboard beta.51", () => {
   test("renders configured custom special modes dynamically",async({page})=>{
     await page.evaluate(()=>{
       const card=document.querySelector("smart-heating-card");
-      card._data.management={special_modes:[{id:"custom",name:"Zusatzbetrieb",status_source:"input_boolean.zusatzbetrieb",enabled:true}]};
+      card._data.options={...(card._data.options||{}),management:{...(card._data.options?.management||{}),special_modes:[{id:"custom",name:"Zusatzbetrieb",status_source:"input_boolean.zusatzbetrieb",enabled:true}]}};
       window.hass={...window.hass,states:{...window.hass.states,"input_boolean.zusatzbetrieb":{state:"on"}}};
       card.hass=window.hass;card._render();
     });
@@ -447,7 +447,7 @@ test.describe("native dashboard beta.51", () => {
   test("shows infrared panel in bathroom and respects opt-in control",async({page})=>{
     await page.evaluate(()=>{
       const card=document.querySelector("smart-heating-card");
-      card._data.management={zones:[{id:"bathroom",name:"Badezimmer",type:"infrared",switch_entities:["switch.bad_ir"],thermostats:["climate.bathroom"]}]};
+      card._data.options={...(card._data.options||{}),management:{...(card._data.options?.management||{}),zones:[{id:"bathroom",name:"Badezimmer",type:"infrared",switch_entities:["switch.bad_ir"],thermostats:["climate.bathroom"]}]}};
       window.hass={...window.hass,states:{...window.hass.states,"switch.bad_ir":{state:"on"}}};
       card.hass=window.hass;card._render();
     });
