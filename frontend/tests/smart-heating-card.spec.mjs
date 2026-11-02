@@ -362,3 +362,13 @@ test("temperature adjustment controls remain safely disabled in compatibility mo
   const calls = await page.evaluate(() => window.__calls);
   expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
 });
+
+
+test("dashboard special-mode tiles show icons and explicit observed activation", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  const modes = card.locator('[data-section="special_modes"] .mode');
+  await expect(modes.first().locator(".mode-icon")).toBeVisible();
+  await expect(modes.first()).toHaveAttribute("data-active", /^(true|false)$/);
+  const calls = await page.evaluate(() => window.__calls);
+  expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
