@@ -1,4 +1,12 @@
 
+## v0.1.0-beta.42 (vorbereitet)
+
+- Wochenplan: kein DOM-Neuaufbau beim Tippen in Zeit- und Temperaturfelder; Fokus bleibt erhalten.
+- Mehrfachauswahl deutscher Wochentage zum Kopieren; vorhandene Zeitfenster nur nach Bestätigung überschreiben.
+- Sekunden in Zeitangaben entfernt, Tageseditor und Speicherstatus kompakter angeordnet.
+- Zusätzliche Playwright-Regressionstests; weiterhin passive Heizungssteuerung.
+
+
 ## Unreleased (nach v0.1.0-beta.40)
 
 - Wochenplan: Tageseditor außerhalb des siebenspaltigen Rasters, responsive und durch erneutes Antippen einklappbar.
