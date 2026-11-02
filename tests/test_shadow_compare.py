@@ -38,6 +38,12 @@ class ShadowComparisonTests(unittest.TestCase):
         self.assertEqual(result["comparison"], "stale_data")
         self.assertEqual(result["legacy_age_seconds"], 16 * 60)
 
+    def test_simulated_trace_cannot_prove_live_match(self):
+        result = self.compare({"target_temperature": 22, "proven": True, "source": "fixture", "timestamp": self.NOW.isoformat(), "simulated": True})
+        self.assertEqual(result["comparison"], "comparison_not_possible")
+        self.assertTrue(result["simulated"])
+        self.assertFalse(result["smart_takeover_allowed"])
+
     def test_simulated_trace_remains_marked_simulated(self):
         result = self.compare({"target_temperature": 22, "proven": True, "source": "fixture", "simulated": True, "timestamp": self.NOW.isoformat()})
         self.assertTrue(result["simulated"])
