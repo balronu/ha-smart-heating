@@ -138,3 +138,19 @@ class LegacyHelperInventoryTests(unittest.TestCase):
         self.assertEqual(result["input_number.heiztemperatur"]["state"], "22")
         self.assertFalse(result["input_boolean.schornsteinfeger"]["available"])
         self.assertNotIn("input_boolean.unrelated", result)
+
+    def test_invalid_or_unknown_helper_values_are_not_migration_inputs(self):
+        hass = FakeHass([
+            FakeState("input_boolean.party", "Party", "unknown"),
+            FakeState("input_boolean.besuch", "Besuch", "unexpected"),
+            FakeState("input_number.heiztemperatur", "Komfort", "nan"),
+            FakeState("input_number.absenktemperatur", "Absenkung", "17"),
+        ])
+        result = inspect_legacy_helpers(hass)
+        self.assertFalse(result["input_boolean.party"]["available"])
+        self.assertFalse(result["input_boolean.party"]["valid"])
+        self.assertTrue(result["input_boolean.besuch"]["available"])
+        self.assertFalse(result["input_boolean.besuch"]["valid"])
+        self.assertFalse(result["input_number.heiztemperatur"]["valid"])
+        self.assertTrue(result["input_number.absenktemperatur"]["valid"])
+        self.assertFalse(result["input_boolean.schornsteinfeger"]["valid"])
