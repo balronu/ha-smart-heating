@@ -351,3 +351,14 @@ test("dashboard displays four read-only operational status tiles", async ({ page
   const calls = await page.evaluate(() => window.__calls);
   expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
 });
+
+
+test("temperature adjustment controls remain safely disabled in compatibility mode", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  const controls = card.locator('[data-section="temperatures"] .temperature-controls button');
+  await expect(controls).toHaveCount(4);
+  for (const control of await controls.all()) await expect(control).toBeDisabled();
+  await expect(card.locator('[data-section="temperatures"]')).toContainText("Bedienung gesperrt");
+  const calls = await page.evaluate(() => window.__calls);
+  expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
