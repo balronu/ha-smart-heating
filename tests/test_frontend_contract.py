@@ -53,3 +53,18 @@ class FrontendContractTests(unittest.TestCase):
             with self.subTest(marker=marker):
                 self.assertIn(marker, source)
         self.assertIn("PLAN_CACHE", source)
+
+
+class WindowDetailContractTests(unittest.TestCase):
+    def test_backend_exposes_additive_detail_without_removing_legacy_status(self):
+        source = Path("custom_components/smart_heating/__init__.py").read_text()
+        self.assertIn('"window_detail_status": window_detail_status', source)
+        self.assertIn('"window_status": window_status', source)
+        self.assertIn('window_detail_status = "open_or_tilted"', source)
+        self.assertIn('window_detail_status = "unknown"', source)
+        self.assertIn('{"on", "true", "1"}', source)
+
+    def test_card_prefers_detail_and_retains_legacy_fallback(self):
+        source = Path("custom_components/smart_heating/frontend/smart-heating-card.js").read_text()
+        self.assertIn('observed.window_detail_status||observed.window_status', source)
+        self.assertIn('nicht unterscheidbar', source)
