@@ -19,10 +19,10 @@ class LegacyHelperInventoryTests(unittest.TestCase):
             "input_number.heiztemperatur": "21",
         }))
         result = inspect_legacy_helpers(hass)
-        self.assertEqual(result["input_boolean.heizung"], {"state": "on", "available": True})
-        self.assertEqual(result["input_boolean.party"], {"state": "unavailable", "available": False})
-        self.assertEqual(result["input_boolean.besuch"], {"state": None, "available": False})
-        self.assertEqual(result["input_number.heiztemperatur"], {"state": "21", "available": True})
+        self.assertEqual(result["input_boolean.heizung"], {"state": "on", "available": True, "valid": True})
+        self.assertEqual(result["input_boolean.party"], {"state": "unavailable", "available": False, "valid": False})
+        self.assertEqual(result["input_boolean.besuch"], {"state": None, "available": False, "valid": False})
+        self.assertEqual(result["input_number.heiztemperatur"], {"state": "21", "available": True, "valid": True})
         self.assertEqual(len(result), 9)
 
     def test_inventory_does_not_write_states_or_call_services(self):
