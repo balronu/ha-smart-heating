@@ -449,7 +449,7 @@ test("edits only the selected day and saves with visible confirmation", async ({
   await expect(page.locator("[data-schedule-day=wednesday] [data-day-summary]")).toContainText("06:00–08:30");
 });
 
-test("shows unsaved state before saving and stacks time fields on a narrow phone", async ({ page }) => {
+test("shows unsaved state and fits compact time fields on a narrow phone", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
   await page.evaluate(() => { const meta = document.createElement("meta"); meta.name = "viewport"; meta.content = "width=device-width, initial-scale=1"; document.head.append(meta); });
   await page.waitForTimeout(50);
@@ -461,7 +461,8 @@ test("shows unsaved state before saving and stacks time fields on a narrow phone
     const labels = [...row.querySelectorAll("label")].map((label) => label.getBoundingClientRect());
     return labels.map((box) => ({ top: Math.round(box.top), left: Math.round(box.left), right: Math.round(box.right) }));
   });
-  expect(layout[1].top).toBeGreaterThan(layout[0].top);
+  expect(layout[1].top).toBe(layout[0].top);
+  expect(layout[1].left).toBeGreaterThan(layout[0].left);
   expect(layout[0].right).toBeLessThanOrEqual(320);
   expect(layout[1].right).toBeLessThanOrEqual(320);
 });
