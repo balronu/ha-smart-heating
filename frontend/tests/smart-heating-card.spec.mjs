@@ -269,3 +269,13 @@ test("beta46 chimney sweep priority uses actual helper state", async ({ page }) 
  await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");window.hass.states["input_boolean.schornsteinfeger"].state="off";card._render();});
  await expect(first).toContainText("inaktiv");
 });
+
+
+test("beta46 presence priority requires explicit backend evidence", async ({ page }) => {
+ const item=page.locator("smart-heating-card").first().locator(".priority-chain li").nth(4);
+ await expect(item).toContainText("Status nicht nachgewiesen");
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._data.status.presence_status="away";card._render();});
+ await expect(item).toContainText("abwesend");
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._data.status.presence_status="home";card._render();});
+ await expect(item).toContainText("anwesend");
+});
