@@ -2,9 +2,10 @@ import { test, expect } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/frontend/fixtures/harness.html");
+  await expect(page.locator("smart-heating-card").first().locator(".sh-app")).toBeVisible();
+  await page.evaluate(() => { const card=document.querySelector("smart-heating-card");card.setConfig({entry_id:"fixture-0",display_mode:"compact"});card.hass=window.hass; });
   await expect(page.getByTestId("status").first()).toContainText("Kompatibilitätsmodus");
   await expect(page.getByTestId("version").first()).toContainText("0.1.0-beta.40");
-  await page.evaluate(() => { const card=document.querySelector("smart-heating-card"); card.setConfig({entry_id:"fixture-0",display_mode:"compact"});card.hass=window.hass; });
   await expect(page.locator("smart-heating-card").first().locator(".footer-note")).toContainText("Heizungs-, Thermostat-, Scheduler- und Sondermodus-Steuerung bleibt unverändert");
 });
 
