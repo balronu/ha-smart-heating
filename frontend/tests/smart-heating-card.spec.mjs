@@ -334,7 +334,8 @@ test("beta46 main card remains within viewport across phone tablet and desktop w
 
 
 test("dashboard mode is available in the Lovelace editor and stays read-only", async ({ page }) => {
-  const editor = page.locator("smart-heating-card-editor").first();
+  await page.evaluate(() => { const editor = document.createElement("smart-heating-card-editor"); document.body.append(editor); editor.setConfig({ entry_id: "fixture-dashboard", display_mode: "dashboard" }); });
+  const editor = page.locator("smart-heating-card-editor").last();
   await expect(editor.locator('[data-mode] option[value="dashboard"]')).toHaveCount(1);
   await expect(page.locator("smart-heating-card").first().locator('[data-display-mode="dashboard"]')).toBeVisible();
   const calls = await page.evaluate(() => window.__calls);
