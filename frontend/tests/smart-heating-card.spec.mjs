@@ -221,4 +221,5 @@ test("beta46 successful infrared retry clears prior service error", async ({ pag
  await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");window.hass.states={"switch.ir":{state:"off"}};window.hass.callService=async()=>{};card._config.allow_manual_ir_control=true;card._data.options.management.zones=[{id:"ir",name:"IR",type:"infrared",switch_entities:["switch.ir"]}];card._error="Alter Schaltfehler";card._render();});
  await page.locator("smart-heating-card").first().locator("[data-ir-switch]").first().click();
  expect(await page.evaluate(()=>document.querySelector("smart-heating-card")._error)).toBeNull();
+ await expect(page.locator("smart-heating-card").first().locator('[data-testid="error"]')).toHaveCount(0);
 });
