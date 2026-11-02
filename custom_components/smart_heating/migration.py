@@ -86,6 +86,7 @@ def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] 
     if selected.get("heating_boolean"):
         conflicts.append(_conflict("existing_writer", "error", "The existing heating helper may have writers outside this integration; single-writer safety cannot be proven through supported read-only APIs."))
     installation = build_installation_plan(discovery, control_plane)
+    legacy_helpers = inspect_legacy_helpers(hass)
     return {
         "entry_id": entry.entry_id,
         "mode": "preview_only",
@@ -96,6 +97,7 @@ def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] 
         "discovery": discovery,
         "control_plane": control_plane,
         "installation": installation,
+        "legacy_helpers": legacy_helpers,
         "conflicts": conflicts,
         "activation_allowed": False,
         "rollback": {"prepared": False, "activation_required": True, "description": "Production activation is locked until the old writer is explicitly and safely replaced."},
