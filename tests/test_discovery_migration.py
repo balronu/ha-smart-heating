@@ -97,6 +97,24 @@ class DiscoveryMigrationTests(unittest.TestCase):
         hass.states.items[0].state = "unavailable"
         self.assertIsNone(inspect_legacy_automation(hass)["enabled"])
 
+    def test_preview_flags_active_and_unknown_legacy_writer(self):
+        class PublicStates(FakeStates):
+            def get(self, entity_id):
+                return next((item for item in self.items if item.entity_id == entity_id), None)
+
+        hass = FakeHass([FakeState("automation.heizung_automatik_ersetzt_node_red", "Legacy", "on")])
+        hass.states = PublicStates(hass.states.items)
+        active = preview_migration(hass, FakeEntry())
+        self.assertIn("legacy_automation_active", {item["code"] for item in active["conflicts"]})
+        self.assertFalse(active["activation_allowed"])
+        hass.states.items[0].state = "unavailable"
+        unknown = preview_migration(hass, FakeEntry())
+        self.assertIn("legacy_automation_state_unknown", {item["code"] for item in unknown["conflicts"]})
+        hass.states.items[0].state = "off"
+        disabled = preview_migration(hass, FakeEntry())
+        self.assertNotIn("legacy_automation_active", {item["code"] for item in disabled["conflicts"]})
+        self.assertFalse(disabled["activation_allowed"])
+
     def test_preview_never_imports_fixture_and_reports_conflicts(self):
         hass = FakeHass([FakeState("input_boolean.heizung", "Heizung")])
         result = preview_migration(hass, FakeEntry())
