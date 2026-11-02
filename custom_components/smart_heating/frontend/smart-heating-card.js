@@ -20,10 +20,33 @@ class SmartHeatingCard extends HTMLElement {
   static getConfigElement(){return document.createElement("smart-heating-card-editor");}
   static getStubConfig(){return {title:"Smart Heating"};}
   setConfig(config){if(!config||typeof config!=="object")throw new Error("Smart Heating braucht eine Konfiguration");this._config={...DEFAULT_CONFIG,...config,visible_sections:Array.isArray(config.visible_sections)?config.visible_sections.filter(section=>SECTIONS.includes(section)):[...SECTIONS],room_filter:Array.isArray(config.room_filter)?config.room_filter:[],pinned_rooms:Array.isArray(config.pinned_rooms)?config.pinned_rooms:[],allow_manual_ir_control:config.allow_manual_ir_control===true};this._loaded=false;this._error=null;this._render();this._load();}
-  set hass(value){const changed=this._hass!==value;this._hass=value;if(changed){this._loaded=false;this._error=null;this._load();}this._render();}
+  set hass(value){
+    this._hass=value;
+    // Home Assistant supplies a new hass object for unrelated entity updates.
+    // Rebuilding the entire card on every update makes iOS WebView jump while scrolling.
+    if(!this._loaded){this._load();return;}
+    const signature=this._visibleStateSignature();
+    if(signature!==this._lastVisibleStateSignature){
+      this._lastVisibleStateSignature=signature;
+      this._render();
+    }
+  }
+  _visibleStateSignature(){
+    const ids=new Set();
+    const add=(ref)=>{const id=typeof ref==="string"?ref:ref?.entity_id;if(typeof id==="string"&&id.includes("."))ids.add(id);};
+    for(const room of this._rooms()){
+      for(const ref of [...(room.temperatures||room.temperature_entities||[]),...(room.thermostats||room.thermostat_entities||[]),...(room.switch_entities||room.switches||[])])add(ref);
+    }
+    const modes=this._management().special_modes||[];
+    for(const mode of Array.isArray(modes)?modes:[])add(mode.status_source);
+    return [...ids].sort().map(id=>{
+      const state=this._hass?.states?.[id];
+      return [id,state?.state,state?.last_updated,state?.attributes?.current_temperature,state?.attributes?.temperature,state?.attributes?.hvac_action];
+    }).map(parts=>JSON.stringify(parts)).join("|");
+  }
   getCardSize(){return this._config?.display_mode==="compact"?3:6;}
   getGridOptions(){return {columns:12,rows:"auto",min_rows:3};}
-  async _load(){if(!this._hass||!this._config||this._loading||this._loaded)return;this._loading=true;const entryId=this._config.entry_id||await resolveSmartHeatingEntry(this._hass);if(!entryId){this._loading=false;this._error="Kein eindeutiger Smart-Heating-Konfigurationseintrag gefunden.";this._render();return;}let cache=PLAN_CACHE.get(this._hass);if(!cache){cache=new Map();PLAN_CACHE.set(this._hass,cache);}const message={type:"smart_heating/plan/get",entry_id:entryId};try{let request=cache.get(entryId);if(!request){request=this._hass.callWS(message);cache.set(entryId,request);}this._data=await request;this._loaded=true;this._error=null;}catch(error){if(cache.get(entryId))cache.delete(entryId);this._error=error?.message||String(error);}finally{this._loading=false;this._render();}}
+  async _load(){if(!this._hass||!this._config||this._loading||this._loaded)return;this._loading=true;const entryId=this._config.entry_id||await resolveSmartHeatingEntry(this._hass);if(!entryId){this._loading=false;this._error="Kein eindeutiger Smart-Heating-Konfigurationseintrag gefunden.";this._render();return;}let cache=PLAN_CACHE.get(this._hass);if(!cache){cache=new Map();PLAN_CACHE.set(this._hass,cache);}const message={type:"smart_heating/plan/get",entry_id:entryId};try{let request=cache.get(entryId);if(!request){request=this._hass.callWS(message);cache.set(entryId,request);}this._data=await request;this._loaded=true;this._lastVisibleStateSignature=this._visibleStateSignature();this._error=null;}catch(error){if(cache.get(entryId))cache.delete(entryId);this._error=error?.message||String(error);}finally{this._loading=false;this._render();}}
   _esc(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
   _unknown(value){return value===null||value===undefined||UNKNOWN.has(String(value).trim().toLowerCase());}
   _value(value,fallback="unbekannt"){return this._unknown(value)?fallback:String(value);}
