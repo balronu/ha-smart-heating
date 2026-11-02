@@ -249,3 +249,14 @@ test("beta46 room settings link targets exact backend zone without write", async
  await expect(card.locator('[data-section="rooms"] [data-room="bathroom"] .room-settings-link')).toHaveAttribute("href", "/smart_heating#zone=bathroom");
  expect(await page.evaluate(()=>window.__calls.every(call=>call.type==="smart_heating/plan/get"))).toBeTruthy();
 });
+
+
+test("beta46 distinguishes open and tilted windows in priority chain", async ({ page }) => {
+ const chain=page.locator("smart-heating-card").first().locator(".priority-chain");
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._data.status.observed.window_status="open";card._render();});
+ await expect(chain.locator("li").nth(2)).toContainText("offen");
+ await expect(chain.locator("li").nth(3)).toContainText("nicht gekippt");
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._data.status.observed.window_status="tilted";card._render();});
+ await expect(chain.locator("li").nth(2)).toContainText("nicht offen");
+ await expect(chain.locator("li").nth(3)).toContainText("gekippt");
+});
