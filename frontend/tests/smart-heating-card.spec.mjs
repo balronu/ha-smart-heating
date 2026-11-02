@@ -406,6 +406,7 @@ test.describe("native dashboard beta.51", () => {
     const card=page.locator("smart-heating-card").first();
     const result=await card.locator(".sh-app").evaluate(node=>({right:node.getBoundingClientRect().right,viewport:document.documentElement.clientWidth,overflow:node.scrollWidth-node.clientWidth}));
     expect(result.right).toBeLessThanOrEqual(result.viewport+2);
+    if(result.overflow>2){const offenders=await card.locator(".sh-app").evaluate(root=>{const edge=root.getBoundingClientRect().right;return [...root.querySelectorAll("*")].map(el=>({tag:el.tagName,cls:el.className,right:Math.round(el.getBoundingClientRect().right),width:Math.round(el.getBoundingClientRect().width),scroll:el.scrollWidth,client:el.clientWidth})).filter(x=>x.right>edge+2||x.scroll>x.client+2).slice(0,12)});console.log("NATIVE_MOBILE_OVERFLOW",JSON.stringify(offenders));}
     expect(result.overflow).toBeLessThanOrEqual(2);
     await page.screenshot({path:`test-results/${testInfo.project.name}-native-mobile.png`,fullPage:true});
   });
