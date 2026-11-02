@@ -100,3 +100,15 @@ test("beta46 infrared zone is shown separately without thermostat write", async 
  await expect(card.locator("[data-room=ir]")).toContainText("Infrarot");
  expect(await page.evaluate(()=>window.__calls.every(call=>call.type==="smart_heating/plan/get"))).toBeTruthy();
 });
+
+
+test("beta46 editor configures visible room count", async ({ page }) => {
+ const result=await page.evaluate(async()=>{const editor=document.createElement("smart-heating-card-editor");document.body.append(editor);editor.setConfig({entry_id:"fixture",visible_room_count:2});return await new Promise(resolve=>{editor.addEventListener("config-changed",e=>resolve(e.detail.config),{once:true});const field=editor.querySelector("[data-visible-rooms]");field.value="4";field.dispatchEvent(new Event("change",{bubbles:true}));});});
+ expect(result.visible_room_count).toBe(4);
+});
+
+test("beta46 prioritizes chimney sweep over numeric mode priorities", async ({ page }) => {
+ const card=page.locator("smart-heating-card").first();
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._data.options.management.special_modes=[{id:"party",name:"Party",priority:9999},{id:"chimney_sweep",name:"Schornsteinfeger",priority:1}];card._render();});
+ await expect(card.locator("[data-priority-mode]").first()).toHaveAttribute("data-priority-mode","chimney_sweep");
+});
