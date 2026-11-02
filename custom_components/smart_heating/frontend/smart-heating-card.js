@@ -66,6 +66,22 @@ class SmartHeatingCard extends HTMLElement {
   _diagnostics(){const control=this._status().control_plane||this._data?.options?.control_plane||{},blockers=Array.isArray(control.blockers)?control.blockers:[];return`<p class="hint">Die Karte arbeitet ausschließlich passiv. Fehlende Nachweise werden als unbekannt angezeigt.</p><ul>${(blockers.length?blockers:["SMART-Freigabe nicht nachgewiesen"]).map(item=>`<li>${this._esc(item)}</li>`).join("")}</ul>`;}
   _section(name,title,body){return`<section class="card-section" data-section="${name}"><h2>${title}</h2>${body}</section>`;}
 
+  _dashboardModes(){
+    const configured=this._management().special_modes;
+    if(!Array.isArray(configured)||!configured.length)return [];
+    return configured.filter(mode=>mode&&mode.id).map(mode=>{
+      const source=typeof mode.status_source==="string"?mode.status_source:"";
+      const label=String(mode.name||mode.id);
+      const key=(label+" "+mode.id+" "+(mode.mode_type||"")).toLowerCase();
+      const icon=/schornstein|chimney/.test(key)?"♨":/party/.test(key)?"♫":/besuch|visit/.test(key)?"♧":/heimweg|home/.test(key)?"⌂":/sommer|summer/.test(key)?"☀":"◉";
+      return {id:String(mode.id),label,source,icon,enabled:mode.enabled!==false};
+    });
+  }
+  _dashboardIr(room){
+    const refs=room.switch_entities||room.switches||[];
+    const id=refs.map(ref=>typeof ref==="string"?ref:ref?.entity_id).find(ref=>typeof ref==="string"&&ref.startsWith("switch."));
+    return this._isInfrared(room)&&id?id:null;
+  }
   _refreshModernState(){
     const st=id=>this._hass?.states?.[id];
     const valid=id=>st(id)&&!["unknown","unavailable"].includes(st(id).state);
@@ -82,13 +98,23 @@ class SmartHeatingCard extends HTMLElement {
       const max=Number.isFinite(Number(entity?.attributes?.max))?Number(entity.attributes.max):35;
       tile.querySelectorAll("[data-adjust]").forEach(button=>{const next=number+Number(button.dataset.adjust)*step;button.disabled=!ok||next<min||next>max;});
     });
-    this.querySelectorAll(".sh-mode[data-toggle]").forEach(button=>{
-      const id=button.dataset.toggle,on=st(id)?.state==="on",available=valid(id);
-      button.classList.toggle("sh-on",on);button.disabled=!available;button.setAttribute("aria-pressed",String(on));
-      const label=button.querySelector("small");if(label)label.textContent=!available?"Nicht verfügbar":on?"Aktiv":"Aus";
+    this.querySelectorAll(".sh-mode[data-mode-source]").forEach(button=>{
+      const id=button.dataset.modeSource,on=st(id)?.state==="on",available=valid(id);
+      button.classList.toggle("sh-on",on);button.disabled=!available||!button.dataset.toggle;button.setAttribute("aria-pressed",String(on));
+      const label=button.querySelector("small");if(label)label.textContent=!available?"Nicht verfügbar":on?"Aktiv":button.dataset.toggle?"Aus":"Inaktiv · nur Anzeige";
     });
+    this.querySelectorAll(".sh-ir[data-ir-switch]").forEach(button=>button.addEventListener("click",async event=>{
+      event.stopPropagation();
+      const id=button.dataset.irSwitch,state=this._hass?.states?.[id]?.state;
+      if(this._config.allow_manual_ir_control!==true||!["on","off"].includes(state))return;
+      button.disabled=true;
+      try{await this._hass.callService("switch",state==="on"?"turn_off":"turn_on",{entity_id:id});}
+      catch(error){this._error="Infrarot-Panel: "+(error?.message||error);this._renderModern();}
+      finally{button.disabled=false;}
+    }));
     this.querySelectorAll(".sh-room[data-climate]").forEach(room=>{
       const entity=st(room.dataset.climate),actual=entity?.attributes?.current_temperature,target=entity?.attributes?.temperature;
+      const ir=room.querySelector(".sh-ir");if(ir){const state=st(ir.dataset.irSwitch)?.state;ir.setAttribute("aria-pressed",String(state==="on"));ir.textContent="Infrarot-Panel: "+(state==="on"?"Ein":state==="off"?"Aus":"Nicht verfügbar")+(this._config.allow_manual_ir_control===true?"":" · Anzeige");ir.disabled=this._config.allow_manual_ir_control!==true||!["on","off"].includes(state);}
       const label=room.querySelector(".sh-room-values");
       if(label)label.textContent=(actual==null?"Ist –":"Ist "+actual+" °C")+" · "+(target==null?"Soll –":"Soll "+target+" °C");
     });
@@ -106,20 +132,32 @@ class SmartHeatingCard extends HTMLElement {
       const max=Number.isFinite(Number(entity?.attributes?.max))?Number(entity.attributes.max):35;
       return `<div class="sh-tile" data-temp="${esc(id)}"><span class="sh-muted">${icon} ${label}</span><strong>${ok?number.toLocaleString("de-DE",{maximumFractionDigits:1})+" °C":"–"}</strong><div class="sh-controls"><button data-adjust="-1" data-entity="${esc(id)}" ${!ok||number-step<min?"disabled":""} aria-label="${label} senken">−</button><span>Sollwert</span><button data-adjust="1" data-entity="${esc(id)}" ${!ok||number+step>max?"disabled":""} aria-label="${label} erhöhen">+</button></div></div>`;
     };
-    const modeDefs=[["party","Party","♫"],["besuch","Besuch","♧"],["heimweg","Heimweg","⌂"],["heizung_sommermodus","Sommermodus","☀"],["schornsteinfeger","Schornsteinfeger","♨"]];
-    const modes=modeDefs.map(([id,label,icon])=>{const entity="input_boolean."+id;const available=valid(entity),on=st(entity)?.state==="on";return `<button class="sh-mode ${on?"sh-on":""}" data-toggle="${entity}" ${!available?"disabled":""} aria-pressed="${on}"><span>${icon} ${label}</span><small>${!available?"Nicht verfügbar":on?"Aktiv":"Aus"}</small></button>`;}).join("");
+    const modes=this._dashboardModes().map(mode=>{
+      const state=st(mode.source)?.state,on=state==="on",available=mode.enabled&&["on","off"].includes(state);
+      const canToggle=available&&mode.source.startsWith("input_boolean.");
+      return `<button class="sh-mode ${on?"sh-on":""}" data-mode-source="${esc(mode.source)}" ${canToggle?`data-toggle="${esc(mode.source)}"`:""} ${!canToggle?"disabled":""} aria-pressed="${on}"><span>${mode.icon} ${esc(mode.label)}</span><small>${!available?"Nicht verfügbar":on?"Aktiv":canToggle?"Aus":"Inaktiv · nur Anzeige"}</small></button>`;
+    }).join("");
     const schedule=this._data?.schedule||{};
     const groups=[["Mo–Fr",["monday","tuesday","wednesday","thursday","friday"]],["Sa–So",["saturday","sunday"]]];
     const times=keys=>keys.map(key=>(schedule[key]||[]).map(w=>this._time(w.start)+"–"+this._time(w.end)).join(", ")||"–");
     const scheduleHtml=groups.map(([name,keys])=>{const values=times(keys);return `<div class="sh-schedule-row"><b>${name}</b><span>${values.every(v=>v===values[0])?esc(values[0]):esc(values.join(" · "))}</span></div>`;}).join("");
-    const rooms=this._rooms().map(room=>{const thermostat=(room.thermostats||room.thermostat_entities||[])[0];const id=typeof thermostat==="string"?thermostat:thermostat?.entity_id;const climate=id?st(id):null;const temp=climate?.attributes?.current_temperature;const target=climate?.attributes?.temperature??room.target_temperature;return `<div class="sh-room" ${id?`data-climate="${esc(id)}" role="button" tabindex="0" aria-label="${esc(room.name||room.id)} öffnen"`:""}><b>${esc(room.name||room.id)}</b><span class="sh-room-values">${temp==null?"Ist –":"Ist "+esc(temp)+" °C"} · ${target==null?"Soll –":"Soll "+esc(target)+" °C"}</span></div>`;}).join("");
+    const rooms=this._rooms().map(room=>{
+      const thermostat=(room.thermostats||room.thermostat_entities||[])[0];
+      const id=typeof thermostat==="string"?thermostat:thermostat?.entity_id;
+      const climate=id?st(id):null;
+      const temp=climate?.attributes?.current_temperature;
+      const target=climate?.attributes?.temperature??room.target_temperature;
+      const ir=this._dashboardIr(room),irState=ir?st(ir)?.state:null,irAvailable=["on","off"].includes(irState);
+      const irButton=ir?`<button type="button" class="sh-ir" data-ir-switch="${esc(ir)}" ${!irAvailable||this._config.allow_manual_ir_control!==true?"disabled":""} aria-pressed="${irState==="on"}">Infrarot-Panel: ${irState==="on"?"Ein":irState==="off"?"Aus":"Nicht verfügbar"}${this._config.allow_manual_ir_control===true?"":" · Anzeige"}</button>`:"";
+      return `<div class="sh-room" ${id?`data-climate="${esc(id)}" role="button" tabindex="0" aria-label="${esc(room.name||room.id)} öffnen"`:""}><b>${esc(room.name||room.id)}</b><span class="sh-room-values">${temp==null?"Ist –":"Ist "+esc(temp)+" °C"} · ${target==null?"Soll –":"Soll "+esc(target)+" °C"}</span>${irButton}</div>`;
+    }).join("");
     const automation=st("automation.heizung_automatik_ersetzt_node_red")?.state;
     const next=this._status().next_switch;
     const css=`<style>
       :host{display:block;min-width:0;max-width:100%;container-type:inline-size}
       ha-card{display:block;max-width:100%;overflow:hidden}
       .sh-app{width:100%;max-width:100%;overflow:hidden;--sh-bg:var(--ha-card-background,var(--card-background-color,var(--primary-background-color)));--sh-fg:var(--primary-text-color);--sh-muted:var(--secondary-text-color);--sh-panel:var(--secondary-background-color);--sh-border:var(--divider-color);--sh-accent:var(--primary-color);color:var(--sh-fg);background:var(--sh-bg);padding:18px;border-radius:var(--ha-card-border-radius,16px);font:inherit;box-sizing:border-box}
-      .sh-app *{box-sizing:border-box;min-width:0}.sh-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}.sh-head h2{margin:0;font-size:1.3rem}.sh-head small,.sh-muted{color:var(--sh-muted);font-size:.78rem}.sh-state{font-size:.75rem;color:var(--sh-accent);font-weight:600}.sh-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.sh-section{background:var(--sh-panel);border:1px solid var(--sh-border);border-radius:15px;padding:14px;margin:0 0 12px}.sh-section h3{margin:0 0 12px;font-size:.96rem}.sh-tile{padding:14px;border:1px solid var(--sh-border);border-radius:12px;background:var(--sh-bg);display:flex;flex-direction:column;gap:8px}.sh-tile strong{font-size:1.65rem;font-weight:700}.sh-controls{display:flex;align-items:center;justify-content:space-between;gap:6px}.sh-controls button{width:38px;height:38px;border:1px solid var(--sh-border);border-radius:10px;background:var(--sh-panel);color:var(--sh-fg);font-size:1.4rem;cursor:pointer}.sh-controls button:disabled,.sh-mode:disabled{opacity:.35;cursor:not-allowed}.sh-controls span{font-size:.72rem;color:var(--sh-muted)}.sh-modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.sh-mode{padding:12px;text-align:left;border:1px solid var(--sh-border);border-radius:12px;background:var(--sh-bg);color:var(--sh-fg);display:flex;flex-direction:column;gap:5px;cursor:pointer;font:inherit}.sh-mode small{color:var(--sh-muted)}.sh-mode.sh-on{border-color:var(--sh-accent);box-shadow:inset 0 0 0 1px var(--sh-accent)}.sh-schedule-row,.sh-room{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--sh-border);font-size:.86rem}.sh-schedule-row:last-child,.sh-room:last-child{border:0}.sh-room{flex-wrap:wrap}.sh-room span{color:var(--sh-muted)}.sh-room[data-climate]{cursor:pointer}.sh-room[data-climate]:focus-visible{outline:2px solid var(--sh-accent);outline-offset:3px}.sh-app details{margin-top:8px}.sh-app summary{cursor:pointer;font-weight:600;padding:8px 0}.sh-detail{font-size:.83rem;color:var(--sh-muted);overflow-wrap:anywhere}.sh-feedback{color:var(--error-color);font-size:.85rem}.sh-foot{font-size:.72rem;color:var(--sh-muted);margin:12px 0 0}.sh-bottom{display:grid;grid-template-columns:1fr 1fr;gap:12px}.sh-status{display:flex;flex-wrap:wrap;gap:12px;font-size:.8rem}.sh-status b{color:var(--sh-fg)}
+      .sh-app *{box-sizing:border-box;min-width:0}.sh-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}.sh-head h2{margin:0;font-size:1.3rem}.sh-head small,.sh-muted{color:var(--sh-muted);font-size:.78rem}.sh-state{font-size:.75rem;color:var(--sh-accent);font-weight:600}.sh-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.sh-section{background:var(--sh-panel);border:1px solid var(--sh-border);border-radius:15px;padding:14px;margin:0 0 12px}.sh-section h3{margin:0 0 12px;font-size:.96rem}.sh-tile{padding:14px;border:1px solid var(--sh-border);border-radius:12px;background:var(--sh-bg);display:flex;flex-direction:column;gap:8px}.sh-tile strong{font-size:1.65rem;font-weight:700}.sh-controls{display:flex;align-items:center;justify-content:space-between;gap:6px}.sh-controls button{width:38px;height:38px;border:1px solid var(--sh-border);border-radius:10px;background:var(--sh-panel);color:var(--sh-fg);font-size:1.4rem;cursor:pointer}.sh-controls button:disabled,.sh-mode:disabled{opacity:.35;cursor:not-allowed}.sh-controls span{font-size:.72rem;color:var(--sh-muted)}.sh-modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.sh-mode{padding:12px;text-align:left;border:1px solid var(--sh-border);border-radius:12px;background:var(--sh-bg);color:var(--sh-fg);display:flex;flex-direction:column;gap:5px;cursor:pointer;font:inherit}.sh-mode small{color:var(--sh-muted)}.sh-mode.sh-on{border-color:var(--sh-accent);box-shadow:inset 0 0 0 1px var(--sh-accent)}.sh-schedule-row,.sh-room{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--sh-border);font-size:.86rem}.sh-schedule-row:last-child,.sh-room:last-child{border:0}.sh-room{flex-wrap:wrap}.sh-room span{color:var(--sh-muted)}.sh-ir{border:1px solid var(--sh-border);border-radius:9px;background:var(--sh-bg);color:var(--sh-fg);padding:8px;cursor:pointer}.sh-ir:disabled{opacity:.7;cursor:default}.sh-room[data-climate]{cursor:pointer}.sh-room[data-climate]:focus-visible{outline:2px solid var(--sh-accent);outline-offset:3px}.sh-app details{margin-top:8px}.sh-app summary{cursor:pointer;font-weight:600;padding:8px 0}.sh-detail{font-size:.83rem;color:var(--sh-muted);overflow-wrap:anywhere}.sh-feedback{color:var(--error-color);font-size:.85rem}.sh-foot{font-size:.72rem;color:var(--sh-muted);margin:12px 0 0}.sh-bottom{display:grid;grid-template-columns:1fr 1fr;gap:12px}.sh-status{display:flex;flex-wrap:wrap;gap:12px;font-size:.8rem}.sh-status b{color:var(--sh-fg)}
       @container(max-width:540px){.sh-app{padding:12px}.sh-bottom{grid-template-columns:1fr}.sh-grid{gap:8px}.sh-section{padding:12px}.sh-tile{padding:10px}.sh-tile strong{font-size:1.4rem}.sh-controls button{width:34px;height:34px;flex-shrink:0}.sh-controls span{display:none}.sh-head h2{font-size:1.15rem}}
       @container(max-width:300px){.sh-grid,.sh-modes{grid-template-columns:1fr}}
       @media(max-width:600px){.sh-bottom{grid-template-columns:1fr}.sh-controls span{display:none}.sh-mode span{overflow-wrap:anywhere}}
@@ -149,7 +187,7 @@ class SmartHeatingCard extends HTMLElement {
     }));
     this.querySelectorAll("[data-toggle]").forEach(button=>button.addEventListener("click",async()=>{
       const id=button.dataset.toggle;
-      if(!["input_boolean.party","input_boolean.besuch","input_boolean.heimweg","input_boolean.heizung_sommermodus","input_boolean.schornsteinfeger"].includes(id)||!valid(id))return;
+      if(!this._dashboardModes().some(mode=>mode.source===id&&mode.enabled)||!id.startsWith("input_boolean.")||!valid(id))return;
       button.disabled=true;
       try{await this._hass.callService("input_boolean",st(id).state==="on"?"turn_off":"turn_on",{entity_id:id});}catch(e){this._error="Sondermodus konnte nicht geändert werden: "+(e?.message||e);this._renderModern();}finally{button.disabled=false;}
     }));
