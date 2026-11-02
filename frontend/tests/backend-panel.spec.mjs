@@ -776,3 +776,18 @@ test("migration panel fails closed on an unsafe preview payload", async ({ page 
   await expect(section).not.toContainText("input_boolean.heizung");
   await expect(section.getByRole("button")).toHaveCount(0);
 });
+
+
+test("migration preview remains non-interactive if backend is unavailable", async ({ page }) => {
+ await page.evaluate(() => {
+   const panel=document.querySelector("smart-heating-backend-panel");
+   panel._migrationPreview=null;
+   panel._migrationError="Backend nicht erreichbar";
+   panel._render();
+ });
+ const section=page.locator("details[data-section=migration]");
+ await section.locator(":scope > summary").click();
+ await expect(section).toContainText("Backend nicht erreichbar");
+ await expect(section).toContainText("Keine Änderungen vorgenommen");
+ await expect(section.getByRole("button")).toHaveCount(0);
+});
