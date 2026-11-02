@@ -86,10 +86,12 @@ def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] 
     if selected.get("heating_boolean"):
         conflicts.append(_conflict("existing_writer", "error", "The existing heating helper may have writers outside this integration; single-writer safety cannot be proven through supported read-only APIs."))
     installation = build_installation_plan(discovery, control_plane)
+    legacy_helpers = inspect_legacy_helpers(hass)
     return {
         "entry_id": entry.entry_id,
         "mode": "preview_only",
         "automatic_import": False,
+        "legacy_helpers": legacy_helpers,
         "source": source,
         "fixture_schedule": REFERENCE_SCHEDULE,
         "proposed_schedule": schedule,
@@ -165,3 +167,9 @@ class MigrationTransaction:
             raise RuntimeError("No migration snapshot exists")
         self.transport.restore(self.snapshot_data)
         self.state = MigrationState.ROLLED_BACK
+
+def inspect_legacy_helpers(hass: Any) -> dict[str, Any]:
+    """Read known heating helper states without changing Home Assistant."""
+    ids = ("input_boolean.heizung", "input_boolean.heizung_freigabe", "input_boolean.heizung_sommermodus", "input_boolean.party", "input_boolean.besuch", "input_boolean.heimweg", "input_boolean.schornsteinfeger", "input_number.heiztemperatur", "input_number.absenktemperatur")
+    states = {item.entity_id: item for domain in ("input_boolean", "input_number") for item in hass.states.async_all(domain)}
+    return {entity_id: {"state": states[entity_id].state, "available": states[entity_id].state not in ("unknown", "unavailable")} if entity_id in states else {"state": None, "available": False} for entity_id in ids}
