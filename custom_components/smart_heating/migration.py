@@ -16,9 +16,9 @@ REFERENCE_SCHEDULE = {
     "tuesday": [{"start": "05:30", "end": "21:00"}],
     "wednesday": [{"start": "05:30", "end": "21:00"}],
     "thursday": [{"start": "05:30", "end": "21:00"}],
-    "friday": [{"start": "05:30", "end": "22:00"}],
+    "friday": [{"start": "05:30", "end": "21:00"}],
     "saturday": [{"start": "07:00", "end": "22:00"}],
-    "sunday": [{"start": "07:00", "end": "21:00"}],
+    "sunday": [{"start": "07:00", "end": "22:00"}],
 }
 
 
