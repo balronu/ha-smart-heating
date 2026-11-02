@@ -1,4 +1,4 @@
-const VERSION = "0.1.0-beta.50";
+const VERSION = "0.1.0-beta.51";
 const DAYS = [["monday", "Montag", "Mo"], ["tuesday", "Dienstag", "Di"], ["wednesday", "Mittwoch", "Mi"], ["thursday", "Donnerstag", "Do"], ["friday", "Freitag", "Fr"], ["saturday", "Samstag", "Sa"], ["sunday", "Sonntag", "So"]];
 
 class SmartHeatingBackendPanel extends HTMLElement {
