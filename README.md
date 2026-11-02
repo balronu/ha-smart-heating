@@ -632,3 +632,10 @@ Weitere Architektur- und Sicherheitsdetails stehen in
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 > **Hinweis zur kommenden Beta:** Der grafische Wochenplan erhält einen breiten, einklappbaren Tageseditor. Der passive Shadow-Vergleich behandelt simulierte Legacy-Traces ausdrücklich nicht als Live-Übereinstimmungsnachweis. Ohne verifizierten Legacy-Trace bleibt die Vergleichsaussage „nicht möglich“; SMART wird dadurch nicht freigegeben.
+
+### Beta.42 – Wochenplan-Bedienung
+
+- Eingabefelder behalten beim Tippen den Fokus; Zeitfenster werden weiterhin erst durch „Wochenplan speichern“ übernommen.
+- „Tag kopieren“ bietet deutsche, anklickbare Mehrfachauswahl mit Überschreibbestätigung für belegte Tage.
+- Uhrzeiten im Wochenplan und nächste Umschaltung erscheinen ohne Sekunden; Tageseditor und Speicherstatus sind kompakter.
+- Die bestehende Heizungsautomatik bleibt alleiniger Schreiber; Smart Heating bleibt passiv.
