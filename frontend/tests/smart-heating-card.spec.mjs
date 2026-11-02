@@ -62,3 +62,25 @@ test("shows missing data instead of inventing temperatures", async ({ page }) =>
 test("keeps multiple card instances independent", async ({ page }) => { await expect(page.locator("smart-heating-card")).toHaveCount(2); const entries = await page.evaluate(() => window.__calls.map((call) => call.entry_id)); expect(entries).toContain("fixture-0"); expect(entries).toContain("fixture-1"); });
 
 test("uses the full narrow viewport without horizontal overflow", async ({ page }) => { const widths = await page.evaluate(() => ({ body: document.body.scrollWidth, viewport: window.innerWidth })); expect(widths.body).toBeLessThanOrEqual(widths.viewport + 1); });
+
+
+test("beta46 renders responsive theme-aware rooms and collapsible special modes", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  await expect(card.locator("section[data-section=rooms] .room-grid")).toBeVisible();
+  await expect(card.locator("section[data-section=special_modes] details.expandable")).toHaveCount(1);
+  await expect(card.locator("section[data-section=special_modes] .scroll-area")).toBeVisible();
+  await expect(card.locator("section[data-section=diagnostics] details.expandable")).toHaveCount(1);
+  await expect(card.locator("section[data-section=schedule] .day-row")).toHaveCount(7);
+  const style = await card.locator("style[data-smart-heating-card-style]").textContent();
+  expect(style).toContain("var(--primary-text-color)");
+  expect(style).toContain("var(--card-background-color");
+});
+
+test("beta46 schedule hides seconds and duplicate weekday abbreviations", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  await page.evaluate(() => {const card=document.querySelector("smart-heating-card");card._data.schedule.monday=[{start:"05:30:00",end:"21:00:00"}];card._render();});
+  await expect(card.locator("[data-day=monday]")).toContainText("05:30–21:00");
+  await expect(card.locator("[data-day=monday]")).not.toContainText("05:30:00");
+  const shortDisplay = await card.locator("[data-day=monday] .day-short").evaluate(node=>getComputedStyle(node).display);
+  expect(shortDisplay).toBe("none");
+});
