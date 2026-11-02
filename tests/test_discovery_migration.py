@@ -115,6 +115,15 @@ class DiscoveryMigrationTests(unittest.TestCase):
         self.assertNotIn("legacy_automation_active", {item["code"] for item in disabled["conflicts"]})
         self.assertFalse(disabled["activation_allowed"])
 
+    def test_reference_schedule_matches_supplied_weekday_and_weekend_times(self):
+        from custom_components.smart_heating.migration import REFERENCE_SCHEDULE
+
+        for day in ("monday", "tuesday", "wednesday", "thursday", "friday"):
+            self.assertEqual(REFERENCE_SCHEDULE[day], [{"start": "05:30", "end": "21:00"}])
+        for day in ("saturday", "sunday"):
+            self.assertEqual(REFERENCE_SCHEDULE[day], [{"start": "07:00", "end": "22:00"}])
+        self.assertFalse(preview_migration(FakeHass([]), FakeEntry())["activation_allowed"])
+
     def test_rule_parity_requires_review_of_all_legacy_behaviors(self):
         result = preview_migration(FakeHass([]), FakeEntry())
         parity = result["rule_parity"]
