@@ -179,6 +179,12 @@ class ScheduleTests(unittest.TestCase):
                 decision = evaluate_decision(schedule_active=False, overrides=flags, comfort_temperature=22, night_temperature=17)
                 self.assertEqual((decision.mode, decision.target_hvac_mode, decision.target_temperature), (mode, hvac, target))
 
+    def test_summer_room_demand_override_matches_uploaded_automation(self):
+        for schedule_active in (True, False):
+            decision = evaluate_decision(schedule_active=schedule_active, overrides={"summer": True, "need_heat_now": True}, comfort_temperature=22, night_temperature=17)
+            self.assertEqual(decision.mode, "comfort" if schedule_active else "night")
+        self.assertEqual(evaluate_decision(schedule_active=True, overrides={"summer": True, "need_heat_now": False}, comfort_temperature=22, night_temperature=17).mode, "summer")
+
     def test_summer_modes_are_explicit_and_safe(self):
         compatibility = evaluate_decision(schedule_active=True, overrides={"summer": True}, comfort_temperature=22, night_temperature=17)
         hvac_off = evaluate_decision(schedule_active=True, overrides={"summer": True}, comfort_temperature=22, night_temperature=17, summer_mode="hvac_off")
