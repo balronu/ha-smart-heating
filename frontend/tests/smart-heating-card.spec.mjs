@@ -215,3 +215,10 @@ test("beta46 pinned room ordering remains stable for unpinned rooms", async ({ p
  const ids=await page.locator("smart-heating-card").first().locator('[data-section="rooms"] .room').evaluateAll(nodes=>nodes.map(node=>node.dataset.room));
  expect(ids).toEqual(["bedroom","bathroom","kitchen"]);
 });
+
+
+test("beta46 successful infrared retry clears prior service error", async ({ page }) => {
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");window.hass.states={"switch.ir":{state:"off"}};window.hass.callService=async()=>{};card._config.allow_manual_ir_control=true;card._data.options.management.zones=[{id:"ir",name:"IR",type:"infrared",switch_entities:["switch.ir"]}];card._error="Alter Schaltfehler";card._render();});
+ await page.locator("smart-heating-card").first().locator("[data-ir-switch]").first().click();
+ expect(await page.evaluate(()=>document.querySelector("smart-heating-card")._error)).toBeNull();
+});
