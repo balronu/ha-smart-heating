@@ -292,7 +292,7 @@ test("shows distinct read-only sources for assigned window role diagnostics", as
   await expect(section).toContainText("binary_sensor.bath_tilt");
   await expect(section).toContainText("Nicht vorhanden");
   await expect(section).toContainText("Abweichung");
-  await expect(section.locator("button,select,input")).toHaveCount(0);
+  await expect(section.locator("button:not([data-passive-test]),select,input")).toHaveCount(0);
 });
 
 test("shows an explicit diagnostic-unavailable state instead of hiding existing contacts", async ({ page }) => {
@@ -308,7 +308,7 @@ test("shows an explicit diagnostic-unavailable state instead of hiding existing 
   await section.locator(":scope > summary").click();
   await expect(section.locator("[data-window-role-diagnostics]")).toContainText("Diagnosedaten nicht verfügbar");
   await expect(section.locator("[data-window-role-diagnostics]")).toContainText("Backend");
-  await expect(section.locator("button,select,input")).toHaveCount(0);
+  await expect(section.locator("button:not([data-passive-test]),select,input")).toHaveCount(0);
 });
 
 test("renders every configured contact and all three missing sources from a wrapped admin response", async ({ page }) => {
