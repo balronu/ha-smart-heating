@@ -279,3 +279,13 @@ test("beta46 presence priority requires explicit backend evidence", async ({ pag
  await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._data.status.presence={status:"home"};card._render();});
  await expect(item).toContainText("anwesend");
 });
+
+
+test("beta46 night priority follows existing input_boolean.heizung without commands", async ({ page }) => {
+ const night=page.locator("smart-heating-card").first().locator(".priority-chain li").nth(5);
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");window.hass.states={"input_boolean.heizung":{state:"off"}};card._render();});
+ await expect(night).toContainText("Absenkbetrieb");
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");window.hass.states["input_boolean.heizung"].state="on";card._render();});
+ await expect(night).toContainText("Komfortzeit");
+ expect(await page.evaluate(()=>window.__calls.every(call=>call.type==="smart_heating/plan/get"))).toBeTruthy();
+});
