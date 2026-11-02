@@ -289,3 +289,10 @@ test("beta46 night priority follows existing input_boolean.heizung without comma
  await expect(night).toContainText("Komfortzeit");
  expect(await page.evaluate(()=>window.__calls.every(call=>call.type==="smart_heating/plan/get"))).toBeTruthy();
 });
+
+
+test("beta46 comfort is explicitly a lower-priority fallback", async ({ page }) => {
+ const last=page.locator("smart-heating-card").first().locator(".priority-chain li").last();
+ await expect(last).toContainText("Komfortbetrieb");
+ await expect(last).toContainText("nur wenn keine höhere Regel greift");
+});
