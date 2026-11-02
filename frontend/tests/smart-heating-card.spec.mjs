@@ -391,3 +391,15 @@ test("dashboard header includes accessible brand and explanatory subtitle", asyn
   await expect(card.locator(".dashboard-layout .header-subtitle")).toContainText("Zentrale Heizungssteuerung");
   await expect(card.locator(".dashboard-layout .card-header h1")).toBeVisible();
 });
+
+
+test("dashboard displays eight ordered read-only legacy priority cards", async ({ page }) => {
+  const card = page.locator("smart-heating-card").first();
+  const priorities = card.locator('[data-section="shadow"] .priority-cards li');
+  await expect(priorities).toHaveCount(8);
+  await expect(priorities.first()).toContainText("Schornsteinfeger");
+  await expect(priorities.nth(1)).toContainText("Heizfreigabe");
+  await expect(priorities.last()).toContainText("Komfortbetrieb");
+  const calls = await page.evaluate(() => window.__calls);
+  expect(calls.every(call => call.type === "smart_heating/plan/get")).toBeTruthy();
+});
