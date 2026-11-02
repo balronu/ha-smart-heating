@@ -260,3 +260,12 @@ test("beta46 distinguishes open and tilted windows in priority chain", async ({ 
  await expect(chain.locator("li").nth(2)).toContainText("nicht offen");
  await expect(chain.locator("li").nth(3)).toContainText("gekippt");
 });
+
+
+test("beta46 chimney sweep priority uses actual helper state", async ({ page }) => {
+ const first=page.locator("smart-heating-card").first().locator(".priority-chain li").first();
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");window.hass.states={"input_boolean.schornsteinfeger":{state:"on"}};card._render();});
+ await expect(first).toContainText("aktiv");
+ await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");window.hass.states["input_boolean.schornsteinfeger"].state="off";card._render();});
+ await expect(first).toContainText("inaktiv");
+});
