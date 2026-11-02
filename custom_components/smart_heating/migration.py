@@ -62,6 +62,22 @@ def build_installation_plan(discovery: Mapping[str, Any], control_plane: Mapping
     }
 
 
+def inspect_legacy_automation(hass: Any) -> dict[str, Any]:
+    """Read the public state of the known legacy automation; never infer its rules."""
+    entity_id = "automation.heizung_automatik_ersetzt_node_red"
+    state = hass.states.get(entity_id) if hasattr(hass.states, "get") else None
+    if state is None:
+        return {"entity_id": entity_id, "present": False, "enabled": None, "rules_verified": False}
+    raw = str(state.state)
+    return {
+        "entity_id": entity_id,
+        "present": True,
+        "enabled": True if raw == "on" else False if raw == "off" else None,
+        "rules_verified": False,
+        "rules_source": "not_available_from_public_state",
+    }
+
+
 def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Build a proposal from public state only; no writes or services."""
     discovery = discover_entities(hass)
@@ -87,6 +103,7 @@ def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] 
         conflicts.append(_conflict("existing_writer", "error", "The existing heating helper may have writers outside this integration; single-writer safety cannot be proven through supported read-only APIs."))
     installation = build_installation_plan(discovery, control_plane)
     legacy_helpers = inspect_legacy_helpers(hass)
+    legacy_automation = inspect_legacy_automation(hass)
     invalid_helpers = [entity_id for entity_id, item in legacy_helpers.items() if item["available"] and not item["valid"]]
     missing_helpers = [entity_id for entity_id, item in legacy_helpers.items() if not item["available"]]
     if invalid_helpers:
@@ -104,6 +121,7 @@ def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] 
         "control_plane": control_plane,
         "installation": installation,
         "legacy_helpers": legacy_helpers,
+        "legacy_automation": legacy_automation,
         "invalid_legacy_helpers": invalid_helpers,
         "missing_legacy_helpers": missing_helpers,
         "conflicts": conflicts,
