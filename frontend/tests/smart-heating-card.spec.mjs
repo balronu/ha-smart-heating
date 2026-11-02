@@ -392,7 +392,7 @@ test.describe("native dashboard beta.51", () => {
     await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");delete window.hass.states["input_number.heiztemperatur"];delete window.hass.states["input_boolean.party"];card._render();});
     const card=page.locator("smart-heating-card").first();
     await expect(card.locator('[data-entity="input_number.heiztemperatur"][data-adjust="1"]')).toBeDisabled();
-    await expect(card.locator('[data-mode-source="input_boolean.party"]')).toHaveCount(0);
+    await expect(card.locator('[data-mode-source="input_boolean.party"]')).toBeDisabled();
     expect(await page.evaluate(()=>window.__services)).toEqual([]);
   });
   test("diagnostics remain expanded after relevant state updates",async({page})=>{
@@ -455,7 +455,7 @@ test.describe("native dashboard beta.51", () => {
     const ir=card.locator('[data-ir-switch="switch.bad_ir"]');
     await expect(ir).toContainText("Infrarot-Panel: Ein");
     await expect(ir).toBeDisabled();
-    await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card.setConfig({...card._config,allow_manual_ir_control:true});card.hass=window.hass;});
+    await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._config={...card._config,allow_manual_ir_control:true};card._render();});
     await expect(ir).toBeEnabled();
     await ir.click();
     expect(await page.evaluate(()=>window.__services)).toContainEqual({domain:"switch",service:"turn_off",data:{entity_id:"switch.bad_ir"}});
