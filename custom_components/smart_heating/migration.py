@@ -87,17 +87,21 @@ def preview_migration(hass: Any, entry: Any, manual_schedule: Mapping[str, Any] 
         conflicts.append(_conflict("existing_writer", "error", "The existing heating helper may have writers outside this integration; single-writer safety cannot be proven through supported read-only APIs."))
     installation = build_installation_plan(discovery, control_plane)
     legacy_helpers = inspect_legacy_helpers(hass)
+    invalid_helpers = [entity_id for entity_id, item in legacy_helpers.items() if item["available"] and not item["valid"]]
+    if invalid_helpers:
+        conflicts.append(_conflict("invalid_legacy_helpers", "warning", "Some legacy helper values are present but invalid; review the listed entities before migration."))
     return {
         "entry_id": entry.entry_id,
         "mode": "preview_only",
         "automatic_import": False,
-        "legacy_helpers": legacy_helpers,
         "source": source,
         "fixture_schedule": REFERENCE_SCHEDULE,
         "proposed_schedule": schedule,
         "discovery": discovery,
         "control_plane": control_plane,
         "installation": installation,
+        "legacy_helpers": legacy_helpers,
+        "invalid_legacy_helpers": invalid_helpers,
         "conflicts": conflicts,
         "activation_allowed": False,
         "rollback": {"prepared": False, "activation_required": True, "description": "Production activation is locked until the old writer is explicitly and safely replaced."},
@@ -168,8 +172,28 @@ class MigrationTransaction:
         self.transport.restore(self.snapshot_data)
         self.state = MigrationState.ROLLED_BACK
 
+
 def inspect_legacy_helpers(hass: Any) -> dict[str, Any]:
-    """Read known heating helper states without changing Home Assistant."""
+    """Read and validate allowlisted heating helper states without writes.
+
+    Unknown/missing or malformed values are never treated as valid migration
+    inputs. The raw state remains visible for user review.
+    """
+    from math import isfinite
+
     ids = ("input_boolean.heizung", "input_boolean.heizung_freigabe", "input_boolean.heizung_sommermodus", "input_boolean.party", "input_boolean.besuch", "input_boolean.heimweg", "input_boolean.schornsteinfeger", "input_number.heiztemperatur", "input_number.absenktemperatur")
     states = {item.entity_id: item for domain in ("input_boolean", "input_number") for item in hass.states.async_all(domain)}
-    return {entity_id: {"state": states[entity_id].state, "available": states[entity_id].state not in ("unknown", "unavailable")} if entity_id in states else {"state": None, "available": False} for entity_id in ids}
+    result = {}
+    for entity_id in ids:
+        item = states.get(entity_id)
+        raw = str(item.state) if item is not None else None
+        available = raw is not None and raw.lower() not in ("unknown", "unavailable", "")
+        if entity_id.startswith("input_boolean."):
+            valid = available and raw in ("on", "off")
+        else:
+            try:
+                valid = available and isfinite(float(raw))
+            except (TypeError, ValueError, OverflowError):
+                valid = False
+        result[entity_id] = {"state": raw, "available": available, "valid": bool(valid)}
+    return result
