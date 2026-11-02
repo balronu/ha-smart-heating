@@ -1,5 +1,7 @@
 <p align="center"><img src="brand/smart-heating-banner.svg" alt="Smart Heating for Home Assistant" width="100%"></p>
 
+<p align="center"><img src="brand/smart-heating-stable-mark.svg" alt="Smart Heating Logo" width="112"></p>
+
 <h1 align="center">Smart Heating</h1>
 <p align="center"><strong>Transparent heating schedules and decision previews for Home Assistant</strong></p>
 <p align="center"><a href="README.md">🇩🇪 Deutsch (primary)</a> · <a href="README.en.md">🇬🇧 English</a></p>
