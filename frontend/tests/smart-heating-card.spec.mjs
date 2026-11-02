@@ -95,7 +95,7 @@ test("beta46 renders responsive theme-aware rooms and collapsible special modes"
 
 test("beta46 schedule hides seconds and duplicate weekday abbreviations", async ({ page }) => {
   const card = page.locator("smart-heating-card").first();
-  await page.evaluate(() => {const card=document.querySelector("smart-heating-card");card._data.schedule.monday=[{start:"05:30:00",end:"21:00:00"}];card.setConfig({...card._config,display_mode:"dashboard"});card.hass=window.hass;});
+  await page.evaluate(() => {const card=document.querySelector("smart-heating-card");card._data.schedule.monday=[{start:"05:30:00",end:"21:00:00"}];card._config.display_mode="dashboard";card._render();});
   await expect(card.locator(".sh-schedule-row").first()).toContainText("05:30–21:00");
   await expect(card.locator(".sh-schedule-row").first()).not.toContainText("05:30:00");
   await expect(card.locator(".sh-schedule-row")).toHaveCount(2);
