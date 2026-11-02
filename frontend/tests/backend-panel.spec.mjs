@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
   await page.evaluate(() => localStorage.clear());
   await page.waitForTimeout(50);
   await expect(page.locator("main.smart-heating-backend")).toBeVisible();
-  await expect(page.locator("details[data-section]")).toHaveCount(8);
+  await expect(page.locator("details[data-section]")).toHaveCount(9);
   await expect(page.locator("details[open]")).toHaveCount(0);
 });
 
@@ -738,4 +738,13 @@ test("weekday copy tiles remain readable and clickable on responsive screens", a
   await tiles.filter({ hasText: "Dienstag" }).click();
   await expect(page.locator('[data-copy-target="tuesday"]')).toBeChecked();
   await expect(page.locator('[data-copy-target="wednesday"]')).not.toBeChecked();
+});
+
+
+test("migration preview is explicitly read-only and cannot activate heating", async ({ page }) => {
+  const section = page.locator("details[data-section=migration]");
+  await section.locator(":scope > summary").click();
+  await expect(section).toContainText("Keine Änderungen vorgenommen");
+  await expect(section.getByRole("button")).toHaveCount(0);
+  await expect(page.locator("main.smart-heating-backend")).toContainText("Passiver Kompatibilitätsmodus");
 });
