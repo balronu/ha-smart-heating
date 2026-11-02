@@ -630,3 +630,5 @@ Produktive Migration: gesperrt; nur isolierter Adapter-Test möglich
 
 Weitere Architektur- und Sicherheitsdetails stehen in
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+> **Hinweis zur kommenden Beta:** Der grafische Wochenplan erhält einen breiten, einklappbaren Tageseditor. Der passive Shadow-Vergleich behandelt simulierte Legacy-Traces ausdrücklich nicht als Live-Übereinstimmungsnachweis. Ohne verifizierten Legacy-Trace bleibt die Vergleichsaussage „nicht möglich“; SMART wird dadurch nicht freigegeben.

@@ -1,3 +1,10 @@
+
+## Unreleased (nach v0.1.0-beta.40)
+
+- Wochenplan: Tageseditor außerhalb des siebenspaltigen Rasters, responsive und durch erneutes Antippen einklappbar.
+- Shadow-Sicherheit: Simulierte Legacy-Entscheidungen können keine nachgewiesene Live-Übereinstimmung erzeugen; Regressionstest ergänzt.
+- Keine SMART-Aktivierung und keine Änderung an der produktiven Heizungsautomation.
+
 # Changelog
 
 ## 0.1.0-beta.40 – Lovelace-Integration und Release-Reife / Lovelace integration and release readiness

@@ -430,8 +430,8 @@ test("shows the graphical weekly planner with day, time, and target controls", a
   await expect(page.locator("[data-schedule-day]")).toHaveCount(7);
   await page.locator("button[data-schedule-edit=monday]").click();
   await page.locator("button[data-schedule-add=monday]").click();
-  await expect(page.locator("fieldset[data-schedule-day=monday] input[type=time]")).toHaveCount(2);
-  await expect(page.locator("fieldset[data-schedule-day=monday] input[type=number]")).toHaveCount(1);
+  await expect(page.locator("[data-day-editor=monday] input[type=time]")).toHaveCount(2);
+  await expect(page.locator("[data-day-editor=monday] input[type=number]")).toHaveCount(1);
 });
 
 test("edits only the selected day and saves with visible confirmation", async ({ page }) => {
@@ -662,4 +662,32 @@ test("searches long cross-area device lists and keeps the saved bathroom choices
   await room.locator("input[data-room-device-search]").fill("fensterkontakt");
   await expect(room.locator("select[name=temperature_entity] option[value='sensor.fensterkontakt_temperatur']")).toHaveJSProperty("hidden", false);
   await expect(room.locator("select[name=temperature_entity] option[value='sensor.badezimmer_temperatur_mit_einer_sehr_langen_entity_id']")).toHaveJSProperty("hidden", true);
+});
+
+
+test("weekly planner opens a full-width editor and closes on repeated day click", async ({ page }) => {
+  const monday = page.locator('button[data-schedule-edit="monday"]');
+  await monday.click();
+  const editor = page.locator('[data-day-editor="monday"]');
+  await expect(editor).toBeVisible();
+  await expect(monday).toHaveAttribute("aria-expanded", "true");
+  const widths = await page.evaluate(() => {
+    const grid = document.querySelector(".day-grid").getBoundingClientRect();
+    const editor = document.querySelector(".day-editor").getBoundingClientRect();
+    return { grid: grid.width, editor: editor.width, overflow: document.documentElement.scrollWidth > innerWidth + 1 };
+  });
+  expect(widths.editor).toBeGreaterThanOrEqual(widths.grid * 0.85);
+  expect(widths.overflow).toBe(false);
+  await monday.click();
+  await expect(editor).toHaveCount(0);
+  await expect(monday).toHaveAttribute("aria-expanded", "false");
+});
+
+test("weekly planner switches days without nested narrow editors", async ({ page }) => {
+  await page.locator('button[data-schedule-edit="monday"]').click();
+  await page.locator('button[data-schedule-edit="tuesday"]').click();
+  await expect(page.locator(".day-editor")).toHaveCount(1);
+  await expect(page.locator('[data-day-editor="tuesday"]')).toBeVisible();
+  await expect(page.locator('[data-day-editor="monday"]')).toHaveCount(0);
+  await expect(page.locator(".day-grid .day-editor")).toHaveCount(0);
 });
