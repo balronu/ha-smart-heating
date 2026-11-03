@@ -137,9 +137,14 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
             result["someone_home"] = True
     if config.get("presence_entities"):
         result["away"] = not result.get("someone_home", False)
-    permission = config.get("heating_permission")
-    if isinstance(permission, str) and permission:
-        result["heating_permission"] = hass.states.is_state(permission, "on")
+    # The internal heating permission replaces the legacy input_boolean only
+    # in isolated preview mode; compatibility mode remains unchanged.
+    if internal.get("internal_only", False):
+        result["heating_permission"] = internal.get("enabled", True) is True
+    else:
+        permission = config.get("heating_permission")
+        if isinstance(permission, str) and permission:
+            result["heating_permission"] = hass.states.is_state(permission, "on")
     return result
 
 
