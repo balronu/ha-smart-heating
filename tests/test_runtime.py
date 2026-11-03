@@ -166,6 +166,27 @@ class RuntimeTests(unittest.TestCase):
                     self.assertFalse(denied["success"])
                     self.assertEqual(entry.options, options_before_denial)
                     messages.clear()
+                    # Internal temperature settings are protected by the same HA role check.
+                    internal_before = dict(entry.options)
+                    connection.async_handle({
+                        "id": 99,
+                        "type": "smart_heating/admin/internal/set",
+                        "entry_id": entry.entry_id,
+                        "item": {"comfort_temperature": 24},
+                    })
+                    await hass.async_block_till_done()
+                    internal_messages = [
+                        json.loads(item) if isinstance(item, (bytes, bytearray)) else item
+                        for item in messages
+                    ]
+                    internal_denied = next(
+                        (item for item in internal_messages if item.get("id") == 99), None
+                    )
+                    self.assertIsNotNone(internal_denied, internal_messages)
+                    self.assertEqual(internal_denied["type"], "result")
+                    self.assertFalse(internal_denied["success"])
+                    self.assertEqual(entry.options, internal_before)
+                    messages.clear()
                     connection.user.is_admin = True
 
                     first_save = await save_room(101, ("tilt", "open"))
