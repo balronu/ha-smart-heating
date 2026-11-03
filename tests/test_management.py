@@ -11,6 +11,7 @@ sys.modules.setdefault("custom_components.smart_heating", package)
 from custom_components.smart_heating.management import (  # noqa: E402
     default_management,
     thermostat_capability_assessment,
+    thermostat_target_assessment,
     normalize_management,
     discover_controller_entities,
     discover_temperature_entities,
@@ -414,3 +415,25 @@ class ManagementTests(unittest.TestCase):
                 self.assertFalse(assessment["suitable_for_future_control"])
                 self.assertIn(reason, assessment["reasons"])
                 self.assertEqual(assessment["commands"], [])
+
+
+    def test_thermostat_target_matches_range_and_step_without_commands(self):
+        thermostat = {"state": "heat", "hvac_modes": ["heat", "off"],
+                      "min_temp": 5, "max_temp": 30, "target_temp_step": 0.5}
+        for target in (18, 21, 22, 24, 30):
+            with self.subTest(target=target):
+                result = thermostat_target_assessment(thermostat, target)
+                self.assertTrue(result["target_supported"])
+                self.assertEqual(result["commands"], [])
+        for target, reason in ((31, "target_out_of_range"),
+                               (21.3, "target_not_on_step"),
+                               ("unknown", "invalid_target"),
+                               (float("nan"), "invalid_target")):
+            with self.subTest(target=target):
+                result = thermostat_target_assessment(thermostat, target)
+                self.assertFalse(result["target_supported"])
+                self.assertIn(reason, result["reasons"])
+        broken = {**thermostat, "target_temp_step": float("nan")}
+        result = thermostat_target_assessment(broken, 24)
+        self.assertFalse(result["target_supported"])
+        self.assertIn("invalid_temperature_range", result["reasons"])
