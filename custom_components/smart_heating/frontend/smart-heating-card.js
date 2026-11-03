@@ -164,7 +164,7 @@ class SmartHeatingCard extends HTMLElement {
         const reasonText=reasons.map(reason=>reasonLabels[reason]||reason).join(", ");
         return `<div class="sh-foot">${esc(item.entity_id||"Thermostat")}: ${item.target_supported===true?"Geeignet":esc(reasonText||"Eignung nicht nachgewiesen")}</div>`;
       }).join(""):'<div class="sh-foot">Kein Thermostat zugeordnet</div>';
-      return `<div class="sh-tile"><b>${esc(label)} · ${zone.target_temperature==null?"Sollwert unbekannt":esc(zone.target_temperature)+" °C"}</b><span class="sh-muted">${zone.all_targets_supported===true?"Sollwert unterstützt":"Prüfung nicht bestanden"}</span>${details}</div>`;
+      return `<div class="sh-tile"><b>${esc(label)} · ${zone.target_temperature==null?"Sollwert unbekannt":esc(zone.target_temperature)+" °C"}</b><span class="sh-muted">${({fully_suitable:"Vollständig geeignet",partially_suitable:"Teilweise geeignet",not_suitable:"Nicht geeignet",not_assessable:"Nicht prüfbar"})[zone.suitability]||(zone.all_targets_supported===true?"Vollständig geeignet":"Nicht prüfbar")}</span>${details}</div>`;
     }).join("");
     const internalPanel=`<section class="sh-section" data-testid="internal-panel"><h3>Interner Testbetrieb · ohne Heizbefehle</h3><p class="sh-foot">Eigene Zustände werden nur in Smart Heating gespeichert. Die bisherige Automation bleibt aktiv.</p>
       <button type="button" data-internal-isolation="1" aria-pressed="${isolated}">${isolated?"Interne Werte aktiv · zurück zur Helfer-Vorschau":"Interne Werte für Vorschau verwenden"}</button>
