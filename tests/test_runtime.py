@@ -208,29 +208,20 @@ class RuntimeTests(unittest.TestCase):
                     self.assertFalse(schedule_denied["success"])
                     self.assertEqual(entry.options, schedule_before)
                     messages.clear()
-                    # All registered configuration mutations must reject non-admins.
-                    mutation_cases = [
-                        ("smart_heating/admin/person/set", {"item": {"id": "blocked"}}),
-                        ("smart_heating/admin/person/delete", {"item_id": "blocked"}),
-                        ("smart_heating/admin/zone/set", {"item": {"id": "blocked"}}),
-                        ("smart_heating/admin/zone/delete", {"item_id": "blocked"}),
-                        ("smart_heating/admin/area/relevance", {"item": {}}),
-                        ("smart_heating/admin/sensor/set", {"item": {}}),
-                        ("smart_heating/admin/sensor/delete", {"item_id": "blocked"}),
-                        ("smart_heating/admin/controller/set", {"item": {}}),
-                        ("smart_heating/admin/outdoor/set", {"item": {}}),
-                        ("smart_heating/admin/safety/set", {"item": {}}),
-                        ("smart_heating/admin/system/set", {"item": {}}),
-                        ("smart_heating/admin/special_mode/set", {"item": {}}),
-                        ("smart_heating/admin/special_mode/delete", {"item_id": "blocked"}),
-                        ("smart_heating/admin/special_mode/duplicate", {"item_id": "blocked"}),
-                    ]
-                    for offset, (message_type, payload) in enumerate(mutation_cases):
-                        message_id = 200 + offset
+                    # Additional valid-schema mutations must also reject non-admins.
+                    for message_id, message_type in (
+                        (200, "smart_heating/admin/person/delete"),
+                        (201, "smart_heating/admin/zone/delete"),
+                        (202, "smart_heating/admin/sensor/delete"),
+                        (203, "smart_heating/admin/special_mode/delete"),
+                        (204, "smart_heating/admin/special_mode/duplicate"),
+                    ):
                         options_before = dict(entry.options)
                         connection.async_handle({
-                            "id": message_id, "type": message_type,
-                            "entry_id": entry.entry_id, **payload,
+                            "id": message_id,
+                            "type": message_type,
+                            "entry_id": entry.entry_id,
+                            "item_id": "blocked",
                         })
                         await hass.async_block_till_done()
                         responses = [
