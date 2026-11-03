@@ -589,3 +589,56 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(reusable_zone_demand(old, signatures, previews), {"bedroom": False})
         previews[1]["temperature_source"] = "climate.bedroom"
         self.assertEqual(reusable_zone_demand(old, signatures, previews), {})
+
+
+    def test_multizone_shadow_lifecycle_independent_demand_and_recovery(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        base = dict(
+            now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            timezone="Europe/Berlin",
+            zones=[{"id": "bathroom"}, {"id": "bedroom"}],
+            internal={
+                "internal_only": True, "comfort_temperature": 21,
+                "night_temperature": 18,
+                "zones": {
+                    "bathroom": {"comfort_temperature": 24},
+                    "bedroom": {"comfort_temperature": 18},
+                },
+            },
+        )
+        history, signatures = {}, {}
+        def step(bath_window, bath_temp, bed_temp):
+            nonlocal history, signatures
+            diagnostics = [
+                {"zone_id": "bathroom", "window_state": bath_window,
+                 "room_temperature": bath_temp, "temperature_source": "sensor.bath"},
+                {"zone_id": "bedroom", "window_state": "closed",
+                 "room_temperature": bed_temp, "temperature_source": "sensor.bed"},
+            ]
+            first = calculate_zone_target_previews(
+                schedule, **base, zone_diagnostics=diagnostics, previous_demand=history
+            )
+            reusable = reusable_zone_demand(history, signatures, first)
+            final = calculate_zone_target_previews(
+                schedule, **base, zone_diagnostics=diagnostics, previous_demand=reusable
+            )
+            history, signatures = next_zone_demand_history(final)
+            self.assertTrue(all(item["passive"] and not item["commands"] for item in final))
+            self.assertFalse(summarize_zone_heat_demand(final)["boiler_control_authorized"])
+            return {item["zone_id"]: item for item in final}
+
+        initial = step("closed", 23.5, 18.5)
+        self.assertEqual((initial["bathroom"]["heat_demand"], initial["bedroom"]["heat_demand"]), (True, False))
+        self.assertEqual((initial["bathroom"]["target_temperature"], initial["bedroom"]["target_temperature"]), (24.0, 18.0))
+        near = step("closed", 23.9, 18.1)
+        self.assertEqual((near["bathroom"]["heat_demand"], near["bedroom"]["heat_demand"]), (True, False))
+        opened = step("open", 23.9, 18.1)
+        self.assertIsNone(opened["bathroom"]["heat_demand"])
+        self.assertIs(opened["bedroom"]["heat_demand"], False)
+        self.assertNotIn("bathroom", history)
+        restored = step("closed", 23.9, 18.1)
+        self.assertIsNone(restored["bathroom"]["heat_demand"])
+        self.assertIs(restored["bedroom"]["heat_demand"], False)
+        confirmed = step("closed", 23.5, 18.1)
+        self.assertIs(confirmed["bathroom"]["heat_demand"], True)
+        self.assertIs(confirmed["bedroom"]["heat_demand"], False)
