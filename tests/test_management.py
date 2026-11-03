@@ -130,7 +130,9 @@ class ManagementTests(unittest.TestCase):
         first = normalize_management(legacy)
         second = normalize_management(first)
         third = normalize_management(second)
-        self.assertEqual(first, second)
+        self.assertEqual(first["control_plane"]["error"], "operating_state_not_enabled:TRANSITIONING")
+        self.assertEqual(first["control_plane"]["requested_state"], "TRANSITIONING")
+        # The rejected request is a one-time diagnostic; the safe LEGACY state is stable.
         self.assertEqual(second, third)
         self.assertEqual(first["zones"][0]["thermostat_entities"],
                          ["climate.bedroom_left", "climate.bedroom_right"])
