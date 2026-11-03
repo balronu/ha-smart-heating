@@ -32,6 +32,8 @@ def attribute_path(node):
 class PassiveReleaseSafetyTests(unittest.TestCase):
     def test_no_external_heating_actuation_in_python_sources(self):
         for path in sorted(COMPONENT.glob("*.py")):
+            if path.name == "control.py":
+                continue  # Isolated, explicitly triple-gated test-only actuator.
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             for node in ast.walk(tree):
                 if not isinstance(node, ast.Call):
@@ -46,6 +48,34 @@ class PassiveReleaseSafetyTests(unittest.TestCase):
                         any(name == banned or name.endswith("." + banned)
                             for banned in FORBIDDEN),
                         f"External service/actuator call forbidden: {path.name}:{node.lineno} {name}",
+                    )
+
+    def test_isolated_actuator_cannot_be_called_from_production_modules(self):
+        actuator = COMPONENT / "control.py"
+        tree = ast.parse(actuator.read_text(encoding="utf-8"))
+        apply = next(
+            node for node in tree.body
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_apply_decision"
+        )
+        args = {arg.arg for arg in apply.args.kwonlyargs}
+        self.assertTrue(
+            {"activation_confirmed", "legacy_writer_disabled", "isolated_test"} <= args
+        )
+        for path in sorted(COMPONENT.glob("*.py")):
+            if path == actuator:
+                continue
+            module = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(module):
+                if isinstance(node, ast.ImportFrom) and node.module == "control":
+                    self.assertNotIn(
+                        "async_apply_decision", [alias.name for alias in node.names],
+                        f"Production import of isolated actuator in {path.name}",
+                    )
+                if isinstance(node, ast.Call):
+                    self.assertNotEqual(
+                        attribute_path(node.func).split(".")[-1],
+                        "async_apply_decision",
+                        f"Production invocation of isolated actuator in {path.name}",
                     )
 
     def test_internal_switch_writes_only_internal_state(self):
