@@ -39,6 +39,14 @@ Smart Heating führt Wochenpläne, Heiz- und Absenktemperaturen, Raumdaten, Fens
 - Für sinnvolle Ergebnisse: bereits in Home Assistant eingerichtete Temperatur-, Fenster- und gegebenenfalls Anwesenheitssensoren.
 - Für einen Vergleich mit der bisherigen Heizungsautomation: passende Bestandsdaten und überprüfbare Entscheidungsnachweise.
 
+## Passiver Parallelbetrieb und Rückkehr
+
+**Vor der ersten Installation ist eine ausdrückliche Freigabe erforderlich.** Smart Heating ist im aktuellen Stand eine reine Vorschau und darf die vorhandene Heizungsautomation nicht ersetzen. Die bestehende Automation `automation.heizung_automatik_ersetzt_node_red` bleibt eingeschaltet; vorhandene Tado-Konfiguration, Helfer und Fensterkontakte bleiben unverändert.
+
+Nach einer freigegebenen Installation zuerst nur die Diagnosen und Wochenplan-Vorschau kontrollieren. Es dürfen keine Heizbefehle, Thermostat-Sollwertänderungen oder Schaltvorgänge von Smart Heating ausgehen. Bei Fehlern die Smart-Heating-Integration in **Einstellungen → Geräte & Dienste** deaktivieren beziehungsweise die zuletzt funktionierende, tatsächlich veröffentlichte Version in HACS auswählen und den nötigen Neustart ausführen. Die bisherige Heizungsautomation bleibt dabei durchgehend aktiv; es ist keine Umschaltung auf Smart Heating erforderlich.
+
+Keine zusätzlichen Backups oder Snapshots für diese Prüfung erstellen und keine vorhandenen Sicherungen verändern.
+
 ## Installation der Beta über HACS
 
 1. Öffne **HACS** in Home Assistant.
