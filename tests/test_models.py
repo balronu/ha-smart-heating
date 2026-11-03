@@ -900,3 +900,25 @@ class ScheduleTests(unittest.TestCase):
                 self.assertIsNone(rows[0]["heat_demand"])
                 self.assertEqual(rows[0]["commands"], [])
                 self.assertFalse(summarize_zone_heat_demand(rows)["boiler_control_authorized"])
+
+
+    def test_mode_change_invalidates_old_shadow_hysteresis_even_with_same_target(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        base = dict(schedule=schedule, now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+                    timezone="Europe/Berlin", zones=[{"id": "living"}],
+                    internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18},
+                    zone_diagnostics=[{"zone_id": "living", "window_state": "closed",
+                                       "room_temperature": 20.9,
+                                       "temperature_source": "sensor.living"}])
+        initial = calculate_zone_target_previews(overrides={}, previous_demand={"living": True}, **base)
+        self.assertIs(initial[0]["heat_demand"], True)
+        history, signatures = next_zone_demand_history(initial)
+        party = calculate_zone_target_previews(overrides={"manual_heat": True}, **base)
+        self.assertEqual(party[0]["target_temperature"], initial[0]["target_temperature"])
+        self.assertNotEqual(party[0]["mode"], initial[0]["mode"])
+        self.assertEqual(reusable_zone_demand(history, signatures, party), {})
+        recalculated = calculate_zone_target_previews(overrides={"manual_heat": True},
+                                                      previous_demand={}, **base)
+        self.assertIsNone(recalculated[0]["heat_demand"])
+        self.assertFalse(summarize_zone_heat_demand(recalculated)["boiler_control_authorized"])
+        self.assertEqual(recalculated[0]["commands"], [])
