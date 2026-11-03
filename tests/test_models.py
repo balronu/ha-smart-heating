@@ -307,3 +307,20 @@ class ScheduleTests(unittest.TestCase):
         )
         self.assertEqual(decision.mode, "chimney_sweep")
         self.assertEqual(decision.target_temperature, 27)
+
+    def test_heating_permission_blocks_manual_heat(self):
+        decision = evaluate_decision(
+            schedule_active=True,
+            overrides={"heating_permission": False, "manual_heat": True},
+            comfort_temperature=24,
+        )
+        self.assertEqual(decision.mode, "disabled")
+        self.assertEqual(decision.target_hvac_mode, "off")
+
+    def test_chimney_sweep_overrides_disabled_permission(self):
+        decision = evaluate_decision(
+            schedule_active=True,
+            overrides={"heating_permission": False, "chimney_sweep": True},
+            chimney_temperature=26,
+        )
+        self.assertEqual(decision.mode, "chimney_sweep")
