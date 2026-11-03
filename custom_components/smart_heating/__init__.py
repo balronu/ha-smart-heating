@@ -47,6 +47,7 @@ from .management import (
     build_window_role_diagnostics,
     zone_status,
     zone_backend_summary,
+    zone_target_capability_summary,
     SAFETY_MODES,
 )
 from .storage import effective_config, load_schedule, normalized_options
@@ -85,13 +86,14 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         internal = normalized["internal"]
         if not internal.get("internal_only", False):
             self._previous_zone_demand.clear()
+        zone_diagnostics = zone_backend_summary(self.hass, normalized["zones"], normalized)
         zone_previews = calculate_zone_target_previews(
             load_schedule(config),
             now=datetime.now().astimezone(),
             timezone=config.get("timezone", "Europe/Berlin"),
             zones=normalized["zones"],
             internal=internal,
-            zone_diagnostics=zone_backend_summary(self.hass, normalized["zones"], normalized),
+            zone_diagnostics=zone_diagnostics,
             previous_demand=self._previous_zone_demand,
             overrides=_read_overrides(self.hass, self.entry),
             context=_read_context(self.hass, self.entry),
@@ -114,7 +116,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 timezone=config.get("timezone", "Europe/Berlin"),
                 zones=normalized["zones"],
                 internal=internal,
-                zone_diagnostics=zone_backend_summary(self.hass, normalized["zones"], normalized),
+                zone_diagnostics=zone_diagnostics,
                 previous_demand=reusable_zone_demand(
                     self._previous_zone_demand, self._previous_zone_signature, zone_previews
                 ),
@@ -124,6 +126,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._previous_zone_demand, self._previous_zone_signature = next_zone_demand_history(zone_previews)
         status["zone_target_previews"] = zone_previews
         status["zone_heat_demand_summary"] = summarize_zone_heat_demand(zone_previews)
+        status["zone_target_capability_summary"] = zone_target_capability_summary(zone_previews, zone_diagnostics)
         return status
 
 
