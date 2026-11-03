@@ -425,3 +425,22 @@ class ScheduleTests(unittest.TestCase):
         self.assertFalse(summary["any_heat_demand"])
         self.assertFalse(summary["all_zones_known"])
         self.assertFalse(summary["boiler_control_authorized"])
+
+
+    def test_unavailable_room_thermostats_block_positive_demand(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        previews = calculate_zone_target_previews(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            timezone="Europe/Berlin",
+            zones=[{"id": "offline"}, {"id": "online"}],
+            internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18},
+            zone_diagnostics=[
+                {"zone_id": "offline", "window_state": "closed", "room_temperature": 19, "thermostat_count": 1, "unavailable_thermostats": 1},
+                {"zone_id": "online", "window_state": "closed", "room_temperature": 19, "thermostat_count": 1, "unavailable_thermostats": 0},
+            ],
+        )
+        self.assertIsNone(previews[0]["heat_demand"])
+        self.assertTrue(previews[0]["thermostats_unavailable"])
+        self.assertIs(previews[1]["heat_demand"], True)
+        self.assertTrue(all(item["commands"] == [] for item in previews))
