@@ -133,7 +133,7 @@ def zone_status(hass: Any, zones: list[Mapping[str, Any]]) -> list[dict[str, Any
         thermostats = []
         for entity_id in zone.get("thermostat_entities", []):
             state = hass.states.get(entity_id)
-            thermostats.append({"entity_id": entity_id, "state": str(state.state) if state else "missing", "hvac_action": state.attributes.get("hvac_action") if state else None})
+            thermostats.append({"entity_id": entity_id, "state": str(state.state) if state else "missing", "hvac_action": state.attributes.get("hvac_action") if state else None, "hvac_modes": list(state.attributes.get("hvac_modes")) if state and isinstance(state.attributes.get("hvac_modes"), (list, tuple)) else [], "min_temp": state.attributes.get("min_temp") if state else None, "max_temp": state.attributes.get("max_temp") if state else None, "target_temp_step": state.attributes.get("target_temp_step") if state else None, "passive": True})
         temperatures = []
         for entity_id in zone.get("temperature_entities", []):
             state = hass.states.get(entity_id)
