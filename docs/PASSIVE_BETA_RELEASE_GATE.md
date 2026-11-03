@@ -75,6 +75,15 @@ Die folgenden Testfälle wurden im Entwicklungsbranch konkret geprüft; sie sind
 | HA-Neustart/Reload und interne Sollwerte | `tests/test_runtime.py::test_config_options_entities_and_reload` | Interner Zustand und Raumdaten nach Config-Entry-Reload geprüft; kein echter VM-Neustart |
 | Passive Aktuatorgrenze | `tests/test_passive_release_safety.py::test_no_external_heating_actuation_in_python_sources`, `test_isolated_actuator_cannot_be_called_from_production_modules` | Statische Quellcode-Grenze; kein produktiver Heizbefehl getestet oder ausgelöst |
 
-**Noch separat nachzuweisen:** kombinierte Sondermodus-Prioritäten, mehrtägige Tag-/Nacht-Übergänge, Sensor-/Thermostat-Ausfall und Wiederkehr im Zusammenspiel, Migration/Neustart in einer realistischen HA-Umgebung sowie der passive Parallelbetrieb mit der vorhandenen Tado-Automation. Nicht getestete Szenarien bleiben ausdrücklich offen.
+**Ergänzende Regressionen, nach der ursprünglichen Matrix-Zuordnung:**
+
+- `tests/test_management.py::test_internal_weekly_schedule_crosses_midnight_without_helper_actuation`: Montag/Dienstag über Mitternacht und Mittwoch-Grenzen, CI grün auf `5419b6f`.
+- `tests/test_management.py::test_window_contact_failure_and_recovery_never_becomes_closed_implicitly`: Fensterkontakt `open → unavailable → unknown → open → closed`; kein implizites Schließen bei Ausfall.
+- `tests/test_management.py::test_live_state_to_zone_capability_diagnostics_remains_passive`: ergänzt um Thermostat-Wiederkehr nach `unavailable` mit erneuter passiver Eignungsbewertung.
+- `tests/test_management.py::test_chimney_sweep_overrides_conflicting_special_modes_in_passive_preview`: kombinierte Party-/Besuch-/Heimweg-/Sommer-/Abwesenheits- und Sicherheitsflags; Schornsteinfeger bleibt vorrangig. `Validate` inklusive Runtime für `bc8cec2` erfolgreich; UI war zum Dokumentationszeitpunkt noch nicht abgeschlossen.
+
+Die ersten drei ergänzenden Tests sind Bestandteil späterer Commits; ein vollständiger gemeinsamer CI-Nachweis für den endgültigen Release-Commit bleibt erforderlich.
+
+**Noch separat nachzuweisen:** End-to-End-Zusammenspiel der Sondermodi mit Sensor-/Thermostat-Ausfällen, realistische Migration und HA-Neustart, passive Parallelbetriebsprüfung mit vorhandener Tado-Automation sowie finaler CI-Nachweis und Freigaben. Einzelne Modelltests ersetzen diese Nachweise nicht.
 
 **CI-Hinweis:** Eine leere Liste klassischer Commit-Statusmeldungen ist kein Beleg für grüne GitHub-Actions-Checks. Die drei relevanten Workflows und deren SHA müssen separat bestätigt werden. Mergefähigkeit allein ist ebenfalls keine Freigabe.
