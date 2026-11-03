@@ -116,7 +116,7 @@ class WeeklySchedule:
                 matches = (
                     (window.start <= current < window.end)
                     if window.start < window.end
-                    else (current >= window.start or current < window.end)
+                    else current >= window.start
                 ) if day_index == local.weekday() else window.start > window.end and current < window.end
                 if matches:
                     return window
