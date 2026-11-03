@@ -613,3 +613,34 @@ test("thermostat diagnostics remain safe with missing data and unavailable devic
   expect(await page.evaluate(() => document.querySelector("smart-heating-card").getBoundingClientRect().right - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
   expect(await page.evaluate(() => window.__services)).toHaveLength(0);
 });
+
+
+test("renders all four thermostat suitability categories without controls", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.evaluate(() => {
+    const card = document.querySelector("smart-heating-card");
+    card.setConfig({ entry_id: "fixture-0", display_mode: "dashboard" });
+    card.hass = window.hass;
+    const categories = [
+      ["full", "fully_suitable", true],
+      ["partial", "partially_suitable", false],
+      ["unsupported", "not_suitable", false],
+      ["unknown", "not_assessable", false]
+    ];
+    card._data.status = {
+      ...(card._data.status || {}),
+      zone_target_capability_summary: categories.map(([zone_id, suitability, all_targets_supported]) => ({
+        zone_id, suitability, all_targets_supported, target_temperature: zone_id === "unknown" ? null : 24,
+        thermostats: zone_id === "unknown" ? [] : [{ entity_id: "climate." + zone_id,
+          target_supported: all_targets_supported, reasons: all_targets_supported ? [] : ["target_out_of_range"] }]
+      }))
+    };
+    window.__services = [];
+    card._render();
+  });
+  const panel = page.locator("smart-heating-card").first().getByTestId("internal-panel");
+  for (const label of ["Vollständig geeignet", "Teilweise geeignet", "Nicht geeignet", "Nicht prüfbar"]) {
+    await expect(panel).toContainText(label);
+  }
+  expect(await page.evaluate(() => window.__services)).toHaveLength(0);
+});
