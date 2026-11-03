@@ -532,6 +532,12 @@ class RuntimeTests(unittest.TestCase):
                         "Passive lifecycle must not control or reload the existing automation",
                     )
                     self.assertEqual(
+                        entry.state.value,
+                        "loaded",
+                        "Passive re-add must finish with a loaded integration before any activation test",
+                    )
+
+                    self.assertEqual(
                         hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
                         "on",
                         "Legacy Tado automation must remain active after passive removal and re-add",
