@@ -278,3 +278,32 @@ class ScheduleTests(unittest.TestCase):
         self.assertIn("scheduler_or_schedule_source", result["shadow"]["missing_prerequisites"])
         self.assertEqual(result["shadow"]["commands"], [])
         self.assertEqual(result["room_demand"]["commands"], [])
+
+    def test_manual_mode_cannot_bypass_open_window(self):
+        decision = evaluate_decision(
+            schedule_active=True,
+            overrides={"manual_heat": True, "window_open": True},
+            comfort_temperature=24,
+            night_temperature=18,
+            frost_temperature=5,
+        )
+        self.assertEqual(decision.mode, "window_open")
+        self.assertEqual(decision.target_temperature, 5)
+
+    def test_manual_mode_cannot_bypass_unknown_window(self):
+        decision = evaluate_decision(
+            schedule_active=True,
+            overrides={"manual_heat": True, "window_unknown": True},
+            comfort_temperature=24,
+        )
+        self.assertEqual(decision.mode, "window_unknown")
+        self.assertIsNone(decision.target_hvac_mode)
+
+    def test_chimney_sweep_remains_highest_priority(self):
+        decision = evaluate_decision(
+            schedule_active=False,
+            overrides={"chimney_sweep": True, "window_open": True, "manual_setback": True},
+            chimney_temperature=27,
+        )
+        self.assertEqual(decision.mode, "chimney_sweep")
+        self.assertEqual(decision.target_temperature, 27)
