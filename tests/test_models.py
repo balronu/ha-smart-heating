@@ -9,6 +9,7 @@ _package.__path__ = [str(Path(__file__).parents[1] / "custom_components" / "smar
 sys.modules.setdefault("custom_components.smart_heating", _package)
 
 from custom_components.smart_heating.engine import calculate_status, calculate_zone_target_previews, summarize_zone_heat_demand, zone_demand_signature, next_zone_demand_history, reusable_zone_demand
+from custom_components.smart_heating.management import zone_target_capability_summary
 from custom_components.smart_heating.models import ScheduleValidationError, WeeklySchedule, evaluate_decision, reset_actions, summer_hysteresis_state
 
 
@@ -787,3 +788,48 @@ class ScheduleTests(unittest.TestCase):
         self.assertFalse(summary["all_zones_known"])
         self.assertFalse(summary["boiler_control_authorized"])
         self.assertEqual(summary["commands"], [])
+
+
+    def test_room_safety_states_do_not_authorize_control_despite_thermostat_capability(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        zones = [{"id": "open_window"}, {"id": "missing_temperature"},
+                 {"id": "offline"}, {"id": "healthy"}]
+        diagnostics = [
+            {"zone_id": "open_window", "window_state": "open",
+             "room_temperature": 18, "temperature_source": "sensor.open"},
+            {"zone_id": "missing_temperature", "window_state": "closed",
+             "room_temperature": None, "temperature_source": None},
+            {"zone_id": "offline", "window_state": "closed",
+             "room_temperature": 18, "temperature_source": "sensor.offline",
+             "thermostat_count": 1, "unavailable_thermostats": 1},
+            {"zone_id": "healthy", "window_state": "closed",
+             "room_temperature": 18, "temperature_source": "sensor.healthy",
+             "thermostat_count": 1, "unavailable_thermostats": 0},
+        ]
+        previews = calculate_zone_target_previews(
+            schedule, now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            timezone="Europe/Berlin", zones=zones,
+            internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18},
+            zone_diagnostics=diagnostics,
+            previous_demand={zone["id"]: True for zone in zones},
+        )
+        self.assertEqual([item["heat_demand"] for item in previews],
+                         [None, None, None, True])
+        capability = {"state": "heat", "hvac_modes": ["heat"], "min_temp": 5,
+                      "max_temp": 30, "target_temp_step": 0.5}
+        capability_diagnostics = [
+            {"zone_id": zone["id"], "thermostats": [
+                {**capability, "entity_id": "climate." + zone["id"],
+                 "state": "unavailable" if zone["id"] == "offline" else "heat"}
+            ]} for zone in zones
+        ]
+        assessments = zone_target_capability_summary(previews, capability_diagnostics)
+        self.assertEqual([item["suitability"] for item in assessments],
+                         ["fully_suitable", "fully_suitable", "not_suitable", "fully_suitable"])
+        summary = summarize_zone_heat_demand(previews)
+        self.assertEqual(summary["requesting_zone_ids"], ["healthy"])
+        self.assertEqual(set(summary["unknown_zone_ids"]),
+                         {"open_window", "missing_temperature", "offline"})
+        self.assertFalse(summary["boiler_control_authorized"])
+        self.assertEqual(summary["commands"], [])
+        self.assertTrue(all(item["commands"] == [] for item in previews + assessments))
