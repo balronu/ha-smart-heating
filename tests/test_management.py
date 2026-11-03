@@ -573,3 +573,8 @@ class ManagementTests(unittest.TestCase):
         unavailable = zone_target_capability_summary(previews, zone_status(hass, zones))
         self.assertEqual(unavailable[0]["suitability"], "partially_suitable")
         self.assertIn("unavailable", unavailable[0]["thermostats"][1]["reasons"])
+        # Reconnection must be re-evaluated without carrying stale failure state.
+        hass.states.values["climate.bath_b"] = climate(30)
+        restored = zone_target_capability_summary(previews, zone_status(hass, zones))
+        self.assertEqual(restored[0]["suitability"], "fully_suitable")
+        self.assertTrue(all(item["passive"] and not item["commands"] for item in restored))
