@@ -146,6 +146,15 @@ class SmartHeatingCard extends HTMLElement {
     const internal=this._management().internal||{};
     const isolated=internal.internal_only===true;
     const internalModes=[["party","Party"],["visit","Besuch"],["return_home","Heimweg"],["summer","Sommer"],["chimney_sweep","Schornsteinfeger"]];
+    const zoneRows=(this._management().zones||[]).map(zone=>{
+      const id=String(zone.id||'');
+      if(!id)return '';
+      const targets=internal.zones?.[id]||{};
+      return ['comfort_temperature','night_temperature'].map(key=>{
+        const value=targets[key]??internal[key]??(key==='comfort_temperature'?21:18);
+        return `<div><b>${esc(zone.name||id)} · ${key==='comfort_temperature'?'Komfort':'Absenkung'}</b> ${esc(value)} °C <button data-zone-id="${esc(id)}" data-zone-key="${key}" data-zone-step="-0.5">−</button><button data-zone-id="${esc(id)}" data-zone-key="${key}" data-zone-step="0.5">+</button></div>`;
+      }).join('');
+    }).join('');
     const internalPanel=`<section class="sh-section" data-testid="internal-panel"><h3>Interner Testbetrieb · ohne Heizbefehle</h3><p class="sh-foot">Eigene Zustände werden nur in Smart Heating gespeichert. Die bisherige Automation bleibt aktiv.</p>
       <button type="button" data-internal-isolation="1" aria-pressed="${isolated}">${isolated?"Interne Werte aktiv · zurück zur Helfer-Vorschau":"Interne Werte für Vorschau verwenden"}</button>
       <div class="sh-modes">
@@ -154,6 +163,7 @@ class SmartHeatingCard extends HTMLElement {
       </div>
       <div class="sh-grid">${[["comfort_temperature","Komfort"],["night_temperature","Absenkung"]].map(([key,label])=>`<div class="sh-tile"><span class="sh-muted">${label}</span><strong>${esc(internal[key]??(key==="comfort_temperature"?21:18))} °C</strong><div class="sh-controls"><button type="button" data-internal-adjust="${key}" data-step="-0.5">−</button><button type="button" data-internal-adjust="${key}" data-step="0.5">+</button></div></div>`).join("")}</div>
       <div class="sh-modes">${internalModes.map(([key,label])=>`<button type="button" class="sh-mode ${internal[key]===true?"sh-on":""}" data-internal-mode="${key}" aria-pressed="${internal[key]===true}">${label}: ${internal[key]===true?"Ein":"Aus"}</button>`).join("")}</div>
+      <h4>Raumtemperaturen · passive Vorschau</h4>${zoneRows}
       <p class="sh-foot">Nur Testwerte · keine Änderung an input_boolean, input_number oder der Heizungsautomation.</p></section>`;
     const automation=st("automation.heizung_automatik_ersetzt_node_red")?.state;
     const next=this._status().next_switch;
@@ -200,6 +210,12 @@ class SmartHeatingCard extends HTMLElement {
       const current=Number(internal[key]??(key==="comfort_temperature"?21:18));
       const next=Number((current+Number(button.dataset.step)).toFixed(1));
       if(next>=5&&next<=35)return saveInternal({[key]:next});
+    }));
+    this.querySelectorAll('[data-zone-id]').forEach(button=>button.addEventListener('click',()=>{
+      const zoneId=button.dataset.zoneId,key=button.dataset.zoneKey;
+      const current=Number(internal.zones?.[zoneId]?.[key]??internal[key]??(key==='comfort_temperature'?21:18));
+      const next=Number((current+Number(button.dataset.zoneStep)).toFixed(1));
+      if(next>=5&&next<=35)saveInternal({zone_id:zoneId,[key]:next});
     }));
     this.querySelectorAll(".sh-ir[data-ir-switch]").forEach(button=>button.addEventListener("click",async event=>{
       event.stopPropagation();
