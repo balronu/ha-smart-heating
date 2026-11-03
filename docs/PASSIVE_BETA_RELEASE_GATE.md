@@ -37,6 +37,14 @@ Der neue Test `tests/test_restart_process.py::SeparateProcessRestartTests.test_p
 
 **Grenzen:** Dies ist kein vollständiger HAOS-/VM-Neustart und kein produktiver Tado-Test. Nicht separat nachgewiesen sind alle internen Raum-/Kontakt-/Sondermodus-Zustände über den Prozessneustart sowie reale Migration. Release-Gate und Nutzerfreigaben bleiben offen.
 
+## Erweiterter Neustartnachweis (03.11.2026)
+
+Für Entwicklungs-Commit [`f7e9360`](https://github.com/balronu/ha-smart-heating/commit/f7e93602a9922813e3fcac84748ef3601fb23ee1) sind die GitHub Actions [HACS](https://github.com/balronu/ha-smart-heating/actions/runs/41640007925), [Validate](https://github.com/balronu/ha-smart-heating/actions/runs/41640007949) einschließlich Runtime und Zwei-Prozess-Neustarttest sowie [UI](https://github.com/balronu/ha-smart-heating/actions/runs/41640008016) **alle erfolgreich**.
+
+Der isolierte Wiederherstellungstest prüft jetzt zusätzlich zu Wochenplan und Sollwerten die Badezimmer-Thermostatzuordnung, Fensterkontaktrolle und den internen Party-Modus sowie die passiven Sicherheitsmerkmale `operating_state=LEGACY`, `confirmed_control_ownership=legacy`, `switch_ready=false` und `rollback_ready=true`. Er prüft, dass die simulierte Bestandsautomation eingeschaltet bleibt und keine registrierten Heizungs-/Automations-Steuerdienste aufgerufen werden.
+
+**Nicht durch diesen Test belegt:** realer HAOS-/VM-Neustart, vollständige produktive Migration aller historischen Helfer, echtes Tado-Verhalten und finale Freigabe. Der vorherige CI-Fehler von `54a60ac` ist historisch und nicht der Stand des aktuellen Entwicklungsbranches.
+
 ## Freigabekriterien (alle erforderlich)
 
 - [ ] HACS, Validate und UI für **denselben endgültigen Release-Commit** erfolgreich.
