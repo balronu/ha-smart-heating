@@ -114,6 +114,31 @@ class ManagementTests(unittest.TestCase):
         self.assertEqual(chimney["priority"], 1000)
         # User data cannot lower the absolute safety priority.
         self.assertFalse(chimney["controllable"])
+    def test_chimney_sweep_overrides_conflicting_special_modes_in_passive_preview(self):
+        conflicting = {
+            "chimney_sweep": True,
+            "party": True,
+            "visit": True,
+            "return_home": True,
+            "summer": True,
+            "away": True,
+            "window_open": True,
+            "heating_permission": False,
+            "internal_enabled": False,
+        }
+        for schedule_active in (False, True):
+            with self.subTest(schedule_active=schedule_active):
+                decision = evaluate_decision(
+                    schedule_active=schedule_active,
+                    overrides=conflicting,
+                    comfort_temperature=21,
+                    night_temperature=18,
+                )
+                self.assertEqual(decision.mode, "chimney_sweep")
+                self.assertEqual(decision.source, "reference_priority")
+                self.assertEqual(decision.target_temperature, 25.0)
+                self.assertEqual(decision.target_hvac_mode, "heat")
+
     def test_single_thermostat_migrates_to_list_and_lead(self):
         data = normalize_management({"zones": [{"id": "dining", "name": "Esszimmer", "thermostat_entity": "climate.radiator_one"}]})
         zone = data["zones"][0]
