@@ -87,7 +87,7 @@ Die ersten drei ergänzenden Tests sind Bestandteil späterer Commits; ein volls
 
 - `tests/test_management.py::test_legacy_zone_and_window_migration_is_idempotent_and_passive`: wiederholte Migration von Schema 5, unveränderte Thermostat- und Fensterkontaktzuordnung, weiterhin `LEGACY` und `switch_ready=false`; HACS, Validate (einschließlich Runtime) und UI für `aab1bc9` erfolgreich. Kein echter Migrationstest auf VM 104.
 
-- `tests/test_runtime.py::test_config_options_entities_and_reload`: bestehende Automation `automation.heizung_automatik_ersetzt_node_red` im HA-Testzustand auf `on` gesetzt und vor beiden Config-Entry-Reloads auf unveränderten Zustand geprüft (`c5fe59d`); HACS, Validate einschließlich Runtime und UI erfolgreich. Dies ist ein simulierter passiver Parallelbetriebsnachweis, kein Produktivtest und kein Beleg für vollständige HA-Neustarts.
+- `tests/test_runtime.py::test_config_options_entities_and_reload`: bestehende Automation `automation.heizung_automatik_ersetzt_node_red` im HA-Testzustand auf `on` gesetzt und vor beiden Config-Entry-Reloads auf unveränderten Zustand geprüft (`c5fe59d`); HACS, Validate einschließlich Runtime und UI erfolgreich. Zusätzlich prüft `fc243d1` den eingeschalteten Zustand **nach** dem ersten Reload; HACS, Validate einschließlich Runtime und UI für `fc243d1` erfolgreich. Dies ist ein simulierter passiver Parallelbetriebsnachweis, kein Produktivtest und kein Beleg für vollständige HA-Neustarts.
 
 **Noch separat nachzuweisen:** End-to-End-Zusammenspiel der Sondermodi mit Sensor-/Thermostat-Ausfällen, realistische Migration und HA-Neustart, passive Parallelbetriebsprüfung mit vorhandener Tado-Automation sowie finaler CI-Nachweis und Freigaben. Einzelne Modelltests ersetzen diese Nachweise nicht.
 
