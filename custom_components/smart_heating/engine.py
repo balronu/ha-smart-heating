@@ -188,6 +188,7 @@ def calculate_zone_target_previews(
     timezone: str,
     zones: list[Mapping[str, Any]],
     internal: Mapping[str, Any],
+    zone_diagnostics: list[Mapping[str, Any]] | None = None,
     overrides: Mapping[str, bool] | None = None,
     context: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
@@ -205,6 +206,7 @@ def calculate_zone_target_previews(
     zone_targets = internal.get("zones", {})
     if not isinstance(zone_targets, Mapping):
         zone_targets = {}
+    diagnostics_by_id = {str(item.get("zone_id")): item for item in (zone_diagnostics or [])}
     result = []
     for zone in zones:
         zone_id = str(zone.get("id") or "")
@@ -215,9 +217,18 @@ def calculate_zone_target_previews(
             settings = {}
         comfort = settings.get("comfort_temperature", internal.get("comfort_temperature", 21.0))
         night = settings.get("night_temperature", internal.get("night_temperature", 18.0))
+        diagnostic = diagnostics_by_id.get(zone_id, {})
+        window_state = diagnostic.get("window_state", "unknown")
+        zone_overrides = {key: value for key, value in (overrides or {}).items() if key not in {"window_open", "window_tilted", "window_unknown"}}
+        if window_state in {"open", "open_or_tilted"}:
+            zone_overrides["window_open"] = True
+        elif window_state == "tilted":
+            zone_overrides["window_tilted"] = True
+        elif window_state not in {"closed", "closed_or_clear"}:
+            zone_overrides["window_unknown"] = True
         decision = evaluate_decision(
             schedule_active=active,
-            overrides=overrides,
+            overrides=zone_overrides,
             comfort_temperature=float(comfort),
             night_temperature=float(night),
             chimney_temperature=base_context.get("chimney_temperature", 25.0),
@@ -234,8 +245,10 @@ def calculate_zone_target_previews(
             "target_temperature": decision.target_temperature,
             "target_hvac_mode": decision.target_hvac_mode,
             "reason": decision.reason,
+            "window_state": window_state,
+            "thermostat_count": diagnostic.get("thermostat_count", 0),
             "passive": True,
-            "scope": "target_only",
+            "scope": "target_and_window_safety_preview",
             "commands": [],
         })
     return result
