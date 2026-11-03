@@ -384,3 +384,23 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(previews[1]["mode"], "comfort")
         self.assertEqual(previews[1]["target_temperature"], 21)
         self.assertTrue(all(not item["commands"] for item in previews))
+
+
+    def test_zone_heat_demand_uses_own_measurement_and_unknown_is_not_false(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        previews = calculate_zone_target_previews(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            timezone="Europe/Berlin",
+            zones=[{"id": "bathroom"}, {"id": "bedroom"}, {"id": "unknown"}],
+            internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18,
+                      "zones": {"bathroom": {"comfort_temperature": 24}, "bedroom": {"comfort_temperature": 18}}},
+            zone_diagnostics=[
+                {"zone_id": "bathroom", "window_state": "closed", "room_temperature": 22, "temperature_source": "sensor.bathroom"},
+                {"zone_id": "bedroom", "window_state": "closed", "room_temperature": 19, "temperature_source": "sensor.bedroom"},
+                {"zone_id": "unknown", "window_state": "closed", "room_temperature": None},
+            ],
+        )
+        self.assertEqual([item["heat_demand"] for item in previews], [True, False, None])
+        self.assertEqual(previews[0]["temperature_source"], "sensor.bathroom")
+        self.assertTrue(all(item["commands"] == [] for item in previews))
