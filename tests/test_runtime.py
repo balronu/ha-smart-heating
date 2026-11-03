@@ -462,6 +462,11 @@ class RuntimeTests(unittest.TestCase):
                     self.assertEqual(entry.state.value, "loaded")
                     self.assertEqual(entry.data["schedule"]["monday"][0]["end"], "08:00:00")
                     self.assertEqual(
+                        hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
+                        "on",
+                        "Second passive reload must not disable the existing Tado automation",
+                    )
+                    self.assertEqual(
                         normalize_management(entry.options["management"])["internal"]["comfort_temperature"],
                         22.5,
                     )
