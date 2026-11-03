@@ -922,3 +922,33 @@ class ScheduleTests(unittest.TestCase):
         self.assertIsNone(recalculated[0]["heat_demand"])
         self.assertFalse(summarize_zone_heat_demand(recalculated)["boiler_control_authorized"])
         self.assertEqual(recalculated[0]["commands"], [])
+
+
+    def test_internal_only_toggle_drops_shadow_previews_and_old_history(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        common = dict(schedule=schedule, now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+                      timezone="Europe/Berlin", zones=[{"id": "bathroom"}],
+                      zone_diagnostics=[{"zone_id": "bathroom", "window_state": "closed",
+                                         "room_temperature": 20.0,
+                                         "temperature_source": "sensor.bath"}])
+        active = calculate_zone_target_previews(
+            internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18},
+            **common)
+        self.assertIs(active[0]["heat_demand"], True)
+        old_history, old_signatures = next_zone_demand_history(active)
+        disabled = calculate_zone_target_previews(
+            internal={"internal_only": False, "comfort_temperature": 21, "night_temperature": 18},
+            previous_demand=old_history, **common)
+        self.assertEqual(disabled, [])
+        self.assertEqual(next_zone_demand_history(disabled), ({}, {}))
+        self.assertFalse(summarize_zone_heat_demand(disabled)["boiler_control_authorized"])
+        resumed = calculate_zone_target_previews(
+            internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18},
+            zone_diagnostics=[{"zone_id": "bathroom", "window_state": "closed",
+                               "room_temperature": 20.9,
+                               "temperature_source": "sensor.bath"}],
+            schedule=schedule, now=common["now"], timezone=common["timezone"],
+            zones=common["zones"], previous_demand={})
+        self.assertIsNone(resumed[0]["heat_demand"])
+        self.assertEqual(reusable_zone_demand(old_history, old_signatures, resumed), {})
+        self.assertEqual(resumed[0]["commands"], [])
