@@ -505,6 +505,11 @@ class RuntimeTests(unittest.TestCase):
                         [],
                         "Passive removal and fresh re-add must not issue climate commands",
                     )
+                    self.assertEqual(
+                        hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
+                        "on",
+                        "Passive removal and fresh re-add must preserve the existing Tado automation",
+                    )
                     from custom_components.smart_heating.control import async_apply_decision
                     from custom_components.smart_heating.models import HeatingDecision
 
