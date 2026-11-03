@@ -32,6 +32,14 @@ Actual compatibility depends on the entities and integrations available in your 
 - Configured Home Assistant sensors and thermostats for meaningful readings.
 - Verified legacy-automation evidence if you want to compare decisions.
 
+## Passive parallel operation and rollback
+
+**Explicit approval is required before the first production installation.** Smart Heating currently provides previews only and must not replace or disable the existing heating automation. Keep the legacy automation, Tado configuration, helpers and window contacts unchanged.
+
+After an approved installation, verify diagnostics and schedule previews first. Smart Heating must not issue climate, boiler or helper service commands. If a problem occurs, disable the Smart Heating integration under **Settings → Devices & services**, or select the last known-good *published* version in HACS and restart Home Assistant if required. The existing heating automation remains active throughout.
+
+Do not create extra backups or snapshots for this work or modify existing backups.
+
 ## Install through HACS
 
 1. In **HACS**, open **Custom repositories**.
