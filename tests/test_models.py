@@ -8,7 +8,7 @@ _package = types.ModuleType("custom_components.smart_heating")
 _package.__path__ = [str(Path(__file__).parents[1] / "custom_components" / "smart_heating")]
 sys.modules.setdefault("custom_components.smart_heating", _package)
 
-from custom_components.smart_heating.engine import calculate_status, calculate_zone_target_previews, summarize_zone_heat_demand
+from custom_components.smart_heating.engine import calculate_status, calculate_zone_target_previews, summarize_zone_heat_demand, zone_demand_signature
 from custom_components.smart_heating.models import ScheduleValidationError, WeeklySchedule, evaluate_decision, reset_actions, summer_hysteresis_state
 
 
@@ -523,3 +523,14 @@ class ScheduleTests(unittest.TestCase):
             zone_diagnostics=[{"zone_id": "bathroom", "window_state": "closed", "room_temperature": 20.9}],
         )
         self.assertIsNone(recovered[0]["heat_demand"])
+
+
+    def test_hysteresis_history_signature_changes_with_target_mode_or_sensor(self):
+        original = {"target_temperature": 21.0, "mode": "comfort", "temperature_source": "sensor.room"}
+        same = dict(original)
+        new_target = {**original, "target_temperature": 22.0}
+        new_mode = {**original, "mode": "night"}
+        new_sensor = {**original, "temperature_source": "climate.room"}
+        self.assertEqual(zone_demand_signature(original), zone_demand_signature(same))
+        for changed in (new_target, new_mode, new_sensor):
+            self.assertNotEqual(zone_demand_signature(original), zone_demand_signature(changed))
