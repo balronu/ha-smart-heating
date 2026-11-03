@@ -23,7 +23,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE, CONF_OPERATION_MODE, CONF_SUMMER_MODE, MODE_COMPATIBILITY, MODE_FULL, SUMMER_COMPATIBILITY, SUMMER_HVAC_OFF, CONF_CLIMATE_ENTITY, CONF_OUTDOOR_TEMPERATURE, CONF_TADO_FALLBACK, DOMAIN, PLATFORMS, SIGNAL_ENTRY_UPDATED, VERSION
-from .engine import calculate_status, calculate_zone_target_previews, summarize_zone_heat_demand, zone_demand_signature
+from .engine import calculate_status, calculate_zone_target_previews, summarize_zone_heat_demand, zone_demand_signature, next_zone_demand_history
 from .models import ScheduleValidationError, WeeklySchedule
 from .migration import preview_migration
 from .control import analyze_control_plane
@@ -122,12 +122,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 overrides=_read_overrides(self.hass, self.entry),
                 context=_read_context(self.hass, self.entry),
             )
-        self._previous_zone_signature = signatures
-        self._previous_zone_demand = {
-            item["zone_id"]: item["heat_demand"]
-            for item in zone_previews
-            if type(item.get("heat_demand")) is bool
-        }
+        self._previous_zone_demand, self._previous_zone_signature = next_zone_demand_history(zone_previews)
         status["zone_target_previews"] = zone_previews
         status["zone_heat_demand_summary"] = summarize_zone_heat_demand(zone_previews)
         return status
