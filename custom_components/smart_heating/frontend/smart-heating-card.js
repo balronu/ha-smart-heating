@@ -155,7 +155,7 @@ class SmartHeatingCard extends HTMLElement {
         return `<div><b>${esc(zone.name||id)} · ${key==='comfort_temperature'?'Komfort':'Absenkung'}</b> ${esc(value)} °C <button data-zone-id="${esc(id)}" data-zone-key="${key}" data-zone-step="-0.5">−</button><button data-zone-id="${esc(id)}" data-zone-key="${key}" data-zone-step="0.5">+</button></div>`;
       }).join('');
     }).join('');
-    const capabilityRows=(this._status().zone_target_capability_summary||[]).map(zone=>{
+    const capabilityRows=(Array.isArray(this._status().zone_target_capability_summary)?this._status().zone_target_capability_summary:[]).map(zone=>{
       const thermostats=Array.isArray(zone.thermostats)?zone.thermostats:[];
       const label=(this._management().zones||[]).find(item=>String(item.id)===String(zone.zone_id))?.name||zone.zone_id;
       const details=thermostats.length?thermostats.map(item=>{
