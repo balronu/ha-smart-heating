@@ -8,7 +8,7 @@ _package = types.ModuleType("custom_components.smart_heating")
 _package.__path__ = [str(Path(__file__).parents[1] / "custom_components" / "smart_heating")]
 sys.modules.setdefault("custom_components.smart_heating", _package)
 
-from custom_components.smart_heating.engine import calculate_status, calculate_zone_target_previews
+from custom_components.smart_heating.engine import calculate_status, calculate_zone_target_previews, summarize_zone_heat_demand
 from custom_components.smart_heating.models import ScheduleValidationError, WeeklySchedule, evaluate_decision, reset_actions, summer_hysteresis_state
 
 
@@ -404,3 +404,24 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual([item["heat_demand"] for item in previews], [True, False, None])
         self.assertEqual(previews[0]["temperature_source"], "sensor.bathroom")
         self.assertTrue(all(item["commands"] == [] for item in previews))
+
+
+    def test_shared_boiler_demand_is_never_authorized_by_room_preview(self):
+        summary = summarize_zone_heat_demand([
+            {"zone_id": "bathroom", "heat_demand": True},
+            {"zone_id": "bedroom", "heat_demand": False},
+            {"zone_id": "living", "heat_demand": None},
+        ])
+        self.assertEqual(summary["requesting_zone_ids"], ["bathroom"])
+        self.assertEqual(summary["satisfied_zone_ids"], ["bedroom"])
+        self.assertEqual(summary["unknown_zone_ids"], ["living"])
+        self.assertTrue(summary["any_heat_demand"])
+        self.assertFalse(summary["all_zones_known"])
+        self.assertFalse(summary["boiler_control_authorized"])
+        self.assertEqual(summary["commands"], [])
+
+    def test_empty_room_preview_cannot_authorize_boiler(self):
+        summary = summarize_zone_heat_demand([])
+        self.assertFalse(summary["any_heat_demand"])
+        self.assertFalse(summary["all_zones_known"])
+        self.assertFalse(summary["boiler_control_authorized"])
