@@ -499,6 +499,12 @@ class RuntimeTests(unittest.TestCase):
                         [],
                         "Passive setup, options changes and repeated reloads must never command climate devices",
                     )
+                    self.assertEqual(
+                        hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
+                        "on",
+                        "Passive lifecycle must preserve the existing Tado automation",
+                    )
+
                     self.assertTrue(await hass.config_entries.async_remove(entry.entry_id))
                     await hass.async_block_till_done()
                     readd = await hass.config_entries.flow.async_init("smart_heating", context={"source": "user"})
