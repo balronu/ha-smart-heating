@@ -459,3 +459,22 @@ class ManagementTests(unittest.TestCase):
         self.assertIn("target_out_of_range", summary[0]["thermostats"][0]["reasons"])
         self.assertEqual(summary[1]["thermostats"][0]["entity_id"], "climate.bed")
         self.assertTrue(all(item["passive"] and item["commands"] == [] for item in summary))
+
+
+    def test_zone_target_requires_every_assigned_thermostat_to_support_target(self):
+        supported = {"entity_id": "climate.bath_left", "state": "heat",
+                     "hvac_modes": ["heat"], "min_temp": 5, "max_temp": 30,
+                     "target_temp_step": 0.5}
+        unsupported = {**supported, "entity_id": "climate.bath_right", "max_temp": 22}
+        previews = [{"zone_id": "bathroom", "target_temperature": 24}]
+        diagnostics = [{"zone_id": "bathroom", "thermostats": [supported, unsupported]}]
+        result = zone_target_capability_summary(previews, diagnostics)
+        self.assertFalse(result[0]["all_targets_supported"])
+        self.assertEqual([item["target_supported"] for item in result[0]["thermostats"]],
+                         [True, False])
+        self.assertIn("target_out_of_range", result[0]["thermostats"][1]["reasons"])
+        self.assertTrue(result[0]["passive"])
+        self.assertEqual(result[0]["commands"], [])
+        diagnostics[0]["thermostats"][1] = {**supported, "entity_id": "climate.bath_right"}
+        recovered = zone_target_capability_summary(previews, diagnostics)
+        self.assertTrue(recovered[0]["all_targets_supported"])
