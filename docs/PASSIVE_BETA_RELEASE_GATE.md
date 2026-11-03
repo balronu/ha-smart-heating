@@ -17,6 +17,18 @@ Stand: 2026-11-03. Dieses Dokument ist eine Prüf- und Freigabeliste, **keine** 
 - **Aktuatorgrenze:** Die Produktionspfade bleiben passiv. `control.py` enthält allerdings einen älteren, explizit dreifach gesperrten Aktuator für isolierte Tests; der erste pauschale Service-Call-Test hat ihn erkannt. Der überarbeitete Regressionstest prüft deshalb zusätzlich, dass kein Produktionsmodul `async_apply_decision` importiert oder aufruft und dass die drei Freigabeflags vorhanden sind. **CI-Bestätigung des korrigierten Tests steht aus.**
 - **Noch offen:** Nachweis von Neustart-/Migrationsverhalten, abschließende Prüfung aller Testresultate und Release-Artefakte, konsistenter finaler Commit sowie die ausdrücklich erforderlichen Freigaben. Keine produktive Installation, kein Tag und keine Veröffentlichung im Rahmen dieses Prüfprotokolls.
 
+## Verifizierter CI-Zwischenstand (03.11.2026)
+
+Für Entwicklungs-Commit [`3a025040c5566f047f879ebd3271ec35a653e9ba`](https://github.com/balronu/ha-smart-heating/commit/3a025040c5566f047f879ebd3271ec35a653e9ba) wurden die GitHub-Actions-Läufe tatsächlich abgefragt:
+
+| Workflow | Lauf | Ergebnis |
+| --- | --- | --- |
+| HACS | [41622504577](https://github.com/balronu/ha-smart-heating/actions/runs/41622504577) | success |
+| Validate | [41622504544](https://github.com/balronu/ha-smart-heating/actions/runs/41622504544) | success (einschließlich Runtime und hassfest) |
+| UI | [41622504545](https://github.com/balronu/ha-smart-heating/actions/runs/41622504545) | success (Playwright) |
+
+Der vorherige Runtime-Fehler war eine nicht monoton steigende WebSocket-Nachrichten-ID (`id_reuse`) im Lifecycle-Test; Korrektur im genannten Commit. Diese Ergebnisse gelten **nur für diesen Entwicklungs-Commit**. Eine nachfolgende Änderung erfordert neue CI-Prüfungen. Der Commit ist weder ein freigegebener Release-Kandidat noch ein veröffentlichter Beta-Tag. Die untenstehenden Release-Kriterien bleiben offen, soweit nicht gesondert nachgewiesen.
+
 ## Freigabekriterien (alle erforderlich)
 
 - [ ] HACS, Validate und UI für **denselben endgültigen Release-Commit** erfolgreich.
