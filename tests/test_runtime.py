@@ -98,6 +98,17 @@ class RuntimeTests(unittest.TestCase):
                     self.assertEqual(entry.domain, "smart_heating")
                     await hass.async_block_till_done()
                     self.assertEqual(entry.state.value, "loaded")
+                    # Exercise HA core config-entry persistence, not only in-memory reloads.
+                    # The separate-process restart fixture will consume this same storage file.
+                    await hass.config_entries._async_save()
+                    stored_entries = json.loads(
+                        (Path(config_dir) / ".storage" / "core.config_entries").read_text(encoding="utf-8")
+                    )["data"]["entries"]
+                    self.assertTrue(
+                        any(saved["entry_id"] == entry.entry_id and saved["domain"] == "smart_heating"
+                            for saved in stored_entries),
+                        "Smart Heating config entry must be present in HA persistent storage",
+                    )
 
                     from homeassistant.components.websocket_api.connection import ActiveConnection
                     from custom_components.smart_heating.management import normalize_management
