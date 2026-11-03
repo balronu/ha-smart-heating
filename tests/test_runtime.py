@@ -334,6 +334,28 @@ class RuntimeTests(unittest.TestCase):
                     )
                     self.assertTrue(all(item["matches"] for item in diagnostics.values()))
 
+                    # Persist internal-only temperatures through an actual HA
+                    # config-entry unload/setup cycle (without any actuation).
+                    internal_saved = await ws_call(
+                        105,
+                        {
+                            "type": "smart_heating/admin/internal/set",
+                            "entry_id": entry.entry_id,
+                            "item": {
+                                "internal_only": True,
+                                "comfort_temperature": 22.5,
+                                "night_temperature": 17.5,
+                            },
+                        },
+                    )
+                    self.assertFalse(internal_saved.get("active_control", False))
+                    internal_before_reload = normalize_management(
+                        entry.options["management"]
+                    )["internal"]
+                    self.assertTrue(internal_before_reload["internal_only"])
+                    self.assertEqual(internal_before_reload["comfort_temperature"], 22.5)
+                    self.assertEqual(internal_before_reload["night_temperature"], 17.5)
+
                     second_save = await save_room(103, ("tilt", "open"))
                     self.assertEqual(second_save["persisted_contact_roles"], first_save["persisted_contact_roles"])
                     self.assertTrue(await hass.config_entries.async_unload(entry.entry_id))
@@ -341,6 +363,10 @@ class RuntimeTests(unittest.TestCase):
                     self.assertTrue(await hass.config_entries.async_setup(entry.entry_id))
                     await hass.async_block_till_done()
                     persisted_after_reload = normalize_management(entry.options["management"])
+                    reloaded_internal = persisted_after_reload["internal"]
+                    self.assertTrue(reloaded_internal["internal_only"])
+                    self.assertEqual(reloaded_internal["comfort_temperature"], 22.5)
+                    self.assertEqual(reloaded_internal["night_temperature"], 17.5)
                     self.assertEqual({item["entity_id"]: item["contact_role"] for item in persisted_after_reload["sensors"]["window"]}, first_save["persisted_contact_roles"])
                     reloaded_zone = next(item for item in persisted_after_reload["zones"] if item["id"] == "badezimmer")
                     self.assertEqual(reloaded_zone["thermostat_entities"], room_item["thermostat_entities"])
