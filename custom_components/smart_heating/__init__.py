@@ -67,6 +67,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.entry = entry
         self.runtime_management_raw: dict[str, Any] = {}
         self._previous_zone_demand: dict[str, bool] = {}
+        self._previous_zone_signature: dict[str, tuple[Any, ...]] = {}
         super().__init__(hass, config_entry=entry, logger=_LOGGER, name=DOMAIN)
 
     async def _async_update_data(self) -> dict[str, Any]:
@@ -95,8 +96,37 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             overrides=_read_overrides(self.hass, self.entry),
             context=_read_context(self.hass, self.entry),
         )
-        # Keep history only while the isolated shadow mode is active.
-        # Unknown readings invalidate previous certainty rather than carrying it.
+        # A prior state is only reusable for the same effective target,
+        # decision mode and measurement source. A changed context invalidates
+        # hysteresis history instead of retaining stale demand.
+        signatures = {
+            item["zone_id"]: (
+                item.get("target_temperature"),
+                item.get("mode"),
+                item.get("temperature_source"),
+            )
+            for item in zone_previews
+        }
+        changed = {
+            zone_id for zone_id, signature in signatures.items()
+            if self._previous_zone_signature.get(zone_id) != signature
+        }
+        if changed:
+            zone_previews = calculate_zone_target_previews(
+                load_schedule(config),
+                now=datetime.now().astimezone(),
+                timezone=config.get("timezone", "Europe/Berlin"),
+                zones=normalized["zones"],
+                internal=internal,
+                zone_diagnostics=zone_backend_summary(self.hass, normalized["zones"], normalized),
+                previous_demand={
+                    key: value for key, value in self._previous_zone_demand.items()
+                    if key not in changed
+                },
+                overrides=_read_overrides(self.hass, self.entry),
+                context=_read_context(self.hass, self.entry),
+            )
+        self._previous_zone_signature = signatures
         self._previous_zone_demand = {
             item["zone_id"]: item["heat_demand"]
             for item in zone_previews
