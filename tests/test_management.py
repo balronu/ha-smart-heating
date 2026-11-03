@@ -478,3 +478,27 @@ class ManagementTests(unittest.TestCase):
         diagnostics[0]["thermostats"][1] = {**supported, "entity_id": "climate.bath_right"}
         recovered = zone_target_capability_summary(previews, diagnostics)
         self.assertTrue(recovered[0]["all_targets_supported"])
+
+
+    def test_room_suitability_distinguishes_full_partial_and_unassessable(self):
+        base = {"state": "heat", "hvac_modes": ["heat"], "min_temp": 5,
+                "max_temp": 30, "target_temp_step": 0.5}
+        limited = {**base, "max_temp": 22}
+        previews = [{"zone_id": zone, "target_temperature": target}
+                    for zone, target in (("full", 24), ("partial", 24),
+                                         ("unsupported", 24), ("empty", 24),
+                                         ("unknown", None))]
+        diagnostics = [
+            {"zone_id": "full", "thermostats": [base]},
+            {"zone_id": "partial", "thermostats": [base, limited]},
+            {"zone_id": "unsupported", "thermostats": [limited]},
+            {"zone_id": "empty", "thermostats": []},
+            {"zone_id": "unknown", "thermostats": [base]},
+        ]
+        summary = zone_target_capability_summary(previews, diagnostics)
+        self.assertEqual([item["suitability"] for item in summary],
+                         ["fully_suitable", "partially_suitable", "not_suitable",
+                          "not_assessable", "not_assessable"])
+        self.assertEqual([item["all_targets_supported"] for item in summary],
+                         [True, False, False, False, False])
+        self.assertTrue(all(item["commands"] == [] for item in summary))
