@@ -67,9 +67,9 @@ async def worker(stage, config_dir):
             assert (config_path / ".storage" / "core.config_entries").exists()
         else:
             # The fixture uses a fresh HA object in this entirely separate OS process.
-            # Unlike HA bootstrap, the fixture does not automatically initialize stored entries.
+            # The lightweight fixture skips normal HA startup; load the persisted entries explicitly.
             await hass.config_entries.async_initialize()
-            # The lightweight HA test fixture does not run the full startup sequence.\n            # Explicitly initialize config entries from the persisted Store.\n            await hass.config_entries.async_initialize()\n            entries = hass.config_entries.async_entries("smart_heating")
+            entries = hass.config_entries.async_entries("smart_heating")
             assert len(entries) == 1, f"expected persisted entry, got {entries!r}"
             entry = entries[0]
             assert entry.data["schedule"]["monday"][0]["target_temperature"] == 20.5
