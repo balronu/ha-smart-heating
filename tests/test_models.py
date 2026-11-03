@@ -707,3 +707,38 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(summary["requesting_zone_ids"], ["bedroom"])
         self.assertFalse(summary["boiler_control_authorized"])
         self.assertTrue(all(item["commands"] == [] for item in disabled))
+
+
+    def test_day_night_transition_invalidates_room_hysteresis_history(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        internal = {"internal_only": True, "comfort_temperature": 21, "night_temperature": 18}
+        base = dict(
+            timezone="Europe/Berlin",
+            zones=[{"id": "living_room"}],
+            internal=internal,
+            zone_diagnostics=[{"zone_id": "living_room", "window_state": "closed",
+                               "room_temperature": 20.9, "temperature_source": "sensor.living"}],
+        )
+        daytime = calculate_zone_target_previews(
+            schedule, now=datetime.fromisoformat("2026-11-02T21:59:00+01:00"),
+            previous_demand={"living_room": True}, **base
+        )
+        old_history, old_signatures = next_zone_demand_history(daytime)
+        self.assertIs(daytime[0]["heat_demand"], True)
+        nighttime = calculate_zone_target_previews(
+            schedule, now=datetime.fromisoformat("2026-11-02T22:01:00+01:00"),
+            previous_demand=old_history, **base
+        )
+        self.assertEqual(nighttime[0]["mode"], "night")
+        self.assertEqual(nighttime[0]["target_temperature"], 18)
+        self.assertEqual(reusable_zone_demand(old_history, old_signatures, nighttime), {})
+        night_history, night_signatures = next_zone_demand_history(nighttime)
+        self.assertIs(nighttime[0]["heat_demand"], False)
+        morning = calculate_zone_target_previews(
+            schedule, now=datetime.fromisoformat("2026-11-03T06:01:00+01:00"),
+            previous_demand=night_history, **base
+        )
+        self.assertEqual(morning[0]["mode"], "comfort")
+        self.assertEqual(reusable_zone_demand(night_history, night_signatures, morning), {})
+        self.assertFalse(summarize_zone_heat_demand(morning)["boiler_control_authorized"])
+        self.assertEqual(morning[0]["commands"], [])
