@@ -469,3 +469,32 @@ test.describe("native dashboard beta.51", () => {
     await page.screenshot({path:`test-results/${testInfo.project.name}-native-mobile.png`,fullPage:true});
   });
 });
+
+test("internal dashboard settings persist without legacy helper service calls", async ({ page }) => {
+  await page.evaluate(() => {
+    const card=document.querySelector("smart-heating-card");
+    card.setConfig({entry_id:"fixture-0",display_mode:"dashboard"});
+    card.hass=window.hass;
+    card._data.options=card._data.options||{};
+    card._data.options.management={...(card._data.options.management||{}),internal:{enabled:true,operating_mode:"automatic",internal_only:false,comfort_temperature:21,night_temperature:18}};
+    window.__internalCalls=[];
+    const original=window.hass.callWS.bind(window.hass);
+    window.hass.callWS=async msg=>{
+      if(msg.type!=="smart_heating/admin/internal/set")return original(msg);
+      window.__internalCalls.push(msg);
+      return {internal:{...card._data.options.management.internal,...msg.item},active_control:false};
+    };
+    card._render();
+  });
+  const card=page.locator("smart-heating-card").first();
+  await card.locator('[data-internal-isolation]').click();
+  await card.locator('[data-internal-enabled]').click();
+  await card.locator('[data-internal-operating="manual_setback"]').click();
+  await card.locator('[data-internal-mode="party"]').click();
+  const result=await page.evaluate(()=>({calls:window.__internalCalls,services:window.__services||[]}));
+  expect(result.calls.map(call=>call.item)).toEqual([
+    {internal_only:true},{enabled:false},{operating_mode:"manual_setback"},{party:true}
+  ]);
+  expect(result.services).toHaveLength(0);
+  await expect(card.locator('[data-internal-mode="party"]')).toHaveAttribute("aria-pressed","true");
+});
