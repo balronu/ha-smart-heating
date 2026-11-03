@@ -8,7 +8,7 @@
 <p align="center"><a href="https://github.com/balronu/ha-smart-heating/releases">Releases</a> · <a href="https://github.com/balronu/ha-smart-heating/issues">Fehler melden</a> · <a href="CHANGELOG.md">Changelog</a></p>
 
 > [!IMPORTANT]
-> **Stable – Coming Soon.** Smart Heating befindet sich in der Beta- und Praxistestphase. **Eine Stable-Version ist noch nicht freigegeben.** Das Manifest des Entwicklungsbranches trägt derzeit `0.1.0-beta.52`; daraus folgt noch keine Freigabe oder Veröffentlichung eines Releases. Die Integration arbeitet im aktuellen Entwicklungsstand **passiv**: Sie zeigt Planungen und Entscheidungen an, übernimmt aber **nicht** selbstständig die Heizungssteuerung. Ein späterer aktiver Betrieb wird erst nach gesonderter Prüfung und ausdrücklicher Freigabe möglich.
+> **Stable – Coming Soon.** Smart Heating befindet sich in der Beta- und Praxistestphase. **Eine Stable-Version ist noch nicht freigegeben.** Das Manifest des Entwicklungsbranches trägt derzeit `0.1.0-beta.53`; daraus folgt noch keine Freigabe oder Veröffentlichung eines Releases. Die Integration arbeitet im aktuellen Entwicklungsstand **passiv**: Sie zeigt Planungen und Entscheidungen an, übernimmt aber **nicht** selbstständig die Heizungssteuerung. Ein späterer aktiver Betrieb wird erst nach gesonderter Prüfung und ausdrücklicher Freigabe möglich.
 
 ## Was ist Smart Heating?
 
