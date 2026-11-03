@@ -62,4 +62,19 @@ Die folgenden Szenarien sind als getrennte automatisierte Nachweise mit erwartet
 | Admin-/Nichtadmin-WebSocket | Mutationen nur für Administratoren; keine Rechteausweitung |
 | Parallelbetrieb mit bestehender Tado-Automation | Ausschließlich Vorschau; bestehende Automation bleibt aktiv |
 
+## Nachweiszuordnung: vorhandene Regressionstests (03.11.2026)
+
+Die folgenden Testfälle wurden im Entwicklungsbranch konkret geprüft; sie sind Teil der erfolgreichen `Validate`-Suite für Commit `3a025040`. Die Zuordnung ist **kein** Nachweis einer vollständigen Szenarioabdeckung oder eines Praxistests an VM 104.
+
+| Anforderung | Konkreter Test | Beleg / Grenze |
+| --- | --- | --- |
+| Schornsteinfeger-Priorität | `tests/test_management.py::test_chimney_sweep_priority_is_immutable_in_model` | Normalisierung erzwingt Priorität 1000 und `controllable=false`; gleichzeitige Aktivierung anderer Sondermodi nicht in diesem Test geprüft |
+| Fenster offen/gekippt/unbekannt | `tests/test_management.py::test_window_aggregation_is_conservative_and_multistate_is_explicit` | Aggregation von `tilted`, `open_unknown`, `unknown`, `unavailable`; keine Live-Aktorprüfung |
+| Bestehende Sondermodi migrieren | `tests/test_management.py::test_legacy_special_modes_migrate_idempotently_and_keep_entity_binding` | Party-Helferbindung bleibt erhalten, Normalisierung idempotent; keine automatische Umschaltung |
+| Interner Modus und Wochenplan | `tests/test_management.py::test_internal_modes_and_zone_schedule_work_without_helpers` | Interner manueller Modus und Montag-Zeitfenster; Tag-/Nacht-Wechsel über mehrere Wochentage nicht vollständig abgedeckt |
+| HA-Neustart/Reload und interne Sollwerte | `tests/test_runtime.py::test_config_options_entities_and_reload` | Interner Zustand und Raumdaten nach Config-Entry-Reload geprüft; kein echter VM-Neustart |
+| Passive Aktuatorgrenze | `tests/test_passive_release_safety.py::test_no_external_heating_actuation_in_python_sources`, `test_isolated_actuator_cannot_be_called_from_production_modules` | Statische Quellcode-Grenze; kein produktiver Heizbefehl getestet oder ausgelöst |
+
+**Noch separat nachzuweisen:** kombinierte Sondermodus-Prioritäten, mehrtägige Tag-/Nacht-Übergänge, Sensor-/Thermostat-Ausfall und Wiederkehr im Zusammenspiel, Migration/Neustart in einer realistischen HA-Umgebung sowie der passive Parallelbetrieb mit der vorhandenen Tado-Automation. Nicht getestete Szenarien bleiben ausdrücklich offen.
+
 **CI-Hinweis:** Eine leere Liste klassischer Commit-Statusmeldungen ist kein Beleg für grüne GitHub-Actions-Checks. Die drei relevanten Workflows und deren SHA müssen separat bestätigt werden. Mergefähigkeit allein ist ebenfalls keine Freigabe.
