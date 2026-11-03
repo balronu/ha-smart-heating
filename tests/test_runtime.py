@@ -55,6 +55,14 @@ class RuntimeTests(unittest.TestCase):
                     hass.states.async_set("person.michael", "home", {"friendly_name": "Michael"})
                     hass.states.async_set("automation.heizung_automatik_ersetzt_node_red", "on", {"friendly_name": "Bestehende Tado-Heizungsautomation"})
 
+                    passive_climate_calls = []
+
+                    async def record_passive_climate_call(call):
+                        passive_climate_calls.append((call.domain, call.service, dict(call.data)))
+
+                    hass.services.async_register("climate", "set_temperature", record_passive_climate_call)
+                    hass.services.async_register("climate", "set_hvac_mode", record_passive_climate_call)
+
                     flow = await hass.config_entries.flow.async_init("smart_heating", context={"source": "user"})
                     self.assertEqual(flow["type"], "form")
                     flow = await hass.config_entries.flow.async_configure(
@@ -478,6 +486,11 @@ class RuntimeTests(unittest.TestCase):
                         {item["entity_id"]: item["contact_role"] for item in normalize_management(entry.options["management"])["sensors"]["window"]},
                         first_save["persisted_contact_roles"],
                         "Repeated passive reload must preserve all window contacts and their roles",
+                    )
+                    self.assertEqual(
+                        passive_climate_calls,
+                        [],
+                        "Passive setup, options changes and repeated reloads must never command climate devices",
                     )
                     self.assertTrue(await hass.config_entries.async_remove(entry.entry_id))
                     await hass.async_block_till_done()
