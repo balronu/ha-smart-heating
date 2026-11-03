@@ -100,6 +100,8 @@ async def worker(stage, config_dir):
             assert restored["control_plane"]["operating_state"] == "LEGACY"
             assert restored["control_plane"]["confirmed_control_ownership"] == "legacy"
             assert restored["control_plane"]["switch_ready"] is False
+            assert restored["control_plane"]["rollback_ready"] is True
+            assert restored["internal"]["enabled"] is True
             assert restored["zones"][0]["comfort_temperature"] == 24.0
             assert restored["zones"][0]["thermostat_entities"] == ["climate.badezimmer_1"]
             assert restored["sensors"]["window"][0]["entity_id"] == "binary_sensor.bad_fenster"
