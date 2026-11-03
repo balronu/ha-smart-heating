@@ -742,3 +742,32 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(reusable_zone_demand(night_history, night_signatures, morning), {})
         self.assertFalse(summarize_zone_heat_demand(morning)["boiler_control_authorized"])
         self.assertEqual(morning[0]["commands"], [])
+
+
+    def test_chimney_priority_never_converts_unsafe_room_into_heat_demand(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        previews = calculate_zone_target_previews(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            timezone="Europe/Berlin",
+            zones=[{"id": "bathroom"}, {"id": "bedroom"}, {"id": "living"}],
+            internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18},
+            overrides={"chimney_sweep": True, "party": True},
+            zone_diagnostics=[
+                {"zone_id": "bathroom", "window_state": "unknown",
+                 "room_temperature": 19.0, "temperature_source": "sensor.bath"},
+                {"zone_id": "bedroom", "window_state": "closed",
+                 "room_temperature": None, "temperature_source": None},
+                {"zone_id": "living", "window_state": "closed",
+                 "room_temperature": 19.0, "thermostat_count": 1,
+                 "unavailable_thermostats": 1, "temperature_source": "sensor.living"},
+            ],
+            previous_demand={"bathroom": True, "bedroom": True, "living": True},
+        )
+        self.assertEqual([item["mode"] for item in previews], ["chimney_sweep"] * 3)
+        self.assertEqual([item["heat_demand"] for item in previews], [None] * 3)
+        summary = summarize_zone_heat_demand(previews)
+        self.assertFalse(summary["any_heat_demand"])
+        self.assertEqual(set(summary["unknown_zone_ids"]), {"bathroom", "bedroom", "living"})
+        self.assertFalse(summary["boiler_control_authorized"])
+        self.assertTrue(all(item["commands"] == [] for item in previews))
