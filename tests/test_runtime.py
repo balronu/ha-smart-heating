@@ -474,6 +474,11 @@ class RuntimeTests(unittest.TestCase):
                         normalize_management(entry.options["management"])["internal"]["night_temperature"],
                         17.5,
                     )
+                    self.assertEqual(
+                        {item["entity_id"]: item["contact_role"] for item in normalize_management(entry.options["management"])["sensors"]["window"]},
+                        first_save["persisted_contact_roles"],
+                        "Repeated passive reload must preserve all window contacts and their roles",
+                    )
                     self.assertTrue(await hass.config_entries.async_remove(entry.entry_id))
                     await hass.async_block_till_done()
                     readd = await hass.config_entries.flow.async_init("smart_heating", context={"source": "user"})
