@@ -274,6 +274,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         websocket_api.async_register_command(hass, _ws_admin_area_relevance_set)
         websocket_api.async_register_command(hass, _ws_admin_safety_set)
         websocket_api.async_register_command(hass, _ws_admin_system_set)
+        websocket_api.async_register_command(hass, _ws_admin_internal_set)
         websocket_api.async_register_command(hass, _ws_admin_special_mode_set)
         websocket_api.async_register_command(hass, _ws_admin_special_mode_delete)
         websocket_api.async_register_command(hass, _ws_admin_special_mode_duplicate)
@@ -702,6 +703,47 @@ async def _ws_admin_safety_set(hass: HomeAssistant, connection: websocket_api.Ac
         connection.send_error(msg["id"], "invalid_configuration", str(err))
         return
     connection.send_result(msg["id"], {"management": management, "validation": validate_management(management)})
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "smart_heating/admin/internal/set",
+    vol.Required("entry_id"): cv.string,
+    vol.Required("item"): dict,
+})
+@websocket_api.async_response
+async def _ws_admin_internal_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Persist isolated helper-equivalent values without issuing heating commands."""
+    entry, management = _admin_entry(hass, msg["entry_id"])
+    item = msg["item"]
+    allowed = {"enabled", "internal_only", "operating_mode", "comfort_temperature", "night_temperature",
+               "party", "visit", "return_home", "summer", "chimney_sweep"}
+    if set(item) - allowed:
+        connection.send_error(msg["id"], "invalid_configuration", "unsupported_internal_field")
+        return
+    updated = deepcopy(management["internal"])
+    for key, value in item.items():
+        if key in {"enabled", "internal_only", "party", "visit", "return_home", "summer", "chimney_sweep"}:
+            if type(value) is not bool:
+                connection.send_error(msg["id"], "invalid_configuration", "invalid_boolean")
+                return
+        elif key == "operating_mode":
+            if value not in {"automatic", "manual_heat", "manual_setback"}:
+                connection.send_error(msg["id"], "invalid_configuration", "invalid_operating_mode")
+                return
+        else:
+            if type(value) not in (int, float) or not 5 <= value <= 35:
+                connection.send_error(msg["id"], "invalid_configuration", "invalid_internal_temperature")
+                return
+            value = float(value)
+        updated[key] = value
+    management["internal"] = updated
+    try:
+        _admin_save(hass, entry, management)
+        await _async_entry_updated(hass, entry)
+    except ValueError as err:
+        connection.send_error(msg["id"], "invalid_configuration", str(err))
+        return
+    connection.send_result(msg["id"], {"internal": updated, "active_control": False})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/system/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
