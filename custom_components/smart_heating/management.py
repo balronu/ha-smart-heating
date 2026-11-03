@@ -126,6 +126,27 @@ def person_presence(hass: Any, persons: list[Mapping[str, Any]]) -> dict[str, An
     return {"status": "home" if home else "unknown" if unknown else "away" if away else "unknown", "home": home, "away": away, "unknown": unknown, "persons": states}
 
 
+def thermostat_capability_assessment(thermostat: Mapping[str, Any]) -> dict[str, Any]:
+    """Assess observed climate attributes without authorizing control."""
+    reasons = []
+    state = thermostat.get("state")
+    if state in (None, "missing", "unknown", "unavailable"):
+        reasons.append("unavailable")
+    modes = thermostat.get("hvac_modes")
+    if not isinstance(modes, (list, tuple)) or not any(mode in ("heat", "auto", "heat_cool") for mode in modes):
+        reasons.append("no_heating_mode")
+    try:
+        minimum = float(thermostat.get("min_temp"))
+        maximum = float(thermostat.get("max_temp"))
+        step = float(thermostat.get("target_temp_step"))
+        if not (-40 <= minimum < maximum <= 80) or not (0 < step <= 10):
+            reasons.append("invalid_temperature_range")
+    except (TypeError, ValueError, OverflowError):
+        reasons.append("missing_temperature_range")
+    return {"suitable_for_future_control": not reasons, "reasons": reasons,
+            "passive": True, "commands": []}
+
+
 def zone_status(hass: Any, zones: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
     """Return read-only availability and observed HVAC state per configured zone."""
     result = []
@@ -134,6 +155,7 @@ def zone_status(hass: Any, zones: list[Mapping[str, Any]]) -> list[dict[str, Any
         for entity_id in zone.get("thermostat_entities", []):
             state = hass.states.get(entity_id)
             thermostats.append({"entity_id": entity_id, "state": str(state.state) if state else "missing", "hvac_action": state.attributes.get("hvac_action") if state else None, "hvac_modes": list(state.attributes.get("hvac_modes")) if state and isinstance(state.attributes.get("hvac_modes"), (list, tuple)) else [], "min_temp": state.attributes.get("min_temp") if state else None, "max_temp": state.attributes.get("max_temp") if state else None, "target_temp_step": state.attributes.get("target_temp_step") if state else None, "passive": True})
+            thermostats[-1]["capability_assessment"] = thermostat_capability_assessment(thermostats[-1])
         temperatures = []
         for entity_id in zone.get("temperature_entities", []):
             state = hass.states.get(entity_id)
