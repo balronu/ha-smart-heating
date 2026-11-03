@@ -100,7 +100,7 @@ class WeeklySchedule:
         return any(
             (window.start <= current < window.end)
             if window.start < window.end
-            else (current >= window.start or current < window.end)
+            else current >= window.start
             for window in self.windows[DAYS[local.weekday()]]
         ) or any(
             window.start > window.end and current < window.end
@@ -116,7 +116,7 @@ class WeeklySchedule:
                 matches = (
                     (window.start <= current < window.end)
                     if window.start < window.end
-                    else (current >= window.start or current < window.end)
+                    else current >= window.start
                 ) if day_index == local.weekday() else window.start > window.end and current < window.end
                 if matches:
                     return window
@@ -199,10 +199,6 @@ def evaluate_decision(
         return HeatingDecision("chimney_sweep", "Schornsteinfeger has highest priority", chimney_temperature, "heat", "reference_priority")
     if flags.get("internal_enabled") is False:
         return HeatingDecision("disabled", "Smart Heating is disabled", None, "off", "internal_state")
-    if flags.get("manual_heat"):
-        return HeatingDecision("manual_heat", "Manual heating mode", comfort_temperature, "heat", "internal_state")
-    if flags.get("manual_setback"):
-        return HeatingDecision("manual_setback", "Manual setback mode", night_temperature, "heat", "internal_state")
     if flags.get("heating_permission") is False:
         return HeatingDecision("disabled", "Heating permission is off", None, "off", "reference_priority")
     if flags.get("frost_protection"):
@@ -213,6 +209,11 @@ def evaluate_decision(
         return HeatingDecision("window_tilted", "Tilted window setback", night_temperature, "heat", "reference_priority")
     if flags.get("window_unknown"):
         return HeatingDecision("window_unknown", "Window state unavailable; no safe preview", None, None, "safety_unknown")
+    # Manual targets must never bypass frost and window safeguards.
+    if flags.get("manual_heat"):
+        return HeatingDecision("manual_heat", "Manual heating mode", comfort_temperature, "heat", "internal_state")
+    if flags.get("manual_setback"):
+        return HeatingDecision("manual_setback", "Manual setback mode", night_temperature, "heat", "internal_state")
     if flags.get("away") and not flags.get("visit") and not flags.get("return_home"):
         return HeatingDecision("away", "Nobody home", night_temperature, "heat", "reference_priority")
     if not schedule_active:

@@ -143,6 +143,40 @@ class SmartHeatingCard extends HTMLElement {
       const irButton=ir?`<button type="button" class="sh-ir" data-ir-switch="${esc(ir)}" ${!irAvailable||this._config.allow_manual_ir_control!==true?"disabled":""} aria-pressed="${irState==="on"}">Infrarot-Panel: ${irState==="on"?"Ein":irState==="off"?"Aus":"Nicht verfügbar"}${this._config.allow_manual_ir_control===true?"":" · Anzeige"}</button>`:"";
       return `<div class="sh-room" ${id?`data-climate="${esc(id)}" role="button" tabindex="0" aria-label="${esc(room.name||room.id)} öffnen"`:""}><b>${esc(room.name||room.id)}</b><span class="sh-room-values">${temp==null?"Ist –":"Ist "+esc(temp)+" °C"} · ${target==null?"Soll –":"Soll "+esc(target)+" °C"}</span>${irButton}</div>`;
     }).join("");
+    const internal=this._management().internal||{};
+    const isolated=internal.internal_only===true;
+    const internalModes=[["party","Party"],["visit","Besuch"],["return_home","Heimweg"],["summer","Sommer"],["chimney_sweep","Schornsteinfeger"]];
+    const zoneRows=(this._management().zones||[]).map(zone=>{
+      const id=String(zone.id||'');
+      if(!id)return '';
+      const targets=internal.zones?.[id]||{};
+      return ['comfort_temperature','night_temperature'].map(key=>{
+        const value=targets[key]??internal[key]??(key==='comfort_temperature'?21:18);
+        return `<div><b>${esc(zone.name||id)} · ${key==='comfort_temperature'?'Komfort':'Absenkung'}</b> ${esc(value)} °C <button data-zone-id="${esc(id)}" data-zone-key="${key}" data-zone-step="-0.5">−</button><button data-zone-id="${esc(id)}" data-zone-key="${key}" data-zone-step="0.5">+</button></div>`;
+      }).join('');
+    }).join('');
+    const capabilityRows=(Array.isArray(this._status().zone_target_capability_summary)?this._status().zone_target_capability_summary:[]).map(zone=>{
+      const thermostats=Array.isArray(zone.thermostats)?zone.thermostats:[];
+      const label=(this._management().zones||[]).find(item=>String(item.id)===String(zone.zone_id))?.name||zone.zone_id;
+      const details=thermostats.length?thermostats.map(item=>{
+        const reasons=Array.isArray(item.reasons)?item.reasons:[];
+        const reasonLabels={unavailable:"Nicht erreichbar",no_heating_mode:"Kein Heizmodus",invalid_temperature_range:"Ungültiger Temperaturbereich",missing_temperature_range:"Temperaturgrenzen fehlen",invalid_target:"Kein gültiger Sollwert",target_out_of_range:"Sollwert außerhalb des Bereichs",target_not_on_step:"Sollwert passt nicht zum Einstellschritt"};
+        const reasonText=reasons.map(reason=>reasonLabels[reason]||reason).join(", ");
+        return `<div class="sh-foot">${esc(item.entity_id||"Thermostat")}: ${item.target_supported===true?"Geeignet":esc(reasonText||"Eignung nicht nachgewiesen")}</div>`;
+      }).join(""):'<div class="sh-foot">Kein Thermostat zugeordnet</div>';
+      return `<div class="sh-tile"><b>${esc(label)} · ${zone.target_temperature==null?"Sollwert unbekannt":esc(zone.target_temperature)+" °C"}</b><span class="sh-muted">${({fully_suitable:"Vollständig geeignet",partially_suitable:"Teilweise geeignet",not_suitable:"Nicht geeignet",not_assessable:"Nicht prüfbar"})[zone.suitability]||(zone.all_targets_supported===true?"Vollständig geeignet":"Nicht prüfbar")}</span>${details}</div>`;
+    }).join("");
+    const internalPanel=`<section class="sh-section" data-testid="internal-panel"><h3>Interner Testbetrieb · ohne Heizbefehle</h3><p class="sh-foot">Eigene Zustände werden nur in Smart Heating gespeichert. Die bisherige Automation bleibt aktiv.</p>
+      <button type="button" data-internal-isolation="1" aria-pressed="${isolated}">${isolated?"Interne Werte aktiv · zurück zur Helfer-Vorschau":"Interne Werte für Vorschau verwenden"}</button>
+      <div class="sh-modes">
+        <button type="button" class="sh-mode ${internal.enabled!==false?"sh-on":""}" data-internal-enabled="1" aria-pressed="${internal.enabled!==false}">Heizfreigabe: ${internal.enabled!==false?"Ein":"Aus"}</button>
+        ${[["automatic","Automatik"],["manual_heat","Dauerhaft Komfort"],["manual_setback","Dauerhaft Absenkung"]].map(([key,label])=>`<button type="button" class="sh-mode ${(internal.operating_mode||"automatic")===key?"sh-on":""}" data-internal-operating="${key}" aria-pressed="${(internal.operating_mode||"automatic")===key}">${label}</button>`).join("")}
+      </div>
+      <div class="sh-grid">${[["comfort_temperature","Komfort"],["night_temperature","Absenkung"]].map(([key,label])=>`<div class="sh-tile"><span class="sh-muted">${label}</span><strong>${esc(internal[key]??(key==="comfort_temperature"?21:18))} °C</strong><div class="sh-controls"><button type="button" data-internal-adjust="${key}" data-step="-0.5">−</button><button type="button" data-internal-adjust="${key}" data-step="0.5">+</button></div></div>`).join("")}</div>
+      <div class="sh-modes">${internalModes.map(([key,label])=>`<button type="button" class="sh-mode ${internal[key]===true?"sh-on":""}" data-internal-mode="${key}" aria-pressed="${internal[key]===true}">${label}: ${internal[key]===true?"Ein":"Aus"}</button>`).join("")}</div>
+      <h4>Raumtemperaturen · passive Vorschau</h4>${zoneRows}
+      <h4>Thermostat-Eignung · nur Diagnose</h4>${capabilityRows||'<p class="sh-foot">Noch keine Raumdiagnose verfügbar.</p>'}
+      <p class="sh-foot">Nur Testwerte · keine Änderung an input_boolean, input_number oder der Heizungsautomation.</p></section>`;
     const automation=st("automation.heizung_automatik_ersetzt_node_red")?.state;
     const next=this._status().next_switch;
     const css=`<style>
@@ -157,11 +191,44 @@ class SmartHeatingCard extends HTMLElement {
     this.innerHTML=`<ha-card><div class="sh-app">${css}<div class="sh-head"><div><h2>♨ ${esc(this._config.title||"Smart Heating")}</h2><small>Heizungsautomatik bleibt zuständig · ${esc(this._data?.version||"")}</small></div><span class="sh-state">${automation==="on"?"● Automatik aktiv":automation==="off"?"○ Automatik aus":"Automatik unbekannt"}</span></div>
       ${this._error?`<p class="sh-feedback" role="alert">${esc(this._error)}</p>`:""}
       <p class="sh-foot sh-release">Heizfreigabe: ${st("input_boolean.heizung_freigabe")?.state==="on"?"Ein":st("input_boolean.heizung_freigabe")?.state==="off"?"Aus":"Unbekannt"}</p>
+      ${internalPanel}
       <section class="sh-section"><h3>Temperaturen</h3><div class="sh-grid">${tempTile("input_number.heiztemperatur","Heizen","🌡")}${tempTile("input_number.absenktemperatur","Absenken","☾")}</div></section>
       <div class="sh-bottom"><div><section class="sh-section"><h3>Wochenprogramm</h3>${scheduleHtml}<p class="sh-foot">Nächster Wechsel: ${esc(formatTime(next))}</p></section><section class="sh-section"><h3>Räume</h3>${rooms||'<p class="sh-muted">Keine Räume konfiguriert</p>'}<p class="sh-foot">Weitere Räume erscheinen nach ihrer Einrichtung als Smart-Heating-Zonen.</p></section></div><div><section class="sh-section"><h3>Sondermodi</h3><div class="sh-modes">${modes}</div></section><section class="sh-section"><details data-panel="diagnostics"><summary>Diagnose & Prioritäten</summary><div class="sh-detail">${this._priorities()}${this._diagnostics()}</div></details></section></div></div>
       <p class="sh-foot">Temperatur- und Modusänderungen wirken ausschließlich auf vorhandene Home-Assistant-Helfer. Die bestehende Heizungsautomation bleibt unverändert.</p>
     </div></ha-card>`;
     this.querySelectorAll("details").forEach(el=>{el.open=currentOpen.has(el.dataset.panel);});
+    const saveInternal=async patch=>{
+      const entryId=this._config.entry_id||this._data?.entry_id;
+      if(!entryId){this._error="Konfigurationseintrag nicht gefunden";this._renderModern();return;}
+      try{
+        const result=await this._hass.callWS({type:"smart_heating/admin/internal/set",entry_id:entryId,item:patch});
+        if(!this._data.options)this._data.options={};
+        if(!this._data.options.management)this._data.options.management={...this._management()};
+        this._data.options.management.internal=result.internal;
+        this._error=null;
+        this._renderModern();
+      }catch(error){this._error="Interner Testwert: "+(error?.message||error);this._renderModern();}
+    };
+    this.querySelector("[data-internal-isolation]")?.addEventListener("click",()=>saveInternal({internal_only:!isolated}));
+    this.querySelector("[data-internal-enabled]")?.addEventListener("click",()=>saveInternal({enabled:internal.enabled===false}));
+    this.querySelectorAll("[data-internal-operating]").forEach(button=>button.addEventListener("click",()=>saveInternal({operating_mode:button.dataset.internalOperating})));
+    this.querySelectorAll("[data-internal-mode]").forEach(button=>button.addEventListener("click",()=>{
+      const key=button.dataset.internalMode;
+      if(key==="chimney_sweep"&&internal[key]===true)return saveInternal({chimney_sweep:false});
+      return saveInternal({[key]:internal[key]!==true});
+    }));
+    this.querySelectorAll("[data-internal-adjust]").forEach(button=>button.addEventListener("click",()=>{
+      const key=button.dataset.internalAdjust;
+      const current=Number(internal[key]??(key==="comfort_temperature"?21:18));
+      const next=Number((current+Number(button.dataset.step)).toFixed(1));
+      if(next>=5&&next<=35)return saveInternal({[key]:next});
+    }));
+    this.querySelectorAll('[data-zone-id]').forEach(button=>button.addEventListener('click',()=>{
+      const zoneId=button.dataset.zoneId,key=button.dataset.zoneKey;
+      const current=Number(internal.zones?.[zoneId]?.[key]??internal[key]??(key==='comfort_temperature'?21:18));
+      const next=Number((current+Number(button.dataset.zoneStep)).toFixed(1));
+      if(next>=5&&next<=35)saveInternal({zone_id:zoneId,[key]:next});
+    }));
     this.querySelectorAll(".sh-ir[data-ir-switch]").forEach(button=>button.addEventListener("click",async event=>{
       event.stopPropagation();
       const id=button.dataset.irSwitch,state=this._hass?.states?.[id]?.state;

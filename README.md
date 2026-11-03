@@ -8,7 +8,7 @@
 <p align="center"><a href="https://github.com/balronu/ha-smart-heating/releases">Releases</a> · <a href="https://github.com/balronu/ha-smart-heating/issues">Fehler melden</a> · <a href="CHANGELOG.md">Changelog</a></p>
 
 > [!IMPORTANT]
-> **Stable – Coming Soon.** Smart Heating befindet sich in der Beta- und Praxistestphase. **Eine Stable-Version ist noch nicht freigegeben.** Die vorbereitete Entwicklungsversion ist `v0.1.0-beta.46` (noch kein veröffentlichter Release). Die Integration arbeitet im aktuellen Entwicklungsstand **passiv**: Sie zeigt Planungen und Entscheidungen an, übernimmt aber **nicht** selbstständig die Heizungssteuerung. Ein späterer aktiver Betrieb wird erst nach gesonderter Prüfung und ausdrücklicher Freigabe möglich.
+> **Stable – Coming Soon.** Smart Heating befindet sich in der Beta- und Praxistestphase. **Eine Stable-Version ist noch nicht freigegeben.** Das Manifest des Entwicklungsbranches trägt derzeit `0.1.0-beta.52`; daraus folgt noch keine Freigabe oder Veröffentlichung eines Releases. Die Integration arbeitet im aktuellen Entwicklungsstand **passiv**: Sie zeigt Planungen und Entscheidungen an, übernimmt aber **nicht** selbstständig die Heizungssteuerung. Ein späterer aktiver Betrieb wird erst nach gesonderter Prüfung und ausdrücklicher Freigabe möglich.
 
 ## Was ist Smart Heating?
 
@@ -38,6 +38,14 @@ Smart Heating führt Wochenpläne, Heiz- und Absenktemperaturen, Raumdaten, Fens
 - HACS für die Installation als benutzerdefiniertes Repository.
 - Für sinnvolle Ergebnisse: bereits in Home Assistant eingerichtete Temperatur-, Fenster- und gegebenenfalls Anwesenheitssensoren.
 - Für einen Vergleich mit der bisherigen Heizungsautomation: passende Bestandsdaten und überprüfbare Entscheidungsnachweise.
+
+## Passiver Parallelbetrieb und Rückkehr
+
+**Vor der ersten Installation ist eine ausdrückliche Freigabe erforderlich.** Smart Heating ist im aktuellen Stand eine reine Vorschau und darf die vorhandene Heizungsautomation nicht ersetzen. Die bestehende Automation `automation.heizung_automatik_ersetzt_node_red` bleibt eingeschaltet; vorhandene Tado-Konfiguration, Helfer und Fensterkontakte bleiben unverändert.
+
+Nach einer freigegebenen Installation zuerst nur die Diagnosen und Wochenplan-Vorschau kontrollieren. Es dürfen keine Heizbefehle, Thermostat-Sollwertänderungen oder Schaltvorgänge von Smart Heating ausgehen. Bei Fehlern die Smart-Heating-Integration in **Einstellungen → Geräte & Dienste** deaktivieren beziehungsweise die zuletzt funktionierende, tatsächlich veröffentlichte Version in HACS auswählen und den nötigen Neustart ausführen. Die bisherige Heizungsautomation bleibt dabei durchgehend aktiv; es ist keine Umschaltung auf Smart Heating erforderlich.
+
+Keine zusätzlichen Backups oder Snapshots für diese Prüfung erstellen und keine vorhandenen Sicherungen verändern.
 
 ## Installation der Beta über HACS
 

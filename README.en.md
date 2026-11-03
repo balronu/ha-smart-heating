@@ -7,7 +7,7 @@
 <p align="center"><a href="README.md">🇩🇪 Deutsch (primary)</a> · <a href="README.en.md">🇬🇧 English</a></p>
 
 > [!IMPORTANT]
-> **Stable – Coming Soon.** Smart Heating is currently in beta and undergoing real-world testing. **No stable release is available yet.** The prepared development version is `v0.1.0-beta.46` (not yet published). The current integration is **passive**: it displays schedules and decisions but does **not** autonomously control heating. Active control requires separate validation and explicit approval.
+> **Stable – Coming Soon.** Smart Heating is currently in beta and undergoing real-world testing. **No stable release is available yet.** The development-branch manifest currently declares `0.1.0-beta.52`; this is not evidence that a release has been approved or published. The current integration is **passive**: it displays schedules and decisions but does **not** autonomously control heating. Active control requires separate validation and explicit approval.
 
 ## Overview
 
@@ -31,6 +31,14 @@ Actual compatibility depends on the entities and integrations available in your 
 - HACS for custom repository installation.
 - Configured Home Assistant sensors and thermostats for meaningful readings.
 - Verified legacy-automation evidence if you want to compare decisions.
+
+## Passive parallel operation and rollback
+
+**Explicit approval is required before the first production installation.** Smart Heating currently provides previews only and must not replace or disable the existing heating automation. Keep the legacy automation, Tado configuration, helpers and window contacts unchanged.
+
+After an approved installation, verify diagnostics and schedule previews first. Smart Heating must not issue climate, boiler or helper service commands. If a problem occurs, disable the Smart Heating integration under **Settings → Devices & services**, or select the last known-good *published* version in HACS and restart Home Assistant if required. The existing heating automation remains active throughout.
+
+Do not create extra backups or snapshots for this work or modify existing backups.
 
 ## Install through HACS
 

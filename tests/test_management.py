@@ -10,6 +10,10 @@ sys.modules.setdefault("custom_components.smart_heating", package)
 
 from custom_components.smart_heating.management import (  # noqa: E402
     default_management,
+    thermostat_capability_assessment,
+    thermostat_target_assessment,
+    zone_target_capability_summary,
+    zone_status,
     normalize_management,
     discover_controller_entities,
     discover_temperature_entities,
@@ -75,6 +79,77 @@ class ManagementTests(unittest.TestCase):
         self.assertEqual(data["zones"][0]["thermostat_entities"], ["climate.bathroom_a", "climate.bathroom_b"])
         self.assertEqual(data["zones"][0]["temperature_entities"], ["sensor.bathroom_temperature"])
 
+    def test_legacy_zone_and_window_migration_is_idempotent_and_passive(self):
+        legacy = {
+            "schema_version": 5,
+            "zones": [{
+                "id": "bathroom",
+                "name": "Badezimmer",
+                "thermostat_entities": ["climate.bathroom_a", "climate.bathroom_b"],
+                "temperature_entities": ["sensor.bathroom_temperature"],
+            }],
+            "sensors": {"window": [
+                {"id": "upper", "entity_id": "binary_sensor.upper", "contact_role": "tilt", "zone_ids": ["bathroom"]},
+                {"id": "lower", "entity_id": "binary_sensor.lower", "contact_role": "open", "zone_ids": ["bathroom"]},
+            ]},
+        }
+        migrated = normalize_management(legacy)
+        again = normalize_management(migrated)
+        self.assertEqual(again, migrated)
+        self.assertEqual(again["control_plane"]["operating_state"], "LEGACY")
+        self.assertFalse(again["control_plane"]["switch_ready"])
+        self.assertEqual(
+            again["zones"][0]["thermostat_entities"],
+            ["climate.bathroom_a", "climate.bathroom_b"],
+        )
+        self.assertEqual(
+            {item["entity_id"]: item["contact_role"] for item in again["sensors"]["window"]},
+            {"binary_sensor.upper": "tilt", "binary_sensor.lower": "open"},
+        )
+
+    def test_legacy_migration_keeps_both_window_roles_and_all_thermostats_across_repeated_loads(self):
+        """A legacy room with two physical contacts must not lose either binding."""
+        legacy = {
+            "schema_version": 5,
+            "zones": [{
+                "id": "bedroom", "name": "Schlafzimmer",
+                "thermostat_entities": ["climate.bedroom_left", "climate.bedroom_right"],
+                "temperature_entities": ["sensor.bedroom_temperature"],
+                "comfort_temperature": 18.0,
+                "night_temperature": 16.0,
+            }],
+            "sensors": {"window": [
+                {"id": "bedroom_tilt", "entity_id": "binary_sensor.bedroom_tilt",
+                 "contact_role": "tilt", "zone_ids": ["bedroom"]},
+                {"id": "bedroom_open", "entity_id": "binary_sensor.bedroom_open",
+                 "contact_role": "open", "zone_ids": ["bedroom"]},
+            ]},
+            "control_plane": {"operating_state": "TRANSITIONING",
+                              "confirmed_control_ownership": "legacy"},
+        }
+        first = normalize_management(legacy)
+        second = normalize_management(first)
+        third = normalize_management(second)
+        self.assertEqual(first["control_plane"]["error"], "operating_state_not_enabled:TRANSITIONING")
+        self.assertEqual(first["control_plane"]["requested_state"], "TRANSITIONING")
+        # The rejected request is a one-time diagnostic; the safe LEGACY state is stable.
+        self.assertEqual(second, third)
+        self.assertEqual(first["zones"][0]["thermostat_entities"],
+                         ["climate.bedroom_left", "climate.bedroom_right"])
+        self.assertEqual(first["zones"][0]["temperature_entities"],
+                         ["sensor.bedroom_temperature"])
+        self.assertEqual(first["zones"][0]["comfort_temperature"], 18.0)
+        self.assertEqual(
+            {item["entity_id"]: (item["contact_role"], item["zone_ids"])
+             for item in first["sensors"]["window"]},
+            {
+                "binary_sensor.bedroom_tilt": ("tilt", ["bedroom"]),
+                "binary_sensor.bedroom_open": ("open", ["bedroom"]),
+            },
+        )
+        self.assertEqual(first["control_plane"]["operating_state"], "LEGACY")
+        self.assertFalse(first["control_plane"]["switch_ready"])
+
     def test_migration_never_activates_requested_smart_state(self):
         data = normalize_management({"control_plane": {"operating_state": "SMART", "confirmed_control_ownership": "smart"}})
         self.assertEqual(set(OPERATING_STATES), {"LEGACY", "TRANSITIONING", "SMART"})
@@ -110,6 +185,31 @@ class ManagementTests(unittest.TestCase):
         self.assertEqual(chimney["priority"], 1000)
         # User data cannot lower the absolute safety priority.
         self.assertFalse(chimney["controllable"])
+    def test_chimney_sweep_overrides_conflicting_special_modes_in_passive_preview(self):
+        conflicting = {
+            "chimney_sweep": True,
+            "party": True,
+            "visit": True,
+            "return_home": True,
+            "summer": True,
+            "away": True,
+            "window_open": True,
+            "heating_permission": False,
+            "internal_enabled": False,
+        }
+        for schedule_active in (False, True):
+            with self.subTest(schedule_active=schedule_active):
+                decision = evaluate_decision(
+                    schedule_active=schedule_active,
+                    overrides=conflicting,
+                    comfort_temperature=21,
+                    night_temperature=18,
+                )
+                self.assertEqual(decision.mode, "chimney_sweep")
+                self.assertEqual(decision.source, "reference_priority")
+                self.assertEqual(decision.target_temperature, 25.0)
+                self.assertEqual(decision.target_hvac_mode, "heat")
+
     def test_single_thermostat_migrates_to_list_and_lead(self):
         data = normalize_management({"zones": [{"id": "dining", "name": "Esszimmer", "thermostat_entity": "climate.radiator_one"}]})
         zone = data["zones"][0]
@@ -130,6 +230,18 @@ class ManagementTests(unittest.TestCase):
         self.assertEqual(aggregate_window_status(["closed", "unavailable"]), "unavailable")
         self.assertFalse(is_eligible_window_entity("sensor.window_state", "opening"))
         self.assertFalse(is_eligible_window_entity("sensor.window_state", "temperature"))
+    def test_window_contact_failure_and_recovery_never_becomes_closed_implicitly(self):
+        # A missing contact is not silently treated as closed, even when
+        # another contact reports closed. Recovery is evaluated afresh.
+        states = [("closed", "open"), ("closed", "unavailable"),
+                  ("closed", "unknown"), ("closed", "open"),
+                  ("closed", "closed")]
+        self.assertEqual(
+            [aggregate_window_status(list(pair)) for pair in states],
+            ["open", "unavailable", "unknown", "open", "closed"],
+        )
+        self.assertEqual(aggregate_window_status([]), "unknown")
+
     def test_legacy_special_modes_migrate_idempotently_and_keep_entity_binding(self):
         legacy = {"safety": {"modes": {"party": {"enabled": True, "helper_entity": "input_boolean.party", "temperature": 22, "zone_ids": ["zone"]}}}}
         first = normalize_management(legacy)
@@ -187,6 +299,25 @@ class ManagementTests(unittest.TestCase):
         data["internal"]["operating_mode"] = "manual_heat"
         self.assertEqual(evaluate_decision(schedule_active=False, overrides={"manual_heat": True}, comfort_temperature=21).mode, "manual_heat")
         self.assertTrue(load_schedule({"schedule": {}, "management": data}).windows["monday"])
+
+    def test_internal_weekly_schedule_crosses_midnight_without_helper_actuation(self):
+        from datetime import datetime, timezone
+        from custom_components.smart_heating.models import WeeklySchedule
+
+        schedule = WeeklySchedule.from_mapping({
+            "monday": [{"start": "22:00", "end": "01:00"}],
+            "wednesday": [{"start": "06:00", "end": "07:00"}],
+        })
+        def active(year, month, day, hour, minute):
+            return schedule.active_at(datetime(year, month, day, hour, minute, tzinfo=timezone.utc), "UTC")
+
+        self.assertFalse(active(2026, 11, 2, 21, 59))
+        self.assertTrue(active(2026, 11, 2, 22, 0))
+        self.assertTrue(active(2026, 11, 3, 0, 59))
+        self.assertFalse(active(2026, 11, 3, 1, 0))
+        self.assertFalse(active(2026, 11, 4, 5, 59))
+        self.assertTrue(active(2026, 11, 4, 6, 0))
+        self.assertFalse(active(2026, 11, 4, 7, 0))
 
     def test_only_binary_opening_sensors_are_eligible(self):
         self.assertTrue(is_eligible_window_entity("binary_sensor.fenster_wohnzimmer", "window"))
@@ -392,3 +523,154 @@ class ManagementTests(unittest.TestCase):
         upsert_item(data, "sensors", {"id": "one", "type": "window", "entity_id": "binary_sensor.fenster", "area_id": "wohnzimmer"})
         with self.assertRaisesRegex(ValueError, "duplicate_sensor_entity"):
             upsert_item(data, "sensors", {"id": "two", "type": "tilt", "entity_id": "binary_sensor.fenster", "area_id": "bad"})
+
+
+    def test_thermostat_capabilities_are_assessed_passively(self):
+        capable = {"state": "heat", "hvac_modes": ["off", "heat"],
+                   "min_temp": 5, "max_temp": 30, "target_temp_step": 0.5}
+        result = thermostat_capability_assessment(capable)
+        self.assertTrue(result["suitable_for_future_control"])
+        self.assertTrue(result["passive"])
+        self.assertEqual(result["commands"], [])
+        cases = [
+            ({**capable, "state": "unavailable"}, "unavailable"),
+            ({**capable, "hvac_modes": ["off"]}, "no_heating_mode"),
+            ({**capable, "min_temp": 35}, "invalid_temperature_range"),
+            ({**capable, "target_temp_step": None}, "missing_temperature_range"),
+        ]
+        for thermostat, reason in cases:
+            with self.subTest(reason=reason):
+                assessment = thermostat_capability_assessment(thermostat)
+                self.assertFalse(assessment["suitable_for_future_control"])
+                self.assertIn(reason, assessment["reasons"])
+                self.assertEqual(assessment["commands"], [])
+
+
+    def test_thermostat_target_matches_range_and_step_without_commands(self):
+        thermostat = {"state": "heat", "hvac_modes": ["heat", "off"],
+                      "min_temp": 5, "max_temp": 30, "target_temp_step": 0.5}
+        for target in (18, 21, 22, 24, 30):
+            with self.subTest(target=target):
+                result = thermostat_target_assessment(thermostat, target)
+                self.assertTrue(result["target_supported"])
+                self.assertEqual(result["commands"], [])
+        for target, reason in ((31, "target_out_of_range"),
+                               (21.3, "target_not_on_step"),
+                               ("unknown", "invalid_target"),
+                               (float("nan"), "invalid_target")):
+            with self.subTest(target=target):
+                result = thermostat_target_assessment(thermostat, target)
+                self.assertFalse(result["target_supported"])
+                self.assertIn(reason, result["reasons"])
+        broken = {**thermostat, "target_temp_step": float("nan")}
+        result = thermostat_target_assessment(broken, 24)
+        self.assertFalse(result["target_supported"])
+        self.assertIn("invalid_temperature_range", result["reasons"])
+
+
+    def test_zone_target_capability_summary_is_room_specific_and_passive(self):
+        def thermostat(entity, maximum=30):
+            return {"entity_id": entity, "state": "heat", "hvac_modes": ["heat"],
+                    "min_temp": 5, "max_temp": maximum, "target_temp_step": 0.5}
+        previews = [
+            {"zone_id": "bathroom", "target_temperature": 24},
+            {"zone_id": "bedroom", "target_temperature": 18},
+            {"zone_id": "living", "target_temperature": None},
+        ]
+        diagnostics = [
+            {"zone_id": "bathroom", "thermostats": [thermostat("climate.bath", 22)]},
+            {"zone_id": "bedroom", "thermostats": [thermostat("climate.bed")]},
+            {"zone_id": "living", "thermostats": []},
+        ]
+        summary = zone_target_capability_summary(previews, diagnostics)
+        self.assertEqual([item["all_targets_supported"] for item in summary], [False, True, False])
+        self.assertIn("target_out_of_range", summary[0]["thermostats"][0]["reasons"])
+        self.assertEqual(summary[1]["thermostats"][0]["entity_id"], "climate.bed")
+        self.assertTrue(all(item["passive"] and item["commands"] == [] for item in summary))
+
+
+    def test_zone_target_requires_every_assigned_thermostat_to_support_target(self):
+        supported = {"entity_id": "climate.bath_left", "state": "heat",
+                     "hvac_modes": ["heat"], "min_temp": 5, "max_temp": 30,
+                     "target_temp_step": 0.5}
+        unsupported = {**supported, "entity_id": "climate.bath_right", "max_temp": 22}
+        previews = [{"zone_id": "bathroom", "target_temperature": 24}]
+        diagnostics = [{"zone_id": "bathroom", "thermostats": [supported, unsupported]}]
+        result = zone_target_capability_summary(previews, diagnostics)
+        self.assertFalse(result[0]["all_targets_supported"])
+        self.assertEqual([item["target_supported"] for item in result[0]["thermostats"]],
+                         [True, False])
+        self.assertIn("target_out_of_range", result[0]["thermostats"][1]["reasons"])
+        self.assertTrue(result[0]["passive"])
+        self.assertEqual(result[0]["commands"], [])
+        diagnostics[0]["thermostats"][1] = {**supported, "entity_id": "climate.bath_right"}
+        recovered = zone_target_capability_summary(previews, diagnostics)
+        self.assertTrue(recovered[0]["all_targets_supported"])
+
+
+    def test_room_suitability_distinguishes_full_partial_and_unassessable(self):
+        base = {"state": "heat", "hvac_modes": ["heat"], "min_temp": 5,
+                "max_temp": 30, "target_temp_step": 0.5}
+        limited = {**base, "max_temp": 22}
+        previews = [{"zone_id": zone, "target_temperature": target}
+                    for zone, target in (("full", 24), ("partial", 24),
+                                         ("unsupported", 24), ("empty", 24),
+                                         ("unknown", None))]
+        diagnostics = [
+            {"zone_id": "full", "thermostats": [base]},
+            {"zone_id": "partial", "thermostats": [base, limited]},
+            {"zone_id": "unsupported", "thermostats": [limited]},
+            {"zone_id": "empty", "thermostats": []},
+            {"zone_id": "unknown", "thermostats": [base]},
+        ]
+        summary = zone_target_capability_summary(previews, diagnostics)
+        self.assertEqual([item["suitability"] for item in summary],
+                         ["fully_suitable", "partially_suitable", "not_suitable",
+                          "not_assessable", "not_assessable"])
+        self.assertEqual([item["all_targets_supported"] for item in summary],
+                         [True, False, False, False, False])
+        self.assertTrue(all(item["commands"] == [] for item in summary))
+
+
+    def test_live_state_to_zone_capability_diagnostics_remains_passive(self):
+        zones = [
+            {"id": "bathroom", "name": "Badezimmer",
+             "thermostat_entities": ["climate.bath_a", "climate.bath_b"]},
+            {"id": "bedroom", "name": "Schlafzimmer",
+             "thermostat_entities": ["climate.bed"]},
+        ]
+        def climate(maximum):
+            return State("heat", {"hvac_modes": ["heat", "off"],
+                                  "min_temp": 5, "max_temp": maximum,
+                                  "target_temp_step": 0.5})
+        hass = Hass({
+            "climate.bath_a": climate(30),
+            "climate.bath_b": climate(22),
+            "climate.bed": climate(30),
+        })
+        previews = [
+            {"zone_id": "bathroom", "target_temperature": 24},
+            {"zone_id": "bedroom", "target_temperature": 18},
+        ]
+        diagnostics = zone_status(hass, zones)
+        summary = zone_target_capability_summary(previews, diagnostics)
+        self.assertEqual([item["suitability"] for item in summary],
+                         ["partially_suitable", "fully_suitable"])
+        self.assertEqual([item["entity_id"] for item in summary[0]["thermostats"]],
+                         ["climate.bath_a", "climate.bath_b"])
+        self.assertIn("target_out_of_range", summary[0]["thermostats"][1]["reasons"])
+        self.assertTrue(all(item["passive"] and not item["commands"] for item in summary))
+
+        hass.states.values["climate.bath_b"] = climate(30)
+        recovered = zone_target_capability_summary(previews, zone_status(hass, zones))
+        self.assertEqual(recovered[0]["suitability"], "fully_suitable")
+
+        hass.states.values.pop("climate.bath_b")
+        unavailable = zone_target_capability_summary(previews, zone_status(hass, zones))
+        self.assertEqual(unavailable[0]["suitability"], "partially_suitable")
+        self.assertIn("unavailable", unavailable[0]["thermostats"][1]["reasons"])
+        # Reconnection must be re-evaluated without carrying stale failure state.
+        hass.states.values["climate.bath_b"] = climate(30)
+        restored = zone_target_capability_summary(previews, zone_status(hass, zones))
+        self.assertEqual(restored[0]["suitability"], "fully_suitable")
+        self.assertTrue(all(item["passive"] and not item["commands"] for item in restored))

@@ -126,6 +126,82 @@ def person_presence(hass: Any, persons: list[Mapping[str, Any]]) -> dict[str, An
     return {"status": "home" if home else "unknown" if unknown else "away" if away else "unknown", "home": home, "away": away, "unknown": unknown, "persons": states}
 
 
+def thermostat_capability_assessment(thermostat: Mapping[str, Any]) -> dict[str, Any]:
+    """Assess observed climate attributes without authorizing control."""
+    from math import isfinite
+
+    reasons = []
+    state = thermostat.get("state")
+    if state in (None, "missing", "unknown", "unavailable"):
+        reasons.append("unavailable")
+    modes = thermostat.get("hvac_modes")
+    if not isinstance(modes, (list, tuple)) or not any(mode in ("heat", "auto", "heat_cool") for mode in modes):
+        reasons.append("no_heating_mode")
+    try:
+        minimum = float(thermostat.get("min_temp"))
+        maximum = float(thermostat.get("max_temp"))
+        step = float(thermostat.get("target_temp_step"))
+        if not all(isfinite(value) for value in (minimum, maximum, step)) or not (-40 <= minimum < maximum <= 80) or not (0 < step <= 10):
+            reasons.append("invalid_temperature_range")
+    except (TypeError, ValueError, OverflowError):
+        reasons.append("missing_temperature_range")
+    return {"suitable_for_future_control": not reasons, "reasons": reasons,
+            "passive": True, "commands": []}
+
+
+def thermostat_target_assessment(thermostat: Mapping[str, Any], target: Any) -> dict[str, Any]:
+    """Check whether a requested target fits the observed thermostat range and step."""
+    from math import isfinite
+
+    capability = thermostat_capability_assessment(thermostat)
+    reasons = list(capability["reasons"])
+    try:
+        requested = float(target)
+        if not isfinite(requested):
+            raise ValueError("non-finite target")
+    except (TypeError, ValueError, OverflowError):
+        reasons.append("invalid_target")
+    else:
+        if "invalid_temperature_range" not in reasons and "missing_temperature_range" not in reasons:
+            minimum = float(thermostat["min_temp"])
+            maximum = float(thermostat["max_temp"])
+            step = float(thermostat["target_temp_step"])
+            if not minimum <= requested <= maximum:
+                reasons.append("target_out_of_range")
+            elif abs((requested - minimum) / step - round((requested - minimum) / step)) > 1e-6:
+                reasons.append("target_not_on_step")
+    return {"target_supported": not reasons, "reasons": reasons,
+            "passive": True, "commands": []}
+
+
+def zone_target_capability_summary(
+    previews: list[Mapping[str, Any]], diagnostics: list[Mapping[str, Any]]
+) -> list[dict[str, Any]]:
+    """Match passive per-room targets to assigned thermostat capabilities."""
+    diagnostics_by_zone = {str(item.get("zone_id")): item for item in diagnostics}
+    result = []
+    for preview in previews:
+        zone_id = str(preview["zone_id"])
+        target = preview.get("target_temperature")
+        thermostats = diagnostics_by_zone.get(zone_id, {}).get("thermostats", [])
+        assessments = []
+        for thermostat in thermostats:
+            assessment = thermostat_target_assessment(thermostat, target)
+            assessments.append({"entity_id": thermostat.get("entity_id"), **assessment})
+        count = sum(item["target_supported"] is True for item in assessments)
+        suitability = ("not_assessable" if not assessments or target is None else
+                       "fully_suitable" if count == len(assessments) else
+                       "partially_suitable" if count else "not_suitable")
+        result.append({
+            "zone_id": zone_id, "target_temperature": target,
+            "thermostats": assessments,
+            "all_targets_supported": suitability == "fully_suitable",
+            "suitability": suitability,
+            "passive": True, "commands": [],
+        })
+    return result
+
+
 def zone_status(hass: Any, zones: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
     """Return read-only availability and observed HVAC state per configured zone."""
     result = []
@@ -133,7 +209,8 @@ def zone_status(hass: Any, zones: list[Mapping[str, Any]]) -> list[dict[str, Any
         thermostats = []
         for entity_id in zone.get("thermostat_entities", []):
             state = hass.states.get(entity_id)
-            thermostats.append({"entity_id": entity_id, "state": str(state.state) if state else "missing", "hvac_action": state.attributes.get("hvac_action") if state else None})
+            thermostats.append({"entity_id": entity_id, "state": str(state.state) if state else "missing", "hvac_action": state.attributes.get("hvac_action") if state else None, "hvac_modes": list(state.attributes.get("hvac_modes")) if state and isinstance(state.attributes.get("hvac_modes"), (list, tuple)) else [], "min_temp": state.attributes.get("min_temp") if state else None, "max_temp": state.attributes.get("max_temp") if state else None, "target_temp_step": state.attributes.get("target_temp_step") if state else None, "passive": True})
+            thermostats[-1]["capability_assessment"] = thermostat_capability_assessment(thermostats[-1])
         temperatures = []
         for entity_id in zone.get("temperature_entities", []):
             state = hass.states.get(entity_id)
@@ -171,7 +248,30 @@ def zone_backend_summary(hass: Any, zones: list[Mapping[str, Any]], management: 
         delays = zone.get("window_delays", {})
         reaction = evaluate_window_strategy(state=windows["state"], strategy=zone.get("window_strategy", "none"), tilted_delay=delays.get("tilted", 0), open_delay=delays.get("open", 0), close_delay=delays.get("closed", 0))
         status = next((item for item in zone_status(hass, [zone]) if item["zone_id"] == zone.get("id")), {})
-        result.append({"zone_id": zone.get("id"), "name": zone.get("name"), "thermostats": status.get("thermostats", []), "thermostat_count": len(status.get("thermostats", [])), "window_state": windows["state"], "window_groups": windows["windows"], "window_contacts": windows.get("contacts", []), "window_conflicts": windows["conflicts"], "window_reaction": reaction, "passive": True})
+        # Prefer an explicitly configured room sensor; never substitute a
+        # different room's thermostat or an unavailable measurement.
+        measured = None
+        measurement_source = None
+        for entity_id in zone.get("temperature_entities", []):
+            state = hass.states.get(entity_id)
+            try:
+                candidate = float(state.state) if state else None
+            except (TypeError, ValueError):
+                candidate = None
+            if candidate is not None and -40 <= candidate <= 80:
+                measured, measurement_source = candidate, entity_id
+                break
+        if measured is None:
+            for entity_id in zone.get("thermostat_entities", []):
+                state = hass.states.get(entity_id)
+                try:
+                    candidate = float(state.attributes.get("current_temperature")) if state else None
+                except (TypeError, ValueError):
+                    candidate = None
+                if candidate is not None and -40 <= candidate <= 80:
+                    measured, measurement_source = candidate, entity_id
+                    break
+        result.append({"room_temperature": measured, "temperature_source": measurement_source, "zone_id": zone.get("id"), "name": zone.get("name"), "thermostats": status.get("thermostats", []), "thermostat_count": len(status.get("thermostats", [])), "unavailable_thermostats": status.get("unavailable_thermostats", 0), "window_state": windows["state"], "window_groups": windows["windows"], "window_contacts": windows.get("contacts", []), "window_conflicts": windows["conflicts"], "window_reaction": reaction, "passive": True})
     return result
 
 
@@ -216,6 +316,9 @@ def default_management() -> dict[str, Any]:
             "return_home": False,
             "summer": False,
             "chimney_sweep": False,
+            "internal_only": False,
+            "comfort_temperature": 21.0,
+            "night_temperature": 18.0,
             "templates": {},
             "zones": {},
         },

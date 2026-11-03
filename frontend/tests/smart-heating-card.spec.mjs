@@ -469,3 +469,178 @@ test.describe("native dashboard beta.51", () => {
     await page.screenshot({path:`test-results/${testInfo.project.name}-native-mobile.png`,fullPage:true});
   });
 });
+
+test("internal dashboard settings persist without legacy helper service calls", async ({ page }) => {
+  await page.evaluate(() => {
+    const card=document.querySelector("smart-heating-card");
+    card.setConfig({entry_id:"fixture-0",display_mode:"dashboard"});
+    card.hass=window.hass;
+    card._data.options=card._data.options||{};
+    card._data.options.management={...(card._data.options.management||{}),internal:{enabled:true,operating_mode:"automatic",internal_only:false,comfort_temperature:21,night_temperature:18}};
+    window.__internalCalls=[];
+    const original=window.hass.callWS.bind(window.hass);
+    window.hass.callWS=async msg=>{
+      if(msg.type!=="smart_heating/admin/internal/set")return original(msg);
+      window.__internalCalls.push(msg);
+      return {internal:{...card._data.options.management.internal,...msg.item},active_control:false};
+    };
+    card._render();
+  });
+  const card=page.locator("smart-heating-card").first();
+  await card.locator('[data-internal-isolation]').click();
+  await card.locator('[data-internal-enabled]').click();
+  await card.locator('[data-internal-operating="manual_setback"]').click();
+  await card.locator('[data-internal-mode="party"]').click();
+  const result=await page.evaluate(()=>({calls:window.__internalCalls,services:window.__services||[]}));
+  expect(result.calls.map(call=>call.item)).toEqual([
+    {internal_only:true},{enabled:false},{operating_mode:"manual_setback"},{party:true}
+  ]);
+  expect(result.services).toHaveLength(0);
+  await expect(card.locator('[data-internal-mode="party"]')).toHaveAttribute("aria-pressed","true");
+});
+
+
+test("per-room internal temperatures use zone-scoped websocket writes",async({page})=>{
+  await page.evaluate(()=>{
+    const card=document.querySelector("smart-heating-card");
+    card.setConfig({entry_id:"fixture-0",display_mode:"dashboard"});
+    card.hass=window.hass;
+    card._data.options=card._data.options||{};
+    card._data.options.management={
+      ...(card._data.options.management||{}),
+      zones:[{id:"bathroom",name:"Badezimmer"},{id:"bedroom",name:"Schlafzimmer"}],
+      internal:{internal_only:true,enabled:true,comfort_temperature:21,night_temperature:18,zones:{bathroom:{comfort_temperature:24},bedroom:{comfort_temperature:18}}}
+    };
+    window.__zoneCalls=[];
+    window.__services=[];
+    const original=window.hass.callWS.bind(window.hass);
+    window.hass.callWS=async msg=>{
+      if(msg.type!=="smart_heating/admin/internal/set")return original(msg);
+      window.__zoneCalls.push(msg.item);
+      const internal=card._data.options.management.internal;
+      const {zone_id,...patch}=msg.item;
+      return {internal:{...internal,zones:{...internal.zones,[zone_id]:{...internal.zones[zone_id],...patch}}},active_control:false};
+    };
+    card._render();
+  });
+  const card=page.locator("smart-heating-card").first();
+  await expect(card.locator('[data-zone-id="bathroom"][data-zone-key="comfort_temperature"]')).toHaveCount(2);
+  await card.locator('[data-zone-id="bathroom"][data-zone-key="comfort_temperature"][data-zone-step="0.5"]').click();
+  await card.locator('[data-zone-id="bedroom"][data-zone-key="comfort_temperature"][data-zone-step="-0.5"]').click();
+  const result=await page.evaluate(()=>({calls:window.__zoneCalls,services:window.__services}));
+  expect(result.calls).toEqual([
+    {zone_id:"bathroom",comfort_temperature:24.5},
+    {zone_id:"bedroom",comfort_temperature:17.5}
+  ]);
+  expect(result.services).toHaveLength(0);
+});
+
+
+test("shows room thermostat target diagnostics on mobile without service calls", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => {
+    const card = document.querySelector("smart-heating-card");
+    card.setConfig({ entry_id: "fixture-0", display_mode: "dashboard" });
+    card.hass = window.hass;
+    card._data.options = card._data.options || {};
+    card._data.options.management = {
+      ...(card._data.options.management || {}),
+      zones: [
+        { id: "bathroom", name: "Badezimmer" },
+        { id: "bedroom", name: "Schlafzimmer" },
+        { id: "living", name: "Wohnzimmer" }
+      ],
+      internal: { internal_only: true, enabled: true, comfort_temperature: 21, night_temperature: 18 }
+    };
+    card._data.status = {
+      ...(card._data.status || {}),
+      zone_target_capability_summary: [
+        { zone_id: "bathroom", target_temperature: 24, all_targets_supported: false,
+          thermostats: [{ entity_id: "climate.bath", target_supported: false, reasons: ["target_out_of_range"] }] },
+        { zone_id: "bedroom", target_temperature: 18, all_targets_supported: true,
+          thermostats: [{ entity_id: "climate.bed", target_supported: true, reasons: [] }] },
+        { zone_id: "living", target_temperature: null, all_targets_supported: false, thermostats: [] }
+      ]
+    };
+    window.__services = [];
+    card._render();
+  });
+  const card = page.locator("smart-heating-card").first();
+  const panel = card.getByTestId("internal-panel");
+  await expect(panel).toContainText("Thermostat-Eignung");
+  await expect(panel).toContainText("Badezimmer");
+  await expect(panel).toContainText("Sollwert außerhalb des Bereichs");
+  await expect(panel).toContainText("Schlafzimmer");
+  await expect(panel).toContainText("Geeignet");
+  await expect(panel).toContainText("Kein Thermostat zugeordnet");
+  const overflow = await page.evaluate(() => {
+    const card = document.querySelector("smart-heating-card");
+    return card.getBoundingClientRect().right - document.documentElement.clientWidth;
+  });
+  expect(overflow).toBeLessThanOrEqual(2);
+  expect(await page.evaluate(() => window.__services)).toHaveLength(0);
+});
+
+
+test("thermostat diagnostics remain safe with missing data and unavailable devices", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.evaluate(() => {
+    const card = document.querySelector("smart-heating-card");
+    card.setConfig({ entry_id: "fixture-0", display_mode: "dashboard" });
+    card.hass = window.hass;
+    card._data.status = { ...(card._data.status || {}), zone_target_capability_summary: null };
+    window.__services = [];
+    card._render();
+  });
+  const card = page.locator("smart-heating-card").first();
+  await expect(card.getByTestId("internal-panel")).toContainText("Noch keine Raumdiagnose verfügbar");
+  await page.evaluate(() => {
+    const card = document.querySelector("smart-heating-card");
+    card._data.status.zone_target_capability_summary = [
+      { zone_id: "offline", target_temperature: 22, all_targets_supported: false,
+        thermostats: [{ entity_id: "climate.offline", target_supported: false, reasons: ["unavailable"] }] },
+      { zone_id: "step", target_temperature: 21.3, all_targets_supported: false,
+        thermostats: [{ entity_id: "climate.step", target_supported: false, reasons: ["target_not_on_step"] }] },
+      { zone_id: "invalid", target_temperature: null, all_targets_supported: false,
+        thermostats: [{ entity_id: "climate.invalid", target_supported: false, reasons: ["invalid_target"] }] }
+    ];
+    card._render();
+  });
+  const panel = card.getByTestId("internal-panel");
+  await expect(panel).toContainText("Nicht erreichbar");
+  await expect(panel).toContainText("Sollwert passt nicht zum Einstellschritt");
+  await expect(panel).toContainText("Kein gültiger Sollwert");
+  expect(await page.evaluate(() => document.querySelector("smart-heating-card").getBoundingClientRect().right - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
+  expect(await page.evaluate(() => window.__services)).toHaveLength(0);
+});
+
+
+test("renders all four thermostat suitability categories without controls", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.evaluate(() => {
+    const card = document.querySelector("smart-heating-card");
+    card.setConfig({ entry_id: "fixture-0", display_mode: "dashboard" });
+    card.hass = window.hass;
+    const categories = [
+      ["full", "fully_suitable", true],
+      ["partial", "partially_suitable", false],
+      ["unsupported", "not_suitable", false],
+      ["unknown", "not_assessable", false]
+    ];
+    card._data.status = {
+      ...(card._data.status || {}),
+      zone_target_capability_summary: categories.map(([zone_id, suitability, all_targets_supported]) => ({
+        zone_id, suitability, all_targets_supported, target_temperature: zone_id === "unknown" ? null : 24,
+        thermostats: zone_id === "unknown" ? [] : [{ entity_id: "climate." + zone_id,
+          target_supported: all_targets_supported, reasons: all_targets_supported ? [] : ["target_out_of_range"] }]
+      }))
+    };
+    window.__services = [];
+    card._render();
+  });
+  const panel = page.locator("smart-heating-card").first().getByTestId("internal-panel");
+  for (const label of ["Vollständig geeignet", "Teilweise geeignet", "Nicht geeignet", "Nicht prüfbar"]) {
+    await expect(panel).toContainText(label);
+  }
+  expect(await page.evaluate(() => window.__services)).toHaveLength(0);
+});

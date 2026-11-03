@@ -179,3 +179,170 @@ def calculate_status(
             "data_sources": context.get("shadow_data_sources", {}),
         },
     }
+
+
+def calculate_zone_target_previews(
+    schedule: WeeklySchedule,
+    *,
+    now: datetime,
+    timezone: str,
+    zones: list[Mapping[str, Any]],
+    internal: Mapping[str, Any],
+    zone_diagnostics: list[Mapping[str, Any]] | None = None,
+    previous_demand: Mapping[str, bool] | None = None,
+    overrides: Mapping[str, bool] | None = None,
+    context: Mapping[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Calculate independent per-zone targets, without reading or actuating devices.
+
+    This is a target-only shadow preview, not a room demand or actuator plan.
+    It intentionally uses the same safety and schedule decision as the global
+    preview and does not claim independent physical boiler control.
+    """
+    if not internal.get("internal_only", False):
+        return []
+    active = schedule.active_at(now, timezone)
+    window = schedule.active_window_at(now, timezone)
+    base_context = dict(context or {})
+    zone_targets = internal.get("zones", {})
+    if not isinstance(zone_targets, Mapping):
+        zone_targets = {}
+    diagnostics_by_id = {str(item.get("zone_id")): item for item in (zone_diagnostics or [])}
+    result = []
+    for zone in zones:
+        zone_id = str(zone.get("id") or "")
+        if not zone_id or zone.get("enabled") is False:
+            continue
+        settings = zone_targets.get(zone_id, {})
+        if not isinstance(settings, Mapping):
+            settings = {}
+        comfort = settings.get("comfort_temperature", internal.get("comfort_temperature", 21.0))
+        night = settings.get("night_temperature", internal.get("night_temperature", 18.0))
+        diagnostic = diagnostics_by_id.get(zone_id, {})
+        window_state = diagnostic.get("window_state", "unknown")
+        zone_overrides = {key: value for key, value in (overrides or {}).items() if key not in {"window_open", "window_tilted", "window_unknown"}}
+        if window_state in {"open", "open_or_tilted"}:
+            zone_overrides["window_open"] = True
+        elif window_state == "tilted":
+            zone_overrides["window_tilted"] = True
+        elif window_state not in {"closed", "closed_or_clear"}:
+            zone_overrides["window_unknown"] = True
+        decision = evaluate_decision(
+            schedule_active=active,
+            overrides=zone_overrides,
+            comfort_temperature=float(comfort),
+            night_temperature=float(night),
+            chimney_temperature=base_context.get("chimney_temperature", 25.0),
+            summer_mode=base_context.get("summer_mode", "compatibility"),
+            frost_temperature=base_context.get("frost_temperature", 5.0),
+            hvac_supports_off=base_context.get("hvac_supports_off", True),
+        )
+        if decision.mode == "comfort" and window is not None and window.target_temperature is not None:
+            decision = replace(decision, target_temperature=window.target_temperature)
+        measured = diagnostic.get("room_temperature")
+        thermostat_count = diagnostic.get("thermostat_count", 0)
+        unavailable_count = diagnostic.get("unavailable_thermostats", 0)
+        thermostats_unavailable = thermostat_count > 0 and unavailable_count >= thermostat_count
+        target = decision.target_temperature
+        # Unknown measurements, unsafe window states and disabled HVAC are
+        # not evidence of heat demand.
+        if measured is None or target is None or thermostats_unavailable or window_state not in {"closed", "closed_or_clear"} or decision.target_hvac_mode == "off":
+            heat_demand = None
+        else:
+            # Stateless safety deadband: values near the setpoint are
+            # indeterminate, not an instruction to switch the boiler.
+            # True hysteresis would additionally require persisted demand state.
+            delta = float(target) - float(measured)
+            if delta >= 0.3:
+                heat_demand = True
+            elif delta <= -0.3:
+                heat_demand = False
+            else:
+                # Preserve a prior *verified* shadow state inside the deadband.
+                # Without history, remain unknown rather than guessing.
+                prior = (previous_demand or {}).get(zone_id)
+                heat_demand = prior if type(prior) is bool else None
+        result.append({
+            "demand_deadband_celsius": 0.3,
+            "room_temperature": measured,
+            "temperature_source": diagnostic.get("temperature_source"),
+            "heat_demand": heat_demand,
+            "zone_id": zone_id,
+            "name": str(zone.get("name") or zone_id),
+            "mode": decision.mode,
+            "target_temperature": decision.target_temperature,
+            "target_hvac_mode": decision.target_hvac_mode,
+            "reason": decision.reason,
+            "window_state": window_state,
+            "thermostat_count": thermostat_count,
+            "unavailable_thermostats": unavailable_count,
+            "thermostats_unavailable": thermostats_unavailable,
+            "passive": True,
+            "scope": "target_and_window_safety_preview",
+            "commands": [],
+        })
+    return result
+
+
+def summarize_zone_heat_demand(previews: list[Mapping[str, Any]]) -> dict[str, Any]:
+    """Summarize passive room demand; never authorize boiler operation.
+
+    A single requesting room does not grant ownership of the shared boiler.
+    Unknown or missing room measurements remain visible and cannot be treated
+    as a reliable all-clear.
+    """
+    requesting = [str(item["zone_id"]) for item in previews if item.get("heat_demand") is True]
+    satisfied = [str(item["zone_id"]) for item in previews if item.get("heat_demand") is False]
+    unknown = [str(item["zone_id"]) for item in previews if type(item.get("heat_demand")) is not bool]
+    return {
+        "requesting_zone_ids": requesting,
+        "satisfied_zone_ids": satisfied,
+        "unknown_zone_ids": unknown,
+        "any_heat_demand": bool(requesting),
+        "all_zones_known": bool(previews) and not unknown,
+        "boiler_control_authorized": False,
+        "passive": True,
+        "commands": [],
+    }
+
+
+def zone_demand_signature(preview: Mapping[str, Any]) -> tuple[Any, ...]:
+    """Identity of a shadow decision whose previous demand may be reused."""
+    return (
+        preview.get("target_temperature"),
+        preview.get("mode"),
+        preview.get("temperature_source"),
+    )
+
+
+def next_zone_demand_history(
+    previews: list[Mapping[str, Any]],
+) -> tuple[dict[str, bool], dict[str, tuple[Any, ...]]]:
+    """Retain only verified shadow decisions; unknown states erase history.
+
+    A zone's signature changes when its target, mode or temperature source
+    changes. The caller must recompute with filtered prior demand before
+    applying this function to the final previews.
+    """
+    signatures = {str(item["zone_id"]): zone_demand_signature(item) for item in previews}
+    history = {
+        str(item["zone_id"]): item["heat_demand"]
+        for item in previews
+        if type(item.get("heat_demand")) is bool
+    }
+    return history, signatures
+
+
+def reusable_zone_demand(
+    previous_demand: Mapping[str, bool],
+    previous_signatures: Mapping[str, tuple[Any, ...]],
+    previews: list[Mapping[str, Any]],
+) -> dict[str, bool]:
+    """Allow hysteresis history only for unchanged zone decision identities."""
+    return {
+        str(item["zone_id"]): previous_demand[str(item["zone_id"])]
+        for item in previews
+        if str(item["zone_id"]) in previous_demand
+        and type(previous_demand[str(item["zone_id"])]) is bool
+        and previous_signatures.get(str(item["zone_id"])) == zone_demand_signature(item)
+    }

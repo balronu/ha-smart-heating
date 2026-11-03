@@ -23,7 +23,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE, CONF_OPERATION_MODE, CONF_SUMMER_MODE, MODE_COMPATIBILITY, MODE_FULL, SUMMER_COMPATIBILITY, SUMMER_HVAC_OFF, CONF_CLIMATE_ENTITY, CONF_OUTDOOR_TEMPERATURE, CONF_TADO_FALLBACK, DOMAIN, PLATFORMS, SIGNAL_ENTRY_UPDATED, VERSION
-from .engine import calculate_status
+from .engine import calculate_status, calculate_zone_target_previews, summarize_zone_heat_demand, zone_demand_signature, next_zone_demand_history, reusable_zone_demand
 from .models import ScheduleValidationError, WeeklySchedule
 from .migration import preview_migration
 from .control import analyze_control_plane
@@ -47,6 +47,7 @@ from .management import (
     build_window_role_diagnostics,
     zone_status,
     zone_backend_summary,
+    zone_target_capability_summary,
     SAFETY_MODES,
 )
 from .storage import effective_config, load_schedule, normalized_options
@@ -66,19 +67,67 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.entry = entry
         self.runtime_management_raw: dict[str, Any] = {}
+        self._previous_zone_demand: dict[str, bool] = {}
+        self._previous_zone_signature: dict[str, tuple[Any, ...]] = {}
         super().__init__(hass, config_entry=entry, logger=_LOGGER, name=DOMAIN)
 
     async def _async_update_data(self) -> dict[str, Any]:
         config = effective_config(self.entry)
         management = config.get("management", {})
         self.runtime_management_raw = deepcopy(management) if isinstance(management, Mapping) else {}
-        return calculate_status(
+        status = calculate_status(
             load_schedule(config),
             now=datetime.now().astimezone(),
             timezone=config.get("timezone", "Europe/Berlin"),
             overrides=_read_overrides(self.hass, self.entry),
             context=_read_context(self.hass, self.entry),
         )
+        normalized = normalize_management(management)
+        internal = normalized["internal"]
+        if not internal.get("internal_only", False):
+            self._previous_zone_demand.clear()
+        zone_diagnostics = zone_backend_summary(self.hass, normalized["zones"], normalized)
+        zone_previews = calculate_zone_target_previews(
+            load_schedule(config),
+            now=datetime.now().astimezone(),
+            timezone=config.get("timezone", "Europe/Berlin"),
+            zones=normalized["zones"],
+            internal=internal,
+            zone_diagnostics=zone_diagnostics,
+            previous_demand=self._previous_zone_demand,
+            overrides=_read_overrides(self.hass, self.entry),
+            context=_read_context(self.hass, self.entry),
+        )
+        # A prior state is only reusable for the same effective target,
+        # decision mode and measurement source. A changed context invalidates
+        # hysteresis history instead of retaining stale demand.
+        signatures = {
+            item["zone_id"]: zone_demand_signature(item)
+            for item in zone_previews
+        }
+        changed = {
+            zone_id for zone_id, signature in signatures.items()
+            if self._previous_zone_signature.get(zone_id) != signature
+        }
+        if changed:
+            zone_previews = calculate_zone_target_previews(
+                load_schedule(config),
+                now=datetime.now().astimezone(),
+                timezone=config.get("timezone", "Europe/Berlin"),
+                zones=normalized["zones"],
+                internal=internal,
+                zone_diagnostics=zone_diagnostics,
+                previous_demand=reusable_zone_demand(
+                    self._previous_zone_demand, self._previous_zone_signature, zone_previews
+                ),
+                overrides=_read_overrides(self.hass, self.entry),
+                context=_read_context(self.hass, self.entry),
+            )
+        self._previous_zone_demand, self._previous_zone_signature = next_zone_demand_history(zone_previews)
+        status["zone_target_previews"] = zone_previews
+        status["zone_heat_demand_summary"] = summarize_zone_heat_demand(zone_previews)
+        status["zone_target_capability_summary"] = zone_target_capability_summary(zone_previews, zone_diagnostics)
+        return status
 
 
 def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
@@ -87,19 +136,24 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
     result: dict[str, bool] = {}
     management = normalize_management(config.get("management"))
     internal = management["internal"]
-    if internal.get("enabled") is False:
-        result["internal_enabled"] = False
-    if internal.get("operating_mode") == "manual_heat":
-        result["manual_heat"] = True
-    elif internal.get("operating_mode") == "manual_setback":
-        result["manual_setback"] = True
-    for mode in ("party", "visit", "return_home", "summer", "chimney_sweep"):
-        if internal.get(mode):
-            result[mode] = True
-    for mode, settings in management.get("safety", {}).get("modes", {}).items():
-        helper_entity = settings.get("helper_entity") if isinstance(settings, dict) else ""
-        if isinstance(helper_entity, str) and helper_entity and settings.get("enabled", False):
-            result[mode] = hass.states.is_state(helper_entity, "on")
+    # Preview-only controls must never affect legacy compatibility decisions.
+    # This also prevents stale internal flags from leaking after isolation is off.
+    if internal.get("internal_only", False):
+        if internal.get("enabled") is False:
+            result["internal_enabled"] = False
+        if internal.get("operating_mode") == "manual_heat":
+            result["manual_heat"] = True
+        elif internal.get("operating_mode") == "manual_setback":
+            result["manual_setback"] = True
+        for mode in ("party", "visit", "return_home", "summer", "chimney_sweep"):
+            if internal.get(mode):
+                result[mode] = True
+    # Internal-only test state must not be overwritten by legacy helper values.
+    if not internal.get("internal_only", False):
+        for mode, settings in management.get("safety", {}).get("modes", {}).items():
+            helper_entity = settings.get("helper_entity") if isinstance(settings, dict) else ""
+            if isinstance(helper_entity, str) and helper_entity and settings.get("enabled", False):
+                result[mode] = hass.states.is_state(helper_entity, "on")
     presence = person_presence(hass, management["persons"])
     if presence["home"]:
         result["someone_home"] = True
@@ -107,9 +161,10 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
         result["away"] = True
     if presence["unknown"]:
         result["presence_unknown"] = True
-    for key, entity_id in config.get("special_modes", {}).items():
-        if isinstance(entity_id, str) and entity_id:
-            result[key] = hass.states.is_state(entity_id, "on")
+    if not internal.get("internal_only", False):
+        for key, entity_id in config.get("special_modes", {}).items():
+            if isinstance(entity_id, str) and entity_id:
+                result[key] = hass.states.is_state(entity_id, "on")
     from .backend_engine import evaluate_window_contacts
     configured_contacts = []
     configured_ids = set()
@@ -134,9 +189,14 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
             result["someone_home"] = True
     if config.get("presence_entities"):
         result["away"] = not result.get("someone_home", False)
-    permission = config.get("heating_permission")
-    if isinstance(permission, str) and permission:
-        result["heating_permission"] = hass.states.is_state(permission, "on")
+    # The internal heating permission replaces the legacy input_boolean only
+    # in isolated preview mode; compatibility mode remains unchanged.
+    if internal.get("internal_only", False):
+        result["heating_permission"] = internal.get("enabled", True) is True
+    else:
+        permission = config.get("heating_permission")
+        if isinstance(permission, str) and permission:
+            result["heating_permission"] = hass.states.is_state(permission, "on")
     return result
 
 
@@ -150,9 +210,16 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         "chimney_temperature": float(config.get("chimney_temperature", 25.0)),
     }
     management = normalize_management(config.get("management"))
-    settings = next(iter(management["internal"]["zones"].values()), {})
-    context["comfort_temperature"] = settings.get("comfort_temperature", 20.0)
-    context["night_temperature"] = settings.get("night_temperature", 17.0)
+    internal = management["internal"]
+    settings = next(iter(internal["zones"].values()), {})
+    if internal.get("internal_only", False):
+        # Independent global targets: never derive them from a legacy zone.
+        context["comfort_temperature"] = internal["comfort_temperature"]
+        context["night_temperature"] = internal["night_temperature"]
+    else:
+        # Preserve the established compatibility behavior until cutover.
+        context["comfort_temperature"] = settings.get("comfort_temperature", 20.0)
+        context["night_temperature"] = settings.get("night_temperature", 17.0)
     context["special_modes"] = management.get("special_modes", [])
     context["control_plane"] = deepcopy(management.get("control_plane", {}))
     context["heating_sources"] = deepcopy(management.get("heating_sources", {}))
@@ -215,6 +282,14 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     if management.get("zones"):
         first_zone = management["zones"][0]
         context["zone_id"] = first_zone.get("id")
+        if internal.get("internal_only", False):
+            # Apply the selected zone's persisted targets, not another room's.
+            zone_targets = internal.get("zones", {}).get(str(first_zone.get("id")), {})
+            if isinstance(zone_targets, Mapping):
+                for key in ("comfort_temperature", "night_temperature"):
+                    value = zone_targets.get(key)
+                    if isinstance(value, (int, float)) and not isinstance(value, bool) and 5 <= value <= 35:
+                        context[key] = float(value)
         context["thermostats"] = [
             {"entity_id": entity_id, "state": str(getattr(hass.states.get(entity_id), "state", "missing")), "available": bool(hass.states.get(entity_id)) and str(hass.states.get(entity_id).state) not in {"unknown", "unavailable"}}
             for entity_id in first_zone.get("thermostat_entities", [])
@@ -230,14 +305,17 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             context["chimney_temperature"] = float(chimney["temperature"])
         if frost.get("temperature") not in (None, ""):
             context["frost_temperature"] = float(frost["temperature"])
-    for key, config_key in (("comfort_temperature", "comfort_setpoint"), ("night_temperature", "night_setpoint")):
-        entity_id = config.get(config_key)
-        state = hass.states.get(entity_id) if isinstance(entity_id, str) else None
-        if state:
-            try:
-                context[key] = float(state.state)
-            except (TypeError, ValueError):
-                pass
+    # In isolated mode the persisted internal temperatures are authoritative.
+    # Reading legacy input_numbers here would silently undo the isolation.
+    if not internal.get("internal_only", False):
+        for key, config_key in (("comfort_temperature", "comfort_setpoint"), ("night_temperature", "night_setpoint")):
+            entity_id = config.get(config_key)
+            state = hass.states.get(entity_id) if isinstance(entity_id, str) else None
+            if state:
+                try:
+                    context[key] = float(state.state)
+                except (TypeError, ValueError):
+                    pass
     climate = hass.states.get(config.get("climate_entity")) if config.get("climate_entity") else None
     if climate:
         context["hvac_supports_off"] = "off" in climate.attributes.get("hvac_modes", []) or climate.state == "off"
@@ -264,6 +342,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         websocket_api.async_register_command(hass, _ws_admin_area_relevance_set)
         websocket_api.async_register_command(hass, _ws_admin_safety_set)
         websocket_api.async_register_command(hass, _ws_admin_system_set)
+        websocket_api.async_register_command(hass, _ws_admin_internal_set)
         websocket_api.async_register_command(hass, _ws_admin_special_mode_set)
         websocket_api.async_register_command(hass, _ws_admin_special_mode_delete)
         websocket_api.async_register_command(hass, _ws_admin_special_mode_duplicate)
@@ -415,6 +494,7 @@ async def _ws_get_status(hass: HomeAssistant, connection: websocket_api.ActiveCo
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/plan/set", vol.Required("entry_id"): cv.string, vol.Required("schedule"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_set_schedule(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, coordinator = _entry_from_connection(hass, msg["entry_id"])
@@ -475,6 +555,7 @@ async def _admin_mutation(hass: HomeAssistant, connection: websocket_api.ActiveC
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/get", vol.Required("entry_id"): cv.string})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_get(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])
@@ -496,22 +577,26 @@ async def _ws_admin_get(hass: HomeAssistant, connection: websocket_api.ActiveCon
         item for item in window_contacts["contacts"]
         if item.get("entity_id") in configured_ids and not item.get("ignored")
     ]
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contacts, "window_role_diagnostics": build_window_role_diagnostics(config_entry_options=options_management, runtime_management=runtime_management, readback_management=management, assigned_contacts=assigned_contacts), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "backend_evaluations": zone_backend_summary(hass, management["zones"], management), "preview": coordinator.data if coordinator else {}, "validation": validate_management(management)})
+    zone_target_previews = (coordinator.data or {}).get("zone_target_previews", []) if coordinator else []
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contacts, "window_role_diagnostics": build_window_role_diagnostics(config_entry_options=options_management, runtime_management=runtime_management, readback_management=management, assigned_contacts=assigned_contacts), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "backend_evaluations": zone_backend_summary(hass, management["zones"], management), "zone_target_previews": zone_target_previews, "zone_target_capability_summary": (coordinator.data or {}).get("zone_target_capability_summary", []) if coordinator else [], "zone_heat_demand_summary": summarize_zone_heat_demand(zone_target_previews), "preview": coordinator.data if coordinator else {}, "validation": validate_management(management)})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/person/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_person_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     await _admin_mutation(hass, connection, msg, "persons")
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/person/delete", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_person_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     await _admin_mutation(hass, connection, msg, "persons", True)
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/zone/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_zone_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     await _admin_mutation(hass, connection, msg, "zones")
@@ -523,6 +608,7 @@ async def _ws_admin_zone_set(hass: HomeAssistant, connection: websocket_api.Acti
     vol.Required("item"): dict,
     vol.Optional("contacts", default=[]): list,
 })
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_room_save(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Persist one room and its contact roles as one verified transaction."""
@@ -580,12 +666,14 @@ async def _ws_admin_room_save(hass: HomeAssistant, connection: websocket_api.Act
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/zone/delete", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_zone_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     await _admin_mutation(hass, connection, msg, "zones", True)
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/area/relevance", vol.Required("entry_id"): cv.string, vol.Required("area_id"): cv.string, vol.Required("relevant"): cv.boolean})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_area_relevance_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Persist only the panel's explicit area relevance preference."""
@@ -607,18 +695,21 @@ async def _ws_admin_area_relevance_set(hass: HomeAssistant, connection: websocke
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/sensor/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_sensor_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     await _admin_mutation(hass, connection, msg, "sensors")
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/sensor/delete", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_sensor_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     await _admin_mutation(hass, connection, msg, "sensors", True)
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/controller/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_controller_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])
@@ -650,6 +741,7 @@ async def _admin_mapping_set(hass: HomeAssistant, connection: websocket_api.Acti
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/outdoor/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_outdoor_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entity_id = msg["item"].get("entity_id")
@@ -660,6 +752,7 @@ async def _ws_admin_outdoor_set(hass: HomeAssistant, connection: websocket_api.A
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/safety/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_safety_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     item = msg["item"]
@@ -694,7 +787,79 @@ async def _ws_admin_safety_set(hass: HomeAssistant, connection: websocket_api.Ac
     connection.send_result(msg["id"], {"management": management, "validation": validate_management(management)})
 
 
+@websocket_api.websocket_command({
+    vol.Required("type"): "smart_heating/admin/internal/set",
+    vol.Required("entry_id"): cv.string,
+    vol.Required("item"): dict,
+})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def _ws_admin_internal_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Persist isolated helper-equivalent values without issuing heating commands."""
+    entry, management = _admin_entry(hass, msg["entry_id"])
+    item = msg["item"]
+    zone_id = item.get("zone_id")
+    if zone_id is not None:
+        valid_zones = {str(zone.get("id")) for zone in management.get("zones", []) if zone.get("id")}
+        if not isinstance(zone_id, str) or zone_id not in valid_zones:
+            connection.send_error(msg["id"], "invalid_configuration", "unknown_internal_zone")
+            return
+        if set(item) - {"zone_id", "comfort_temperature", "night_temperature"} or len(item) < 2:
+            connection.send_error(msg["id"], "invalid_configuration", "invalid_internal_zone_fields")
+            return
+        zone_targets = deepcopy(management["internal"].get("zones", {}))
+        targets = dict(zone_targets.get(zone_id, {}))
+        for key in ("comfort_temperature", "night_temperature"):
+            if key not in item:
+                continue
+            value = item[key]
+            if type(value) not in (int, float) or not 5 <= value <= 35:
+                connection.send_error(msg["id"], "invalid_configuration", "invalid_internal_temperature")
+                return
+            targets[key] = float(value)
+        zone_targets[zone_id] = targets
+        management["internal"]["zones"] = zone_targets
+        try:
+            _admin_save(hass, entry, management)
+            await _async_entry_updated(hass, entry)
+        except ValueError as err:
+            connection.send_error(msg["id"], "invalid_configuration", str(err))
+            return
+        connection.send_result(msg["id"], {"internal": management["internal"], "active_control": False})
+        return
+    allowed = {"enabled", "internal_only", "operating_mode", "comfort_temperature", "night_temperature",
+               "party", "visit", "return_home", "summer", "chimney_sweep"}
+    if set(item) - allowed:
+        connection.send_error(msg["id"], "invalid_configuration", "unsupported_internal_field")
+        return
+    updated = deepcopy(management["internal"])
+    for key, value in item.items():
+        if key in {"enabled", "internal_only", "party", "visit", "return_home", "summer", "chimney_sweep"}:
+            if type(value) is not bool:
+                connection.send_error(msg["id"], "invalid_configuration", "invalid_boolean")
+                return
+        elif key == "operating_mode":
+            if value not in {"automatic", "manual_heat", "manual_setback"}:
+                connection.send_error(msg["id"], "invalid_configuration", "invalid_operating_mode")
+                return
+        else:
+            if type(value) not in (int, float) or not 5 <= value <= 35:
+                connection.send_error(msg["id"], "invalid_configuration", "invalid_internal_temperature")
+                return
+            value = float(value)
+        updated[key] = value
+    management["internal"] = updated
+    try:
+        _admin_save(hass, entry, management)
+        await _async_entry_updated(hass, entry)
+    except ValueError as err:
+        connection.send_error(msg["id"], "invalid_configuration", str(err))
+        return
+    connection.send_result(msg["id"], {"internal": updated, "active_control": False})
+
+
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/system/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_system_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, _ = _admin_entry(hass, msg["entry_id"])
@@ -752,6 +917,7 @@ def _validate_special_mode(hass: HomeAssistant, current: dict[str, Any], item: d
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/special_mode/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_special_mode_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])
@@ -774,6 +940,7 @@ async def _ws_admin_special_mode_set(hass: HomeAssistant, connection: websocket_
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/special_mode/delete", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_special_mode_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])
@@ -791,6 +958,7 @@ async def _ws_admin_special_mode_delete(hass: HomeAssistant, connection: websock
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/special_mode/duplicate", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_special_mode_duplicate(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])

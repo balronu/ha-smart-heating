@@ -53,6 +53,34 @@ class RuntimeTests(unittest.TestCase):
                     hass.states.async_set("input_number.absenktemperatur", "17", {"friendly_name": "Absenktemperatur"})
                     hass.states.async_set("binary_sensor.fenster", "off", {"friendly_name": "Fenster", "device_class": "window"})
                     hass.states.async_set("person.michael", "home", {"friendly_name": "Michael"})
+                    hass.states.async_set("automation.heizung_automatik_ersetzt_node_red", "on", {"friendly_name": "Bestehende Tado-Heizungsautomation"})
+
+                    passive_climate_calls = []
+
+                    async def record_passive_climate_call(call):
+                        passive_climate_calls.append((call.domain, call.service, dict(call.data)))
+
+                    for climate_service in (
+                        "set_temperature",
+                        "set_hvac_mode",
+                        "turn_on",
+                        "turn_off",
+                        "set_preset_mode",
+                        "set_aux_heat",
+                    ):
+                        hass.services.async_register("climate", climate_service, record_passive_climate_call)
+
+                    legacy_automation_calls = []
+
+                    async def record_legacy_automation_call(call):
+                        legacy_automation_calls.append((call.service, dict(call.data)))
+
+                    for automation_service in ("turn_on", "turn_off", "toggle", "reload"):
+                        hass.services.async_register("automation", automation_service, record_legacy_automation_call)
+
+                    # HA also exposes generic homeassistant services for entity control.
+                    for generic_service in ("turn_on", "turn_off", "toggle"):
+                        hass.services.async_register("homeassistant", generic_service, record_legacy_automation_call)
 
                     flow = await hass.config_entries.flow.async_init("smart_heating", context={"source": "user"})
                     self.assertEqual(flow["type"], "form")
@@ -74,7 +102,6 @@ class RuntimeTests(unittest.TestCase):
                     self.assertEqual(entry.domain, "smart_heating")
                     await hass.async_block_till_done()
                     self.assertEqual(entry.state.value, "loaded")
-
                     from homeassistant.components.websocket_api.connection import ActiveConnection
                     from custom_components.smart_heating.management import normalize_management
 
@@ -116,7 +143,7 @@ class RuntimeTests(unittest.TestCase):
                         logging.getLogger("smart_heating.runtime_test"),
                         hass,
                         messages.append,
-                        SimpleNamespace(id="runtime-test-user", name="Runtime Test"),
+                        SimpleNamespace(id="runtime-test-user", name="Runtime Test", is_admin=True),
                         None,
                         "127.0.0.1",
                     )
@@ -132,6 +159,7 @@ class RuntimeTests(unittest.TestCase):
                         self.assertIsNotNone(result, payloads)
                         messages.clear()
                         self.assertEqual(result["type"], "result", result)
+                        self.assertTrue(result.get("success"), result)
                         return result["result"]
 
                     async def save_room(message_id, roles):
@@ -144,6 +172,162 @@ class RuntimeTests(unittest.TestCase):
                                 "contacts": [{**contact, "contact_role": role} for contact, role in zip(contacts, roles)],
                             },
                         )
+
+                    # A signed-in non-admin must not be able to mutate the room.
+                    # Use an independent non-admin connection so rejected requests
+                    # cannot affect the administrator's later lifecycle checks.
+                    admin_connection = connection
+                    connection = ActiveConnection(
+                        logging.getLogger("smart_heating.runtime_test.nonadmin"),
+                        hass, messages.append,
+                        SimpleNamespace(id="runtime-nonadmin", name="Runtime Non-Admin", is_admin=False),
+                        None, "127.0.0.1",
+                    )
+                    # Full administrative diagnostics must not leak to non-admins.
+                    connection.async_handle({
+                        "id": 97,
+                        "type": "smart_heating/admin/get",
+                        "entry_id": entry.entry_id,
+                    })
+                    await hass.async_block_till_done()
+                    read_responses = [
+                        json.loads(item) if isinstance(item, (bytes, bytearray)) else item
+                        for item in messages
+                    ]
+                    denied_read = next(
+                        (item for item in read_responses if item.get("id") == 97), None
+                    )
+                    self.assertIsNotNone(denied_read, read_responses)
+                    self.assertEqual(denied_read["type"], "result")
+                    self.assertFalse(denied_read["success"])
+                    self.assertEqual(denied_read["error"]["code"], "unauthorized")
+                    messages.clear()
+                    options_before_denial = dict(entry.options)
+                    connection.async_handle({
+                        "id": 100,
+                        "type": "smart_heating/admin/room/save",
+                        "entry_id": entry.entry_id,
+                        "item": room_item,
+                        "contacts": contacts,
+                    })
+                    await hass.async_block_till_done()
+                    denied_messages = [
+                        json.loads(item) if isinstance(item, (bytes, bytearray)) else item
+                        for item in messages
+                    ]
+                    denied = next((item for item in denied_messages if item.get("id") == 100), None)
+                    self.assertIsNotNone(denied, denied_messages)
+                    self.assertEqual(denied["type"], "result")
+                    self.assertFalse(denied["success"])
+                    self.assertEqual(entry.options, options_before_denial)
+                    messages.clear()
+                    # Internal temperature settings are protected by the same HA role check.
+                    internal_before = dict(entry.options)
+                    connection.async_handle({
+                        "id": 99,
+                        "type": "smart_heating/admin/internal/set",
+                        "entry_id": entry.entry_id,
+                        "item": {"comfort_temperature": 24},
+                    })
+                    await hass.async_block_till_done()
+                    internal_messages = [
+                        json.loads(item) if isinstance(item, (bytes, bytearray)) else item
+                        for item in messages
+                    ]
+                    internal_denied = next(
+                        (item for item in internal_messages if item.get("id") == 99), None
+                    )
+                    self.assertIsNotNone(internal_denied, internal_messages)
+                    self.assertEqual(internal_denied["type"], "result")
+                    self.assertFalse(internal_denied["success"])
+                    self.assertEqual(entry.options, internal_before)
+                    messages.clear()
+                    # A non-admin must not change the weekly schedule either.
+                    schedule_before = dict(entry.options)
+                    connection.async_handle({
+                        "id": 98,
+                        "type": "smart_heating/plan/set",
+                        "entry_id": entry.entry_id,
+                        "schedule": {"monday": [{"start": "07:00", "end": "09:00"}]},
+                    })
+                    await hass.async_block_till_done()
+                    schedule_messages = [
+                        json.loads(item) if isinstance(item, (bytes, bytearray)) else item
+                        for item in messages
+                    ]
+                    schedule_denied = next(
+                        (item for item in schedule_messages if item.get("id") == 98), None
+                    )
+                    self.assertIsNotNone(schedule_denied, schedule_messages)
+                    self.assertEqual(schedule_denied["type"], "result")
+                    self.assertFalse(schedule_denied["success"])
+                    self.assertEqual(entry.options, schedule_before)
+                    messages.clear()
+                    # Additional valid-schema mutations must also reject non-admins.
+                    for message_id, message_type in (
+                        (200, "smart_heating/admin/person/delete"),
+                        (201, "smart_heating/admin/zone/delete"),
+                        (202, "smart_heating/admin/sensor/delete"),
+                        (203, "smart_heating/admin/special_mode/delete"),
+                        (204, "smart_heating/admin/special_mode/duplicate"),
+                    ):
+                        options_before = dict(entry.options)
+                        connection.async_handle({
+                            "id": message_id,
+                            "type": message_type,
+                            "entry_id": entry.entry_id,
+                            "item_id": "blocked",
+                        })
+                        await hass.async_block_till_done()
+                        responses = [
+                            json.loads(item) if isinstance(item, (bytes, bytearray)) else item
+                            for item in messages
+                        ]
+                        response = next(
+                            (item for item in responses if item.get("id") == message_id), None
+                        )
+                        with self.subTest(message_type=message_type):
+                            self.assertIsNotNone(response, responses)
+                            self.assertEqual(response["type"], "result")
+                            self.assertFalse(response["success"])
+                            self.assertEqual(entry.options, options_before)
+                        messages.clear()
+                    # Valid websocket schemas ensure the authorization layer,
+                    # rather than schema validation, rejects these mutations.
+                    additional_mutations = [
+                        ("smart_heating/admin/person/set", {"item": {"id": "blocked"}}),
+                        ("smart_heating/admin/zone/set", {"item": {"id": "blocked"}}),
+                        ("smart_heating/admin/area/relevance", {"area_id": "blocked", "relevant": True}),
+                        ("smart_heating/admin/sensor/set", {"item": {"id": "blocked"}}),
+                        ("smart_heating/admin/controller/set", {"item": {}}),
+                        ("smart_heating/admin/outdoor/set", {"item": {}}),
+                        ("smart_heating/admin/safety/set", {"item": {}}),
+                        ("smart_heating/admin/system/set", {"item": {}}),
+                        ("smart_heating/admin/special_mode/set", {"item": {"id": "blocked"}}),
+                    ]
+                    for offset, (message_type, payload) in enumerate(additional_mutations):
+                        message_id = 220 + offset
+                        options_before = dict(entry.options)
+                        connection.async_handle({
+                            "id": message_id, "type": message_type,
+                            "entry_id": entry.entry_id, **payload,
+                        })
+                        await hass.async_block_till_done()
+                        responses = [
+                            json.loads(item) if isinstance(item, (bytes, bytearray)) else item
+                            for item in messages
+                        ]
+                        response = next(
+                            (item for item in responses if item.get("id") == message_id), None
+                        )
+                        with self.subTest(message_type=message_type):
+                            self.assertIsNotNone(response, responses)
+                            self.assertEqual(response["type"], "result")
+                            self.assertFalse(response["success"])
+                            self.assertEqual(response["error"]["code"], "unauthorized")
+                            self.assertEqual(entry.options, options_before)
+                        messages.clear()
+                    connection = admin_connection
 
                     first_save = await save_room(101, ("tilt", "open"))
                     self.assertEqual(first_save["persisted_contact_roles"], {contact["entity_id"]: role for contact, role in zip(contacts, ("tilt", "open"))})
@@ -180,11 +364,54 @@ class RuntimeTests(unittest.TestCase):
 
                     second_save = await save_room(103, ("tilt", "open"))
                     self.assertEqual(second_save["persisted_contact_roles"], first_save["persisted_contact_roles"])
+
+                    # Persist internal-only temperatures through an actual HA
+                    # config-entry unload/setup cycle (without any actuation).
+                    internal_saved = await ws_call(
+                        105,
+                        {
+                            "type": "smart_heating/admin/internal/set",
+                            "entry_id": entry.entry_id,
+                            "item": {
+                                "internal_only": True,
+                                "comfort_temperature": 22.5,
+                                "night_temperature": 17.5,
+                            },
+                        },
+                    )
+                    self.assertFalse(internal_saved.get("active_control", False))
+                    internal_before_reload = normalize_management(
+                        entry.options["management"]
+                    )["internal"]
+                    self.assertTrue(internal_before_reload["internal_only"])
+                    self.assertEqual(internal_before_reload["comfort_temperature"], 22.5)
+                    self.assertEqual(internal_before_reload["night_temperature"], 17.5)
+
+                    self.assertEqual(
+                        hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
+                        "on",
+                        "Passive Smart Heating must not disable the existing Tado automation",
+                    )
                     self.assertTrue(await hass.config_entries.async_unload(entry.entry_id))
                     await hass.async_block_till_done()
                     self.assertTrue(await hass.config_entries.async_setup(entry.entry_id))
                     await hass.async_block_till_done()
+                    self.assertEqual(
+                        hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
+                        "on",
+                        "Passive reload must leave the existing Tado automation enabled",
+                    )
                     persisted_after_reload = normalize_management(entry.options["management"])
+                    reloaded_internal = persisted_after_reload["internal"]
+                    self.assertTrue(reloaded_internal["internal_only"])
+                    self.assertEqual(reloaded_internal["comfort_temperature"], 22.5)
+                    self.assertEqual(reloaded_internal["night_temperature"], 17.5)
+                    # The pre-existing weekly plan must survive the same reload
+                    # alongside internal targets and room/contact assignments.
+                    self.assertEqual(
+                        entry.data["schedule"]["monday"],
+                        [{"start": "06:00:00", "end": "08:00:00", "target_temperature": 20.5}],
+                    )
                     self.assertEqual({item["entity_id"]: item["contact_role"] for item in persisted_after_reload["sensors"]["window"]}, first_save["persisted_contact_roles"])
                     reloaded_zone = next(item for item in persisted_after_reload["zones"] if item["id"] == "badezimmer")
                     self.assertEqual(reloaded_zone["thermostat_entities"], room_item["thermostat_entities"])
@@ -194,7 +421,7 @@ class RuntimeTests(unittest.TestCase):
                         {key: room_item[key] for key in ("comfort_temperature", "night_temperature", "frost_temperature")},
                     )
                     reloaded_admin_readback = await ws_call(
-                        104,
+                        106,
                         {"type": "smart_heating/admin/get", "entry_id": entry.entry_id},
                     )
                     self.assertEqual(
@@ -249,12 +476,46 @@ class RuntimeTests(unittest.TestCase):
                     self.assertEqual(acknowledged["type"], "create_entry")
                     self.assertEqual(entry.options, preserved_before)
 
+                    self.assertEqual(
+                        hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
+                        "on",
+                        "Passive Smart Heating must not disable the existing Tado automation",
+                    )
                     self.assertTrue(await hass.config_entries.async_unload(entry.entry_id))
                     await hass.async_block_till_done()
                     self.assertTrue(await hass.config_entries.async_setup(entry.entry_id))
                     await hass.async_block_till_done()
                     self.assertEqual(entry.state.value, "loaded")
                     self.assertEqual(entry.data["schedule"]["monday"][0]["end"], "08:00:00")
+                    self.assertEqual(
+                        hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
+                        "on",
+                        "Second passive reload must not disable the existing Tado automation",
+                    )
+                    self.assertEqual(
+                        normalize_management(entry.options["management"])["internal"]["comfort_temperature"],
+                        22.5,
+                    )
+                    self.assertEqual(
+                        normalize_management(entry.options["management"])["internal"]["night_temperature"],
+                        17.5,
+                    )
+                    self.assertEqual(
+                        {item["entity_id"]: item["contact_role"] for item in normalize_management(entry.options["management"])["sensors"]["window"]},
+                        first_save["persisted_contact_roles"],
+                        "Repeated passive reload must preserve all window contacts and their roles",
+                    )
+                    self.assertEqual(
+                        passive_climate_calls,
+                        [],
+                        "Passive setup, options changes and repeated reloads must never command climate devices",
+                    )
+                    self.assertEqual(
+                        hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
+                        "on",
+                        "Passive lifecycle must preserve the existing Tado automation",
+                    )
+
                     self.assertTrue(await hass.config_entries.async_remove(entry.entry_id))
                     await hass.async_block_till_done()
                     readd = await hass.config_entries.flow.async_init("smart_heating", context={"source": "user"})
@@ -263,6 +524,32 @@ class RuntimeTests(unittest.TestCase):
                     readd = await hass.config_entries.flow.async_configure(readd["flow_id"], {"confirm": True})
                     self.assertEqual(readd["result"].state.value, "loaded")
                     entry = readd["result"]
+                    self.assertEqual(
+                        passive_climate_calls,
+                        [],
+                        "Passive removal and fresh re-add must not issue climate commands",
+                    )
+                    self.assertEqual(
+                        legacy_automation_calls,
+                        [],
+                        "Passive lifecycle must not call automation or generic entity-control services",
+                    )
+                    self.assertEqual(
+                        entry.state.value,
+                        "loaded",
+                        "Passive re-add must finish with a loaded integration before any activation test",
+                    )
+
+                    self.assertEqual(
+                        hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
+                        "on",
+                        "Legacy Tado automation must remain active after passive removal and re-add",
+                    )
+                    self.assertEqual(
+                        hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
+                        "on",
+                        "Passive removal and fresh re-add must preserve the existing Tado automation",
+                    )
                     from custom_components.smart_heating.control import async_apply_decision
                     from custom_components.smart_heating.models import HeatingDecision
 
