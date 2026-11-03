@@ -78,6 +78,10 @@ class RuntimeTests(unittest.TestCase):
                     for automation_service in ("turn_on", "turn_off", "toggle", "reload"):
                         hass.services.async_register("automation", automation_service, record_legacy_automation_call)
 
+                    # HA also exposes generic homeassistant services for entity control.
+                    for generic_service in ("turn_on", "turn_off", "toggle"):
+                        hass.services.async_register("homeassistant", generic_service, record_legacy_automation_call)
+
                     flow = await hass.config_entries.flow.async_init("smart_heating", context={"source": "user"})
                     self.assertEqual(flow["type"], "form")
                     flow = await hass.config_entries.flow.async_configure(
@@ -528,7 +532,7 @@ class RuntimeTests(unittest.TestCase):
                     self.assertEqual(
                         legacy_automation_calls,
                         [],
-                        "Passive lifecycle must not control or reload the existing automation",
+                        "Passive lifecycle must not call automation or generic entity-control services",
                     )
                     self.assertEqual(
                         entry.state.value,
