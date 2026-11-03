@@ -100,7 +100,8 @@ class RuntimeTests(unittest.TestCase):
                     self.assertEqual(entry.state.value, "loaded")
                     # Exercise HA core config-entry persistence, not only in-memory reloads.
                     # The separate-process restart fixture will consume this same storage file.
-                    await hass.config_entries._async_save()
+                    await hass.async_block_till_done()
+                    await hass.config_entries._store.async_save()
                     stored_entries = json.loads(
                         (Path(config_dir) / ".storage" / "core.config_entries").read_text(encoding="utf-8")
                     )["data"]["entries"]
