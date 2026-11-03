@@ -378,7 +378,7 @@ class RuntimeTests(unittest.TestCase):
                         {key: room_item[key] for key in ("comfort_temperature", "night_temperature", "frost_temperature")},
                     )
                     reloaded_admin_readback = await ws_call(
-                        104,
+                        106,
                         {"type": "smart_heating/admin/get", "entry_id": entry.entry_id},
                     )
                     self.assertEqual(
