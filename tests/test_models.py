@@ -444,3 +444,22 @@ class ScheduleTests(unittest.TestCase):
         self.assertTrue(previews[0]["thermostats_unavailable"])
         self.assertIs(previews[1]["heat_demand"], True)
         self.assertTrue(all(item["commands"] == [] for item in previews))
+
+
+    def test_room_target_deadband_is_indeterminate_not_a_boiler_command(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        previews = calculate_zone_target_previews(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            timezone="Europe/Berlin",
+            zones=[{"id": "cold"}, {"id": "near"}, {"id": "warm"}],
+            internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18},
+            zone_diagnostics=[
+                {"zone_id": "cold", "window_state": "closed", "room_temperature": 20.5},
+                {"zone_id": "near", "window_state": "closed", "room_temperature": 20.9},
+                {"zone_id": "warm", "window_state": "closed", "room_temperature": 21.5},
+            ],
+        )
+        self.assertEqual([item["heat_demand"] for item in previews], [True, None, False])
+        self.assertTrue(all(item["demand_deadband_celsius"] == 0.3 for item in previews))
+        self.assertTrue(all(item["commands"] == [] for item in previews))
