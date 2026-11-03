@@ -148,6 +148,10 @@ class SmartHeatingCard extends HTMLElement {
     const internalModes=[["party","Party"],["visit","Besuch"],["return_home","Heimweg"],["summer","Sommer"],["chimney_sweep","Schornsteinfeger"]];
     const internalPanel=`<section class="sh-section" data-testid="internal-panel"><h3>Interner Testbetrieb · ohne Heizbefehle</h3><p class="sh-foot">Eigene Zustände werden nur in Smart Heating gespeichert. Die bisherige Automation bleibt aktiv.</p>
       <button type="button" data-internal-isolation="1" aria-pressed="${isolated}">${isolated?"Interne Werte aktiv · zurück zur Helfer-Vorschau":"Interne Werte für Vorschau verwenden"}</button>
+      <div class="sh-modes">
+        <button type="button" class="sh-mode ${internal.enabled!==false?"sh-on":""}" data-internal-enabled="1" aria-pressed="${internal.enabled!==false}">Heizfreigabe: ${internal.enabled!==false?"Ein":"Aus"}</button>
+        ${[["automatic","Automatik"],["manual_heat","Dauerhaft Komfort"],["manual_setback","Dauerhaft Absenkung"]].map(([key,label])=>`<button type="button" class="sh-mode ${(internal.operating_mode||"automatic")===key?"sh-on":""}" data-internal-operating="${key}" aria-pressed="${(internal.operating_mode||"automatic")===key}">${label}</button>`).join("")}
+      </div>
       <div class="sh-grid">${[["comfort_temperature","Komfort"],["night_temperature","Absenkung"]].map(([key,label])=>`<div class="sh-tile"><span class="sh-muted">${label}</span><strong>${esc(internal[key]??(key==="comfort_temperature"?21:18))} °C</strong><div class="sh-controls"><button type="button" data-internal-adjust="${key}" data-step="-0.5">−</button><button type="button" data-internal-adjust="${key}" data-step="0.5">+</button></div></div>`).join("")}</div>
       <div class="sh-modes">${internalModes.map(([key,label])=>`<button type="button" class="sh-mode ${internal[key]===true?"sh-on":""}" data-internal-mode="${key}" aria-pressed="${internal[key]===true}">${label}: ${internal[key]===true?"Ein":"Aus"}</button>`).join("")}</div>
       <p class="sh-foot">Nur Testwerte · keine Änderung an input_boolean, input_number oder der Heizungsautomation.</p></section>`;
@@ -184,6 +188,8 @@ class SmartHeatingCard extends HTMLElement {
       }catch(error){this._error="Interner Testwert: "+(error?.message||error);this._renderModern();}
     };
     this.querySelector("[data-internal-isolation]")?.addEventListener("click",()=>saveInternal({internal_only:!isolated}));
+    this.querySelector("[data-internal-enabled]")?.addEventListener("click",()=>saveInternal({enabled:internal.enabled===false}));
+    this.querySelectorAll("[data-internal-operating]").forEach(button=>button.addEventListener("click",()=>saveInternal({operating_mode:button.dataset.internalOperating})));
     this.querySelectorAll("[data-internal-mode]").forEach(button=>button.addEventListener("click",()=>{
       const key=button.dataset.internalMode;
       if(key==="chimney_sweep"&&internal[key]===true)return saveInternal({chimney_sweep:false});
