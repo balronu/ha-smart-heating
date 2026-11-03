@@ -239,10 +239,13 @@ def calculate_zone_target_previews(
         if decision.mode == "comfort" and window is not None and window.target_temperature is not None:
             decision = replace(decision, target_temperature=window.target_temperature)
         measured = diagnostic.get("room_temperature")
+        thermostat_count = diagnostic.get("thermostat_count", 0)
+        unavailable_count = diagnostic.get("unavailable_thermostats", 0)
+        thermostats_unavailable = thermostat_count > 0 and unavailable_count >= thermostat_count
         target = decision.target_temperature
         # Unknown measurements, unsafe window states and disabled HVAC are
         # not evidence of heat demand.
-        if measured is None or target is None or window_state not in {"closed", "closed_or_clear"} or decision.target_hvac_mode == "off":
+        if measured is None or target is None or thermostats_unavailable or window_state not in {"closed", "closed_or_clear"} or decision.target_hvac_mode == "off":
             heat_demand = None
         else:
             heat_demand = float(measured) < float(target)
@@ -257,7 +260,9 @@ def calculate_zone_target_previews(
             "target_hvac_mode": decision.target_hvac_mode,
             "reason": decision.reason,
             "window_state": window_state,
-            "thermostat_count": diagnostic.get("thermostat_count", 0),
+            "thermostat_count": thermostat_count,
+            "unavailable_thermostats": unavailable_count,
+            "thermostats_unavailable": thermostats_unavailable,
             "passive": True,
             "scope": "target_and_window_safety_preview",
             "commands": [],
