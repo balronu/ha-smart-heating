@@ -10,6 +10,13 @@ Stand: 2026-11-03. Dieses Dokument ist eine Prüf- und Freigabeliste, **keine** 
 - Read-only-Thermostatdiagnose inklusive Sollwertgrenzen und vier Eignungskategorien.
 - Automatisierte Backend- und mobile Frontend-Regressionstests.
 
+## Prüfprotokoll zum Release-Kandidaten (2026-11-03)
+
+- **WebSocket:** Sicherheitsblocker [#56](https://github.com/balronu/ha-smart-heating/issues/56) nach erfolgreicher HACS-/Validate-/UI-CI für Commit `8c81860` geschlossen. 17 Mutationen und der vollständige administrative Lesezugriff erfordern Adminrechte.
+- **Dokumentation:** README DE/EN beschreiben den passiven Parallelbetrieb und die manuelle Rückkehr. Englische Versionsangabe auf Manifest `0.1.0-beta.52` korrigiert; Changelog mit ausdrücklich *unveröffentlichtem* Eintrag ergänzt.
+- **Aktuatorgrenze:** Die Produktionspfade bleiben passiv. `control.py` enthält allerdings einen älteren, explizit dreifach gesperrten Aktuator für isolierte Tests; der erste pauschale Service-Call-Test hat ihn erkannt. Der überarbeitete Regressionstest prüft deshalb zusätzlich, dass kein Produktionsmodul `async_apply_decision` importiert oder aufruft und dass die drei Freigabeflags vorhanden sind. **CI-Bestätigung des korrigierten Tests steht aus.**
+- **Noch offen:** Nachweis von Neustart-/Migrationsverhalten, abschließende Prüfung aller Testresultate und Release-Artefakte, konsistenter finaler Commit sowie die ausdrücklich erforderlichen Freigaben. Keine produktive Installation, kein Tag und keine Veröffentlichung im Rahmen dieses Prüfprotokolls.
+
 ## Freigabekriterien (alle erforderlich)
 
 - [ ] HACS, Validate und UI für **denselben endgültigen Release-Commit** erfolgreich.
