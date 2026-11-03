@@ -60,8 +60,15 @@ class RuntimeTests(unittest.TestCase):
                     async def record_passive_climate_call(call):
                         passive_climate_calls.append((call.domain, call.service, dict(call.data)))
 
-                    hass.services.async_register("climate", "set_temperature", record_passive_climate_call)
-                    hass.services.async_register("climate", "set_hvac_mode", record_passive_climate_call)
+                    for climate_service in (
+                        "set_temperature",
+                        "set_hvac_mode",
+                        "turn_on",
+                        "turn_off",
+                        "set_preset_mode",
+                        "set_aux_heat",
+                    ):
+                        hass.services.async_register("climate", climate_service, record_passive_climate_call)
 
                     flow = await hass.config_entries.flow.async_init("smart_heating", context={"source": "user"})
                     self.assertEqual(flow["type"], "form")
