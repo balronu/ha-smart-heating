@@ -147,6 +147,31 @@ def thermostat_capability_assessment(thermostat: Mapping[str, Any]) -> dict[str,
             "passive": True, "commands": []}
 
 
+def thermostat_target_assessment(thermostat: Mapping[str, Any], target: Any) -> dict[str, Any]:
+    """Check whether a requested target fits the observed thermostat range and step."""
+    from math import isfinite
+
+    capability = thermostat_capability_assessment(thermostat)
+    reasons = list(capability["reasons"])
+    try:
+        requested = float(target)
+        if not isfinite(requested):
+            raise ValueError("non-finite target")
+    except (TypeError, ValueError, OverflowError):
+        reasons.append("invalid_target")
+    else:
+        if "invalid_temperature_range" not in reasons and "missing_temperature_range" not in reasons:
+            minimum = float(thermostat["min_temp"])
+            maximum = float(thermostat["max_temp"])
+            step = float(thermostat["target_temp_step"])
+            if not minimum <= requested <= maximum:
+                reasons.append("target_out_of_range")
+            elif abs((requested - minimum) / step - round((requested - minimum) / step)) > 1e-6:
+                reasons.append("target_not_on_step")
+    return {"target_supported": not reasons, "reasons": reasons,
+            "passive": True, "commands": []}
+
+
 def zone_status(hass: Any, zones: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
     """Return read-only availability and observed HVAC state per configured zone."""
     result = []
