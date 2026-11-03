@@ -128,6 +128,8 @@ def person_presence(hass: Any, persons: list[Mapping[str, Any]]) -> dict[str, An
 
 def thermostat_capability_assessment(thermostat: Mapping[str, Any]) -> dict[str, Any]:
     """Assess observed climate attributes without authorizing control."""
+    from math import isfinite
+
     reasons = []
     state = thermostat.get("state")
     if state in (None, "missing", "unknown", "unavailable"):
@@ -139,7 +141,7 @@ def thermostat_capability_assessment(thermostat: Mapping[str, Any]) -> dict[str,
         minimum = float(thermostat.get("min_temp"))
         maximum = float(thermostat.get("max_temp"))
         step = float(thermostat.get("target_temp_step"))
-        if not (-40 <= minimum < maximum <= 80) or not (0 < step <= 10):
+        if not all(isfinite(value) for value in (minimum, maximum, step)) or not (-40 <= minimum < maximum <= 80) or not (0 < step <= 10):
             reasons.append("invalid_temperature_range")
     except (TypeError, ValueError, OverflowError):
         reasons.append("missing_temperature_range")
