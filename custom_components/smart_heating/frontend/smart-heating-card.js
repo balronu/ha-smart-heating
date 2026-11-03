@@ -143,6 +143,14 @@ class SmartHeatingCard extends HTMLElement {
       const irButton=ir?`<button type="button" class="sh-ir" data-ir-switch="${esc(ir)}" ${!irAvailable||this._config.allow_manual_ir_control!==true?"disabled":""} aria-pressed="${irState==="on"}">Infrarot-Panel: ${irState==="on"?"Ein":irState==="off"?"Aus":"Nicht verfügbar"}${this._config.allow_manual_ir_control===true?"":" · Anzeige"}</button>`:"";
       return `<div class="sh-room" ${id?`data-climate="${esc(id)}" role="button" tabindex="0" aria-label="${esc(room.name||room.id)} öffnen"`:""}><b>${esc(room.name||room.id)}</b><span class="sh-room-values">${temp==null?"Ist –":"Ist "+esc(temp)+" °C"} · ${target==null?"Soll –":"Soll "+esc(target)+" °C"}</span>${irButton}</div>`;
     }).join("");
+    const internal=this._management().internal||{};
+    const isolated=internal.internal_only===true;
+    const internalModes=[["party","Party"],["visit","Besuch"],["return_home","Heimweg"],["summer","Sommer"],["chimney_sweep","Schornsteinfeger"]];
+    const internalPanel=`<section class="sh-section" data-testid="internal-panel"><h3>Interner Testbetrieb · ohne Heizbefehle</h3><p class="sh-foot">Eigene Zustände werden nur in Smart Heating gespeichert. Die bisherige Automation bleibt aktiv.</p>
+      <button type="button" data-internal-isolation="1" aria-pressed="${isolated}">${isolated?"Interne Werte aktiv · zurück zur Helfer-Vorschau":"Interne Werte für Vorschau verwenden"}</button>
+      <div class="sh-grid">${[["comfort_temperature","Komfort"],["night_temperature","Absenkung"]].map(([key,label])=>`<div class="sh-tile"><span class="sh-muted">${label}</span><strong>${esc(internal[key]??(key==="comfort_temperature"?21:18))} °C</strong><div class="sh-controls"><button type="button" data-internal-adjust="${key}" data-step="-0.5">−</button><button type="button" data-internal-adjust="${key}" data-step="0.5">+</button></div></div>`).join("")}</div>
+      <div class="sh-modes">${internalModes.map(([key,label])=>`<button type="button" class="sh-mode ${internal[key]===true?"sh-on":""}" data-internal-mode="${key}" aria-pressed="${internal[key]===true}">${label}: ${internal[key]===true?"Ein":"Aus"}</button>`).join("")}</div>
+      <p class="sh-foot">Nur Testwerte · keine Änderung an input_boolean, input_number oder der Heizungsautomation.</p></section>`;
     const automation=st("automation.heizung_automatik_ersetzt_node_red")?.state;
     const next=this._status().next_switch;
     const css=`<style>
@@ -157,11 +165,36 @@ class SmartHeatingCard extends HTMLElement {
     this.innerHTML=`<ha-card><div class="sh-app">${css}<div class="sh-head"><div><h2>♨ ${esc(this._config.title||"Smart Heating")}</h2><small>Heizungsautomatik bleibt zuständig · ${esc(this._data?.version||"")}</small></div><span class="sh-state">${automation==="on"?"● Automatik aktiv":automation==="off"?"○ Automatik aus":"Automatik unbekannt"}</span></div>
       ${this._error?`<p class="sh-feedback" role="alert">${esc(this._error)}</p>`:""}
       <p class="sh-foot sh-release">Heizfreigabe: ${st("input_boolean.heizung_freigabe")?.state==="on"?"Ein":st("input_boolean.heizung_freigabe")?.state==="off"?"Aus":"Unbekannt"}</p>
+      ${internalPanel}
       <section class="sh-section"><h3>Temperaturen</h3><div class="sh-grid">${tempTile("input_number.heiztemperatur","Heizen","🌡")}${tempTile("input_number.absenktemperatur","Absenken","☾")}</div></section>
       <div class="sh-bottom"><div><section class="sh-section"><h3>Wochenprogramm</h3>${scheduleHtml}<p class="sh-foot">Nächster Wechsel: ${esc(formatTime(next))}</p></section><section class="sh-section"><h3>Räume</h3>${rooms||'<p class="sh-muted">Keine Räume konfiguriert</p>'}<p class="sh-foot">Weitere Räume erscheinen nach ihrer Einrichtung als Smart-Heating-Zonen.</p></section></div><div><section class="sh-section"><h3>Sondermodi</h3><div class="sh-modes">${modes}</div></section><section class="sh-section"><details data-panel="diagnostics"><summary>Diagnose & Prioritäten</summary><div class="sh-detail">${this._priorities()}${this._diagnostics()}</div></details></section></div></div>
       <p class="sh-foot">Temperatur- und Modusänderungen wirken ausschließlich auf vorhandene Home-Assistant-Helfer. Die bestehende Heizungsautomation bleibt unverändert.</p>
     </div></ha-card>`;
     this.querySelectorAll("details").forEach(el=>{el.open=currentOpen.has(el.dataset.panel);});
+    const saveInternal=async patch=>{
+      const entryId=this._config.entry_id||this._data?.entry_id;
+      if(!entryId){this._error="Konfigurationseintrag nicht gefunden";this._renderModern();return;}
+      try{
+        const result=await this._hass.callWS({type:"smart_heating/admin/internal/set",entry_id:entryId,item:patch});
+        if(!this._data.options)this._data.options={};
+        if(!this._data.options.management)this._data.options.management={...this._management()};
+        this._data.options.management.internal=result.internal;
+        this._error=null;
+        this._renderModern();
+      }catch(error){this._error="Interner Testwert: "+(error?.message||error);this._renderModern();}
+    };
+    this.querySelector("[data-internal-isolation]")?.addEventListener("click",()=>saveInternal({internal_only:!isolated}));
+    this.querySelectorAll("[data-internal-mode]").forEach(button=>button.addEventListener("click",()=>{
+      const key=button.dataset.internalMode;
+      if(key==="chimney_sweep"&&internal[key]===true)return saveInternal({chimney_sweep:false});
+      return saveInternal({[key]:internal[key]!==true});
+    }));
+    this.querySelectorAll("[data-internal-adjust]").forEach(button=>button.addEventListener("click",()=>{
+      const key=button.dataset.internalAdjust;
+      const current=Number(internal[key]??(key==="comfort_temperature"?21:18));
+      const next=Number((current+Number(button.dataset.step)).toFixed(1));
+      if(next>=5&&next<=35)return saveInternal({[key]:next});
+    }));
     this.querySelectorAll(".sh-ir[data-ir-switch]").forEach(button=>button.addEventListener("click",async event=>{
       event.stopPropagation();
       const id=button.dataset.irSwitch,state=this._hass?.states?.[id]?.state;
