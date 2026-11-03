@@ -107,6 +107,47 @@ class ManagementTests(unittest.TestCase):
             {"binary_sensor.upper": "tilt", "binary_sensor.lower": "open"},
         )
 
+    def test_legacy_migration_keeps_both_window_roles_and_all_thermostats_across_repeated_loads(self):
+        """A legacy room with two physical contacts must not lose either binding."""
+        legacy = {
+            "schema_version": 5,
+            "zones": [{
+                "id": "bedroom", "name": "Schlafzimmer",
+                "thermostat_entities": ["climate.bedroom_left", "climate.bedroom_right"],
+                "temperature_entities": ["sensor.bedroom_temperature"],
+                "comfort_temperature": 18.0,
+                "night_temperature": 16.0,
+            }],
+            "sensors": {"window": [
+                {"id": "bedroom_tilt", "entity_id": "binary_sensor.bedroom_tilt",
+                 "contact_role": "tilt", "zone_ids": ["bedroom"]},
+                {"id": "bedroom_open", "entity_id": "binary_sensor.bedroom_open",
+                 "contact_role": "open", "zone_ids": ["bedroom"]},
+            ]},
+            "control_plane": {"operating_state": "TRANSITIONING",
+                              "confirmed_control_ownership": "legacy"},
+        }
+        first = normalize_management(legacy)
+        second = normalize_management(first)
+        third = normalize_management(second)
+        self.assertEqual(first, second)
+        self.assertEqual(second, third)
+        self.assertEqual(first["zones"][0]["thermostat_entities"],
+                         ["climate.bedroom_left", "climate.bedroom_right"])
+        self.assertEqual(first["zones"][0]["temperature_entities"],
+                         ["sensor.bedroom_temperature"])
+        self.assertEqual(first["zones"][0]["comfort_temperature"], 18.0)
+        self.assertEqual(
+            {item["entity_id"]: (item["contact_role"], item["zone_ids"])
+             for item in first["sensors"]["window"]},
+            {
+                "binary_sensor.bedroom_tilt": ("tilt", ["bedroom"]),
+                "binary_sensor.bedroom_open": ("open", ["bedroom"]),
+            },
+        )
+        self.assertEqual(first["control_plane"]["operating_state"], "LEGACY")
+        self.assertFalse(first["control_plane"]["switch_ready"])
+
     def test_migration_never_activates_requested_smart_state(self):
         data = normalize_management({"control_plane": {"operating_state": "SMART", "confirmed_control_ownership": "smart"}})
         self.assertEqual(set(OPERATING_STATES), {"LEGACY", "TRANSITIONING", "SMART"})
