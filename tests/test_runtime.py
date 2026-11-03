@@ -116,7 +116,7 @@ class RuntimeTests(unittest.TestCase):
                         logging.getLogger("smart_heating.runtime_test"),
                         hass,
                         messages.append,
-                        SimpleNamespace(id="runtime-test-user", name="Runtime Test"),
+                        SimpleNamespace(id="runtime-test-user", name="Runtime Test", is_admin=True),
                         None,
                         "127.0.0.1",
                     )
