@@ -155,6 +155,17 @@ class SmartHeatingCard extends HTMLElement {
         return `<div><b>${esc(zone.name||id)} · ${key==='comfort_temperature'?'Komfort':'Absenkung'}</b> ${esc(value)} °C <button data-zone-id="${esc(id)}" data-zone-key="${key}" data-zone-step="-0.5">−</button><button data-zone-id="${esc(id)}" data-zone-key="${key}" data-zone-step="0.5">+</button></div>`;
       }).join('');
     }).join('');
+    const capabilityRows=(this._status().zone_target_capability_summary||[]).map(zone=>{
+      const thermostats=Array.isArray(zone.thermostats)?zone.thermostats:[];
+      const label=(this._management().zones||[]).find(item=>String(item.id)===String(zone.zone_id))?.name||zone.zone_id;
+      const details=thermostats.length?thermostats.map(item=>{
+        const reasons=Array.isArray(item.reasons)?item.reasons:[];
+        const reasonLabels={unavailable:"Nicht erreichbar",no_heating_mode:"Kein Heizmodus",invalid_temperature_range:"Ungültiger Temperaturbereich",missing_temperature_range:"Temperaturgrenzen fehlen",invalid_target:"Kein gültiger Sollwert",target_out_of_range:"Sollwert außerhalb des Bereichs",target_not_on_step:"Sollwert passt nicht zum Einstellschritt"};
+        const reasonText=reasons.map(reason=>reasonLabels[reason]||reason).join(", ");
+        return `<div class="sh-foot">${esc(item.entity_id||"Thermostat")}: ${item.target_supported===true?"Geeignet":esc(reasonText||"Eignung nicht nachgewiesen")}</div>`;
+      }).join(""):'<div class="sh-foot">Kein Thermostat zugeordnet</div>';
+      return `<div class="sh-tile"><b>${esc(label)} · ${zone.target_temperature==null?"Sollwert unbekannt":esc(zone.target_temperature)+" °C"}</b><span class="sh-muted">${zone.all_targets_supported===true?"Sollwert unterstützt":"Prüfung nicht bestanden"}</span>${details}</div>`;
+    }).join("");
     const internalPanel=`<section class="sh-section" data-testid="internal-panel"><h3>Interner Testbetrieb · ohne Heizbefehle</h3><p class="sh-foot">Eigene Zustände werden nur in Smart Heating gespeichert. Die bisherige Automation bleibt aktiv.</p>
       <button type="button" data-internal-isolation="1" aria-pressed="${isolated}">${isolated?"Interne Werte aktiv · zurück zur Helfer-Vorschau":"Interne Werte für Vorschau verwenden"}</button>
       <div class="sh-modes">
@@ -164,6 +175,7 @@ class SmartHeatingCard extends HTMLElement {
       <div class="sh-grid">${[["comfort_temperature","Komfort"],["night_temperature","Absenkung"]].map(([key,label])=>`<div class="sh-tile"><span class="sh-muted">${label}</span><strong>${esc(internal[key]??(key==="comfort_temperature"?21:18))} °C</strong><div class="sh-controls"><button type="button" data-internal-adjust="${key}" data-step="-0.5">−</button><button type="button" data-internal-adjust="${key}" data-step="0.5">+</button></div></div>`).join("")}</div>
       <div class="sh-modes">${internalModes.map(([key,label])=>`<button type="button" class="sh-mode ${internal[key]===true?"sh-on":""}" data-internal-mode="${key}" aria-pressed="${internal[key]===true}">${label}: ${internal[key]===true?"Ein":"Aus"}</button>`).join("")}</div>
       <h4>Raumtemperaturen · passive Vorschau</h4>${zoneRows}
+      <h4>Thermostat-Eignung · nur Diagnose</h4>${capabilityRows||'<p class="sh-foot">Noch keine Raumdiagnose verfügbar.</p>'}
       <p class="sh-foot">Nur Testwerte · keine Änderung an input_boolean, input_number oder der Heizungsautomation.</p></section>`;
     const automation=st("automation.heizung_automatik_ersetzt_node_red")?.state;
     const next=this._status().next_switch;
