@@ -248,8 +248,18 @@ def calculate_zone_target_previews(
         if measured is None or target is None or thermostats_unavailable or window_state not in {"closed", "closed_or_clear"} or decision.target_hvac_mode == "off":
             heat_demand = None
         else:
-            heat_demand = float(measured) < float(target)
+            # Stateless safety deadband: values near the setpoint are
+            # indeterminate, not an instruction to switch the boiler.
+            # True hysteresis would additionally require persisted demand state.
+            delta = float(target) - float(measured)
+            if delta >= 0.3:
+                heat_demand = True
+            elif delta <= -0.3:
+                heat_demand = False
+            else:
+                heat_demand = None
         result.append({
+            "demand_deadband_celsius": 0.3,
             "room_temperature": measured,
             "temperature_source": diagnostic.get("temperature_source"),
             "heat_demand": heat_demand,
