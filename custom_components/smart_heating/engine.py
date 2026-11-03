@@ -313,3 +313,24 @@ def zone_demand_signature(preview: Mapping[str, Any]) -> tuple[Any, ...]:
         preview.get("mode"),
         preview.get("temperature_source"),
     )
+
+
+def next_zone_demand_history(
+    previews: list[Mapping[str, Any]],
+    previous_signatures: Mapping[str, tuple[Any, ...]] | None = None,
+) -> tuple[dict[str, bool], dict[str, tuple[Any, ...]]]:
+    """Retain only verified shadow decisions; unknown states erase history.
+
+    A zone's signature changes when its target, mode or temperature source
+    changes. The caller must recompute with filtered prior demand before
+    applying this function to the final previews.
+    """
+    old = previous_signatures or {}
+    signatures = {str(item["zone_id"]): zone_demand_signature(item) for item in previews}
+    history = {
+        str(item["zone_id"]): item["heat_demand"]
+        for item in previews
+        if type(item.get("heat_demand")) is bool
+        and old.get(str(item["zone_id"]), signatures[str(item["zone_id"])]) == signatures[str(item["zone_id"])]
+    }
+    return history, signatures
