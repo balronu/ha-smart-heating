@@ -324,3 +324,20 @@ class ScheduleTests(unittest.TestCase):
             chimney_temperature=26,
         )
         self.assertEqual(decision.mode, "chimney_sweep")
+
+    def test_overnight_window_does_not_start_before_its_day(self):
+        schedule = WeeklySchedule.from_mapping({
+            "monday": [{"start": "22:00", "end": "02:00", "target_temperature": 23}],
+        })
+        timezone = "Europe/Berlin"
+        monday_early = datetime.fromisoformat("2026-11-02T01:00:00+01:00")
+        monday_late = datetime.fromisoformat("2026-11-02T23:00:00+01:00")
+        tuesday_early = datetime.fromisoformat("2026-11-03T01:00:00+01:00")
+        tuesday_late = datetime.fromisoformat("2026-11-03T03:00:00+01:00")
+        self.assertFalse(schedule.active_at(monday_early, timezone))
+        self.assertIsNone(schedule.active_window_at(monday_early, timezone))
+        for instant in (monday_late, tuesday_early):
+            self.assertTrue(schedule.active_at(instant, timezone))
+            self.assertEqual(schedule.active_window_at(instant, timezone).target_temperature, 23)
+        self.assertFalse(schedule.active_at(tuesday_late, timezone))
+        self.assertIsNone(schedule.active_window_at(tuesday_late, timezone))
