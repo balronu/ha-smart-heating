@@ -187,6 +187,27 @@ class RuntimeTests(unittest.TestCase):
                     self.assertFalse(internal_denied["success"])
                     self.assertEqual(entry.options, internal_before)
                     messages.clear()
+                    # A non-admin must not change the weekly schedule either.
+                    schedule_before = dict(entry.options)
+                    connection.async_handle({
+                        "id": 98,
+                        "type": "smart_heating/plan/set",
+                        "entry_id": entry.entry_id,
+                        "schedule": {"monday": [{"start": "07:00", "end": "09:00"}]},
+                    })
+                    await hass.async_block_till_done()
+                    schedule_messages = [
+                        json.loads(item) if isinstance(item, (bytes, bytearray)) else item
+                        for item in messages
+                    ]
+                    schedule_denied = next(
+                        (item for item in schedule_messages if item.get("id") == 98), None
+                    )
+                    self.assertIsNotNone(schedule_denied, schedule_messages)
+                    self.assertEqual(schedule_denied["type"], "result")
+                    self.assertFalse(schedule_denied["success"])
+                    self.assertEqual(entry.options, schedule_before)
+                    messages.clear()
                     connection.user.is_admin = True
 
                     first_save = await save_room(101, ("tilt", "open"))
