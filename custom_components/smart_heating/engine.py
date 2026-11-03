@@ -331,3 +331,18 @@ def next_zone_demand_history(
         if type(item.get("heat_demand")) is bool
     }
     return history, signatures
+
+
+def reusable_zone_demand(
+    previous_demand: Mapping[str, bool],
+    previous_signatures: Mapping[str, tuple[Any, ...]],
+    previews: list[Mapping[str, Any]],
+) -> dict[str, bool]:
+    """Allow hysteresis history only for unchanged zone decision identities."""
+    return {
+        str(item["zone_id"]): previous_demand[str(item["zone_id"])]
+        for item in previews
+        if str(item["zone_id"]) in previous_demand
+        and type(previous_demand[str(item["zone_id"])]) is bool
+        and previous_signatures.get(str(item["zone_id"])) == zone_demand_signature(item)
+    }
