@@ -293,7 +293,7 @@ def summarize_zone_heat_demand(previews: list[Mapping[str, Any]]) -> dict[str, A
     """
     requesting = [str(item["zone_id"]) for item in previews if item.get("heat_demand") is True]
     satisfied = [str(item["zone_id"]) for item in previews if item.get("heat_demand") is False]
-    unknown = [str(item["zone_id"]) for item in previews if item.get("heat_demand") is None]
+    unknown = [str(item["zone_id"]) for item in previews if type(item.get("heat_demand")) is not bool]
     return {
         "requesting_zone_ids": requesting,
         "satisfied_zone_ids": satisfied,
