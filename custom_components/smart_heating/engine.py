@@ -304,3 +304,12 @@ def summarize_zone_heat_demand(previews: list[Mapping[str, Any]]) -> dict[str, A
         "passive": True,
         "commands": [],
     }
+
+
+def zone_demand_signature(preview: Mapping[str, Any]) -> tuple[Any, ...]:
+    """Identity of a shadow decision whose previous demand may be reused."""
+    return (
+        preview.get("target_temperature"),
+        preview.get("mode"),
+        preview.get("temperature_source"),
+    )
