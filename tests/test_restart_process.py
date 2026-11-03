@@ -4,8 +4,6 @@ The two workers deliberately share only a temporary HA config directory.
 They do not contact a running Home Assistant instance or actuate heating.
 """
 import asyncio
-import json
-import os
 from pathlib import Path
 from shutil import copytree
 import subprocess
