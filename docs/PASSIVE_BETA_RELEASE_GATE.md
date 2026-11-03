@@ -91,6 +91,8 @@ Die ersten drei ergänzenden Tests sind Bestandteil späterer Commits; ein volls
 
 - `tests/test_runtime.py::test_config_options_entities_and_reload`: `d0a194f` prüft zusätzlich nach dem zweiten Config-Entry-Reload den vollständigen Erhalt der Fensterkontakt-Entity-IDs und Kontaktrollen. HACS, Validate einschließlich Runtime und UI/Playwright auf genau `d0a194f` erfolgreich (03.11.2026). Kein Beleg für einen vollständigen HA-Prozessneustart.
 
+- `tests/test_runtime.py::test_config_options_entities_and_reload`: `d0a194f` kontrolliert zusätzlich die vollständige Zuordnung der Fensterkontakte und ihrer Kontaktrollen nach dem zweiten Config-Entry-Reload; HACS, Validate einschließlich Runtime und UI erfolgreich. Ein vollständiger HA-Prozessneustart ist damit weiterhin nicht geprüft.
+
 **Noch separat nachzuweisen:** End-to-End-Zusammenspiel der Sondermodi mit Sensor-/Thermostat-Ausfällen, realistische Migration und HA-Neustart, passive Parallelbetriebsprüfung mit vorhandener Tado-Automation sowie finaler CI-Nachweis und Freigaben. Einzelne Modelltests ersetzen diese Nachweise nicht.
 
 **CI-Hinweis:** Eine leere Liste klassischer Commit-Statusmeldungen ist kein Beleg für grüne GitHub-Actions-Checks. Die drei relevanten Workflows und deren SHA müssen separat bestätigt werden. Mergefähigkeit allein ist ebenfalls keine Freigabe.
