@@ -65,6 +65,9 @@ async def worker(stage, config_dir):
             management["internal"]["comfort_temperature"] = 22.5
             management["internal"]["night_temperature"] = 17.5
             management["internal"]["party"] = True
+            management["control_plane"]["operating_state"] = "LEGACY"
+            management["control_plane"]["confirmed_control_ownership"] = "legacy"
+            management["control_plane"]["switch_ready"] = False
             management["zones"] = [{
                 "id": "badezimmer", "name": "Badezimmer",
                 "comfort_temperature": 24.0, "night_temperature": 18.0,
@@ -94,6 +97,9 @@ async def worker(stage, config_dir):
             assert restored["internal"]["comfort_temperature"] == 22.5
             assert restored["internal"]["night_temperature"] == 17.5
             assert restored["internal"]["party"] is True
+            assert restored["control_plane"]["operating_state"] == "LEGACY"
+            assert restored["control_plane"]["confirmed_control_ownership"] == "legacy"
+            assert restored["control_plane"]["switch_ready"] is False
             assert restored["zones"][0]["comfort_temperature"] == 24.0
             assert restored["zones"][0]["thermostat_entities"] == ["climate.badezimmer_1"]
             assert restored["sensors"]["window"][0]["entity_id"] == "binary_sensor.bad_fenster"
