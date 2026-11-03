@@ -75,7 +75,7 @@ class RuntimeTests(unittest.TestCase):
                     async def record_legacy_automation_call(call):
                         legacy_automation_calls.append((call.service, dict(call.data)))
 
-                    for automation_service in ("turn_off", "toggle", "reload"):
+                    for automation_service in ("turn_on", "turn_off", "toggle", "reload"):
                         hass.services.async_register("automation", automation_service, record_legacy_automation_call)
 
                     flow = await hass.config_entries.flow.async_init("smart_heating", context={"source": "user"})
@@ -529,7 +529,7 @@ class RuntimeTests(unittest.TestCase):
                     self.assertEqual(
                         legacy_automation_calls,
                         [],
-                        "Passive lifecycle must not disable, toggle or reload the existing automation",
+                        "Passive lifecycle must not control or reload the existing automation",
                     )
                     self.assertEqual(
                         hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
