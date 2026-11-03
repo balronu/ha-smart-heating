@@ -100,7 +100,7 @@ class WeeklySchedule:
         return any(
             (window.start <= current < window.end)
             if window.start < window.end
-            else (current >= window.start or current < window.end)
+            else current >= window.start
             for window in self.windows[DAYS[local.weekday()]]
         ) or any(
             window.start > window.end and current < window.end
