@@ -153,9 +153,16 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         "chimney_temperature": float(config.get("chimney_temperature", 25.0)),
     }
     management = normalize_management(config.get("management"))
-    settings = next(iter(management["internal"]["zones"].values()), {})
-    context["comfort_temperature"] = settings.get("comfort_temperature", 20.0)
-    context["night_temperature"] = settings.get("night_temperature", 17.0)
+    internal = management["internal"]
+    settings = next(iter(internal["zones"].values()), {})
+    if internal.get("internal_only", False):
+        # Independent global targets: never derive them from a legacy zone.
+        context["comfort_temperature"] = internal["comfort_temperature"]
+        context["night_temperature"] = internal["night_temperature"]
+    else:
+        # Preserve the established compatibility behavior until cutover.
+        context["comfort_temperature"] = settings.get("comfort_temperature", 20.0)
+        context["night_temperature"] = settings.get("night_temperature", 17.0)
     context["special_modes"] = management.get("special_modes", [])
     context["control_plane"] = deepcopy(management.get("control_plane", {}))
     context["heating_sources"] = deepcopy(management.get("heating_sources", {}))
