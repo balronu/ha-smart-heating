@@ -710,7 +710,7 @@ class ScheduleTests(unittest.TestCase):
 
 
     def test_day_night_transition_invalidates_room_hysteresis_history(self):
-        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        schedule = WeeklySchedule.from_mapping({day: [{"start": "06:00", "end": "22:00"}] for day in ("monday", "tuesday")})
         internal = {"internal_only": True, "comfort_temperature": 21, "night_temperature": 18}
         base = dict(
             timezone="Europe/Berlin",
