@@ -23,7 +23,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE, CONF_OPERATION_MODE, CONF_SUMMER_MODE, MODE_COMPATIBILITY, MODE_FULL, SUMMER_COMPATIBILITY, SUMMER_HVAC_OFF, CONF_CLIMATE_ENTITY, CONF_OUTDOOR_TEMPERATURE, CONF_TADO_FALLBACK, DOMAIN, PLATFORMS, SIGNAL_ENTRY_UPDATED, VERSION
-from .engine import calculate_status, calculate_zone_target_previews, summarize_zone_heat_demand
+from .engine import calculate_status, calculate_zone_target_previews, summarize_zone_heat_demand, zone_demand_signature
 from .models import ScheduleValidationError, WeeklySchedule
 from .migration import preview_migration
 from .control import analyze_control_plane
@@ -100,11 +100,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # decision mode and measurement source. A changed context invalidates
         # hysteresis history instead of retaining stale demand.
         signatures = {
-            item["zone_id"]: (
-                item.get("target_temperature"),
-                item.get("mode"),
-                item.get("temperature_source"),
-            )
+            item["zone_id"]: zone_demand_signature(item)
             for item in zone_previews
         }
         changed = {
