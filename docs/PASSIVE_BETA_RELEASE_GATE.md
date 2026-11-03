@@ -89,6 +89,8 @@ Die ersten drei ergänzenden Tests sind Bestandteil späterer Commits; ein volls
 
 - `tests/test_runtime.py::test_config_options_entities_and_reload`: bestehende Automation `automation.heizung_automatik_ersetzt_node_red` im HA-Testzustand auf `on` gesetzt und vor beiden Config-Entry-Reloads auf unveränderten Zustand geprüft (`c5fe59d`); HACS, Validate einschließlich Runtime und UI erfolgreich. Zusätzlich prüft `fc243d1` den eingeschalteten Zustand **nach** dem ersten Reload; HACS, Validate einschließlich Runtime und UI für `fc243d1` erfolgreich. `4ec879b` ergänzt die Prüfung nach dem **zweiten** Reload; HACS, Validate einschließlich Runtime und UI auch für `4ec879b` erfolgreich. Dies ist ein simulierter passiver Parallelbetriebsnachweis, kein Produktivtest und kein Beleg für vollständige HA-Neustarts.
 
+- `tests/test_runtime.py::test_config_options_entities_and_reload`: `d0a194f` prüft zusätzlich nach dem zweiten Config-Entry-Reload den vollständigen Erhalt der Fensterkontakt-Entity-IDs und Kontaktrollen. HACS, Validate einschließlich Runtime und UI/Playwright auf genau `d0a194f` erfolgreich (03.11.2026). Kein Beleg für einen vollständigen HA-Prozessneustart.
+
 **Noch separat nachzuweisen:** End-to-End-Zusammenspiel der Sondermodi mit Sensor-/Thermostat-Ausfällen, realistische Migration und HA-Neustart, passive Parallelbetriebsprüfung mit vorhandener Tado-Automation sowie finaler CI-Nachweis und Freigaben. Einzelne Modelltests ersetzen diese Nachweise nicht.
 
 **CI-Hinweis:** Eine leere Liste klassischer Commit-Statusmeldungen ist kein Beleg für grüne GitHub-Actions-Checks. Die drei relevanten Workflows und deren SHA müssen separat bestätigt werden. Mergefähigkeit allein ist ebenfalls keine Freigabe.
