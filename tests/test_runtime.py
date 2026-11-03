@@ -534,6 +534,11 @@ class RuntimeTests(unittest.TestCase):
                     self.assertEqual(
                         hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
                         "on",
+                        "Legacy Tado automation must remain active after passive removal and re-add",
+                    )
+                    self.assertEqual(
+                        hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
+                        "on",
                         "Passive removal and fresh re-add must preserve the existing Tado automation",
                     )
                     from custom_components.smart_heating.control import async_apply_decision
