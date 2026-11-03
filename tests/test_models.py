@@ -676,3 +676,34 @@ class ScheduleTests(unittest.TestCase):
         self.assertFalse(summary["all_zones_known"])
         self.assertFalse(summary["boiler_control_authorized"])
         self.assertTrue(all(not item["commands"] for item in previews))
+
+
+    def test_disabled_zone_is_excluded_from_shadow_demand_and_history(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        base = dict(
+            now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            timezone="Europe/Berlin",
+            internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18},
+            zone_diagnostics=[
+                {"zone_id": "bathroom", "window_state": "closed", "room_temperature": 19.0},
+                {"zone_id": "bedroom", "window_state": "closed", "room_temperature": 17.0},
+            ],
+        )
+        first = calculate_zone_target_previews(
+            schedule, **base, zones=[{"id": "bathroom"}, {"id": "bedroom"}]
+        )
+        history, signatures = next_zone_demand_history(first)
+        self.assertEqual(set(history), {"bathroom", "bedroom"})
+        disabled = calculate_zone_target_previews(
+            schedule, **base,
+            zones=[{"id": "bathroom", "enabled": False}, {"id": "bedroom"}],
+            previous_demand=history,
+        )
+        history, signatures = next_zone_demand_history(disabled)
+        self.assertEqual([item["zone_id"] for item in disabled], ["bedroom"])
+        self.assertEqual(set(history), {"bedroom"})
+        self.assertEqual(set(signatures), {"bedroom"})
+        summary = summarize_zone_heat_demand(disabled)
+        self.assertEqual(summary["requesting_zone_ids"], ["bedroom"])
+        self.assertFalse(summary["boiler_control_authorized"])
+        self.assertTrue(all(item["commands"] == [] for item in disabled))
