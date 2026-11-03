@@ -8,7 +8,7 @@ _package = types.ModuleType("custom_components.smart_heating")
 _package.__path__ = [str(Path(__file__).parents[1] / "custom_components" / "smart_heating")]
 sys.modules.setdefault("custom_components.smart_heating", _package)
 
-from custom_components.smart_heating.engine import calculate_status, calculate_zone_target_previews, summarize_zone_heat_demand, zone_demand_signature
+from custom_components.smart_heating.engine import calculate_status, calculate_zone_target_previews, summarize_zone_heat_demand, zone_demand_signature, next_zone_demand_history
 from custom_components.smart_heating.models import ScheduleValidationError, WeeklySchedule, evaluate_decision, reset_actions, summer_hysteresis_state
 
 
@@ -534,3 +534,41 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(zone_demand_signature(original), zone_demand_signature(same))
         for changed in (new_target, new_mode, new_sensor):
             self.assertNotEqual(zone_demand_signature(original), zone_demand_signature(changed))
+
+
+    def test_window_open_then_closed_inside_deadband_requires_new_confirmation(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        base = dict(
+            now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            timezone="Europe/Berlin",
+            zones=[{"id": "bathroom"}],
+            internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18},
+        )
+        def preview(window, temperature, prior=None):
+            return calculate_zone_target_previews(
+                schedule, **base, previous_demand=prior,
+                zone_diagnostics=[{"zone_id": "bathroom", "window_state": window,
+                                   "room_temperature": temperature}],
+            )
+        initial = preview("closed", 20.5)
+        history, _ = next_zone_demand_history(initial)
+        self.assertIs(history["bathroom"], True)
+        opened = preview("open", 20.5, history)
+        history, _ = next_zone_demand_history(opened)
+        self.assertEqual(history, {})
+        reopened = preview("closed", 20.9, history)
+        self.assertIsNone(reopened[0]["heat_demand"])
+        history, _ = next_zone_demand_history(reopened)
+        self.assertEqual(history, {})
+        confirmed = preview("closed", 20.5, history)
+        self.assertIs(confirmed[0]["heat_demand"], True)
+        self.assertTrue(all(not item["commands"] for batch in (initial, opened, reopened, confirmed) for item in batch))
+
+    def test_missing_sensor_clears_verified_history_across_updates(self):
+        first = [{"zone_id": "bedroom", "heat_demand": False, "target_temperature": 18,
+                  "mode": "comfort", "temperature_source": "sensor.bedroom"}]
+        history, _ = next_zone_demand_history(first)
+        self.assertEqual(history, {"bedroom": False})
+        missing = [{**first[0], "heat_demand": None, "temperature_source": None}]
+        history, _ = next_zone_demand_history(missing)
+        self.assertEqual(history, {})
