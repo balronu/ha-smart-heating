@@ -731,6 +731,35 @@ async def _ws_admin_internal_set(hass: HomeAssistant, connection: websocket_api.
     """Persist isolated helper-equivalent values without issuing heating commands."""
     entry, management = _admin_entry(hass, msg["entry_id"])
     item = msg["item"]
+    zone_id = item.get("zone_id")
+    if zone_id is not None:
+        valid_zones = {str(zone.get("id")) for zone in management.get("zones", []) if zone.get("id")}
+        if not isinstance(zone_id, str) or zone_id not in valid_zones:
+            connection.send_error(msg["id"], "invalid_configuration", "unknown_internal_zone")
+            return
+        if set(item) - {"zone_id", "comfort_temperature", "night_temperature"} or len(item) < 2:
+            connection.send_error(msg["id"], "invalid_configuration", "invalid_internal_zone_fields")
+            return
+        zone_targets = deepcopy(management["internal"].get("zones", {}))
+        targets = dict(zone_targets.get(zone_id, {}))
+        for key in ("comfort_temperature", "night_temperature"):
+            if key not in item:
+                continue
+            value = item[key]
+            if type(value) not in (int, float) or not 5 <= value <= 35:
+                connection.send_error(msg["id"], "invalid_configuration", "invalid_internal_temperature")
+                return
+            targets[key] = float(value)
+        zone_targets[zone_id] = targets
+        management["internal"]["zones"] = zone_targets
+        try:
+            _admin_save(hass, entry, management)
+            await _async_entry_updated(hass, entry)
+        except ValueError as err:
+            connection.send_error(msg["id"], "invalid_configuration", str(err))
+            return
+        connection.send_result(msg["id"], {"internal": management["internal"], "active_control": False})
+        return
     allowed = {"enabled", "internal_only", "operating_mode", "comfort_temperature", "night_temperature",
                "party", "visit", "return_home", "summer", "chimney_sweep"}
     if set(item) - allowed:
