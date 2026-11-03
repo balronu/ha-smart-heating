@@ -7,7 +7,7 @@
 <p align="center"><a href="README.md">🇩🇪 Deutsch (primary)</a> · <a href="README.en.md">🇬🇧 English</a></p>
 
 > [!IMPORTANT]
-> **Stable – Coming Soon.** Smart Heating is currently in beta and undergoing real-world testing. **No stable release is available yet.** The development-branch manifest currently declares `0.1.0-beta.52`; this is not evidence that a release has been approved or published. The current integration is **passive**: it displays schedules and decisions but does **not** autonomously control heating. Active control requires separate validation and explicit approval.
+> **Stable – Coming Soon.** Smart Heating is currently in beta and undergoing real-world testing. **No stable release is available yet.** The development-branch manifest currently declares `0.1.0-beta.53`; this is not evidence that a release has been approved or published. The current integration is **passive**: it displays schedules and decisions but does **not** autonomously control heating. Active control requires separate validation and explicit approval.
 
 ## Overview
 

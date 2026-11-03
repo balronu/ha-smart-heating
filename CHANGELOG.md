@@ -1,11 +1,18 @@
-## Unreleased – passive Beta candidate (development branch)
+## v0.1.0-beta.53 – Lovelace iPhone hotfix (release candidate)
+
+- Fix: preserve Lovelace scroll position when dashboard content refreshes after changes.
+- Fix: improve mobile readability of diagnostic priority rows and special-mode buttons.
+- Frontend-only hotfix; existing heating automation remains responsible for control. No active heating commands introduced.
+- iPhone field validation remains required after publication; this changelog entry alone does not publish a release.
+
+## Previous development notes – passive beta.52 candidate
 
 - Internal, room-specific target temperatures and passive heating-demand previews with window, sensor, thermostat and hysteresis safety checks.
 - Read-only thermostat capability diagnostics, including supported setpoint ranges and step sizes.
 - All 17 configuration-mutating WebSocket commands require Home Assistant administrator privileges; full administrative diagnostics also require admin access.
 - Non-admin denial regression tests, WebSocket handler inventory and mobile UI regression coverage.
 - No automatic climate, boiler or helper actuation. The existing heating automation must remain active.
-- Manifest currently declares `0.1.0-beta.52`. This entry does **not** represent a published release or an approved installation.
+- Manifest currently declares `0.1.0-beta.53`. This entry does **not** represent a published release or an approved installation.
 
 ## v0.1.0-beta.46 (vorbereitet – passiver Betrieb)
 
