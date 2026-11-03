@@ -33,3 +33,21 @@ Stand: 2026-11-03. Dieses Dokument ist eine Prüf- und Freigabeliste, **keine** 
 ## Verbindliche Grenzen
 
 Keine automatische Heizungssteuerung, keine Umschaltung oder Deaktivierung der bestehenden Automation, keine neuen Backups oder Snapshots und keine Löschung vorhandener Helfer oder Fenstersensoren. Aktive Heizungsregelung ist ein eigener späterer Meilenstein mit separater Freigabe.
+
+## Prüfmatrix vor Freigabe (03.11.2026)
+
+Die folgenden Szenarien sind als getrennte automatisierte Nachweise mit erwarteter Entscheidung, tatsächlichem Ergebnis und Test-Commit zu dokumentieren. Eine bestehende Testdatei allein gilt nicht als erfolgreicher Nachweis.
+
+| Szenario | Erwartetes Verhalten |
+| --- | --- |
+| Schornsteinfeger zusammen mit Party/Besuch/Heimweg/Sommer | Schornsteinfeger hat Vorrang; keine ungewollte Aktorsteuerung im passiven Modus |
+| Fenster offen oder gekippt | Raumbezogene Sperre nach konfigurierter Kontaktrolle; kein Verlust von Fenstersensoren |
+| Fenster-/Temperatursensor unknown oder unavailable | Definierte sichere Ersatzentscheidung; kein stilles Umdeuten zu einem gültigen Messwert |
+| Thermostat nicht erreichbar | Heizbedarf als nicht ausführbar kennzeichnen; keine Befehle |
+| Wechsel Tag/Nacht und Sondermodus | Zielwerte und Hysteresehistorie korrekt neu bewerten |
+| HA-Neustart und Config-Entry-Reload | Interne Sollwerte und Wochenplan bleiben erhalten; keine Aktorbefehle |
+| Migration alter Helfer | Read-only Inventar, nachvollziehbare Zuordnung, keine Löschung oder Überschreibung |
+| Admin-/Nichtadmin-WebSocket | Mutationen nur für Administratoren; keine Rechteausweitung |
+| Parallelbetrieb mit bestehender Tado-Automation | Ausschließlich Vorschau; bestehende Automation bleibt aktiv |
+
+**CI-Hinweis:** Eine leere Liste klassischer Commit-Statusmeldungen ist kein Beleg für grüne GitHub-Actions-Checks. Die drei relevanten Workflows und deren SHA müssen separat bestätigt werden. Mergefähigkeit allein ist ebenfalls keine Freigabe.
