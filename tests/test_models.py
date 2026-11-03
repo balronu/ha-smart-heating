@@ -8,7 +8,7 @@ _package = types.ModuleType("custom_components.smart_heating")
 _package.__path__ = [str(Path(__file__).parents[1] / "custom_components" / "smart_heating")]
 sys.modules.setdefault("custom_components.smart_heating", _package)
 
-from custom_components.smart_heating.engine import calculate_status
+from custom_components.smart_heating.engine import calculate_status, calculate_zone_target_previews
 from custom_components.smart_heating.models import ScheduleValidationError, WeeklySchedule, evaluate_decision, reset_actions, summer_hysteresis_state
 
 
@@ -341,3 +341,28 @@ class ScheduleTests(unittest.TestCase):
             self.assertEqual(schedule.active_window_at(instant, timezone).target_temperature, 23)
         self.assertFalse(schedule.active_at(tuesday_late, timezone))
         self.assertIsNone(schedule.active_window_at(tuesday_late, timezone))
+
+
+    def test_isolated_multi_zone_targets_remain_independent_and_passive(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        result = calculate_zone_target_previews(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            timezone="Europe/Berlin",
+            zones=[{"id": "bathroom", "name": "Bad"}, {"id": "bedroom", "name": "Schlafzimmer"}],
+            internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18,
+                      "zones": {"bathroom": {"comfort_temperature": 24}, "bedroom": {"comfort_temperature": 18}}},
+            overrides={"heating_permission": True},
+        )
+        self.assertEqual([zone["target_temperature"] for zone in result], [24, 18])
+        self.assertTrue(all(zone["passive"] and zone["commands"] == [] for zone in result))
+
+    def test_multi_zone_preview_is_hidden_in_legacy_mode(self):
+        result = calculate_zone_target_previews(
+            WeeklySchedule.from_mapping({}),
+            now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            timezone="Europe/Berlin",
+            zones=[{"id": "bathroom"}],
+            internal={"internal_only": False},
+        )
+        self.assertEqual(result, [])
