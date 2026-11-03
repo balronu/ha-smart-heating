@@ -392,7 +392,7 @@ test.describe("native dashboard beta.51", () => {
     await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");delete window.hass.states["input_number.heiztemperatur"];delete window.hass.states["input_boolean.party"];card._render();});
     const card=page.locator("smart-heating-card").first();
     await expect(card.locator('[data-entity="input_number.heiztemperatur"][data-adjust="1"]')).toBeDisabled();
-    await expect(card.locator('[data-toggle="input_boolean.party"]')).toBeDisabled();
+    await expect(card.locator('[data-mode-source="input_boolean.party"]')).toBeDisabled();
     expect(await page.evaluate(()=>window.__services)).toEqual([]);
   });
   test("diagnostics remain expanded after relevant state updates",async({page})=>{
@@ -401,6 +401,64 @@ test.describe("native dashboard beta.51", () => {
     await expect(card.locator('details[data-panel="diagnostics"]')).toHaveAttribute("open","");
     await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");window.hass={...window.hass,states:{...window.hass.states,"input_number.heiztemperatur":{state:"22",attributes:{min:5,max:30,step:0.5}}}};card.hass=window.hass;});
     await expect(card.locator('details[data-panel="diagnostics"]')).toHaveAttribute("open","");
+  });
+  test("updates helper states without rebuilding the DOM or losing scroll position",async({page})=>{
+    const card=page.locator("smart-heating-card").first();
+    await page.evaluate(()=>{
+      const card=document.querySelector("smart-heating-card");
+      card.__originalApp=card.querySelector(".sh-app");
+      card.__originalButton=card.querySelector('[data-toggle="input_boolean.party"]');
+      window.scrollTo(0,200);
+      window.hass={...window.hass,states:{...window.hass.states,
+        "input_number.heiztemperatur":{state:"22",attributes:{min:5,max:30,step:0.5}},
+        "input_boolean.party":{state:"on"}}};
+      card.hass=window.hass;
+    });
+    const result=await page.evaluate(()=>{
+      const card=document.querySelector("smart-heating-card");
+      return {sameApp:card.__originalApp===card.querySelector(".sh-app"),
+        sameButton:card.__originalButton===card.querySelector('[data-toggle="input_boolean.party"]'),
+        temp:card.querySelector('[data-temp="input_number.heiztemperatur"] strong')?.textContent,
+        mode:card.querySelector('[data-toggle="input_boolean.party"]')?.getAttribute("aria-pressed")};
+    });
+    expect(result.sameApp).toBe(true);
+    expect(result.sameButton).toBe(true);
+    expect(result.temp).toContain("22");
+    expect(result.mode).toBe("true");
+  });
+  test("opens climate room details through Home Assistant more-info",async({page})=>{
+    const card=page.locator("smart-heating-card").first();
+    await page.evaluate(()=>{window.__moreInfo=[];document.querySelector("smart-heating-card").addEventListener("hass-more-info",e=>window.__moreInfo.push(e.detail.entityId));});
+    const room=card.locator(".sh-room[data-climate]").first();
+    if(await room.count()){await room.click();expect((await page.evaluate(()=>window.__moreInfo)).length).toBe(1);}
+  });
+  test("renders configured custom special modes dynamically",async({page})=>{
+    await page.evaluate(()=>{
+      const card=document.querySelector("smart-heating-card");
+      card._data.options={...(card._data.options||{}),management:{...(card._data.options?.management||{}),special_modes:[{id:"custom",name:"Zusatzbetrieb",status_source:"input_boolean.zusatzbetrieb",enabled:true}]}};
+      window.hass={...window.hass,states:{...window.hass.states,"input_boolean.zusatzbetrieb":{state:"on"}}};
+      card.hass=window.hass;card._render();
+    });
+    const card=page.locator("smart-heating-card").first();
+    await expect(card.locator('[data-mode-source="input_boolean.zusatzbetrieb"]')).toContainText("Zusatzbetrieb");
+    await expect(card.locator('[data-mode-source="input_boolean.zusatzbetrieb"]')).toHaveAttribute("aria-pressed","true");
+    await expect(card.locator('[data-mode-source="input_boolean.party"]')).toHaveCount(0);
+  });
+  test("shows infrared panel in bathroom and respects opt-in control",async({page})=>{
+    await page.evaluate(()=>{
+      const card=document.querySelector("smart-heating-card");
+      card._data.options={...(card._data.options||{}),management:{...(card._data.options?.management||{}),zones:[{id:"bathroom",name:"Badezimmer",type:"infrared",switch_entities:["switch.bad_ir"],thermostats:["climate.bathroom"]}]}};
+      window.hass={...window.hass,states:{...window.hass.states,"switch.bad_ir":{state:"on"}}};
+      card.hass=window.hass;card._render();
+    });
+    const card=page.locator("smart-heating-card").first();
+    const ir=card.locator('[data-ir-switch="switch.bad_ir"]');
+    await expect(ir).toContainText("Infrarot-Panel: Ein");
+    await expect(ir).toBeDisabled();
+    await page.evaluate(()=>{const card=document.querySelector("smart-heating-card");card._config={...card._config,allow_manual_ir_control:true};card._render();});
+    await expect(ir).toBeEnabled();
+    await ir.click();
+    expect(await page.evaluate(()=>window.__services)).toContainEqual({domain:"switch",service:"turn_off",data:{entity_id:"switch.bad_ir"}});
   });
   test("does not overflow at mobile viewport widths",async({page},testInfo)=>{
     const card=page.locator("smart-heating-card").first();
