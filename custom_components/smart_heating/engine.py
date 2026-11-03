@@ -317,7 +317,6 @@ def zone_demand_signature(preview: Mapping[str, Any]) -> tuple[Any, ...]:
 
 def next_zone_demand_history(
     previews: list[Mapping[str, Any]],
-    previous_signatures: Mapping[str, tuple[Any, ...]] | None = None,
 ) -> tuple[dict[str, bool], dict[str, tuple[Any, ...]]]:
     """Retain only verified shadow decisions; unknown states erase history.
 
