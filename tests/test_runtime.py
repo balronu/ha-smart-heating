@@ -369,6 +369,12 @@ class RuntimeTests(unittest.TestCase):
                     self.assertTrue(reloaded_internal["internal_only"])
                     self.assertEqual(reloaded_internal["comfort_temperature"], 22.5)
                     self.assertEqual(reloaded_internal["night_temperature"], 17.5)
+                    # The pre-existing weekly plan must survive the same reload
+                    # alongside internal targets and room/contact assignments.
+                    self.assertEqual(
+                        entry.data["schedule"]["monday"],
+                        [{"start": "06:00:00", "end": "08:00:00", "target_temperature": 20.5}],
+                    )
                     self.assertEqual({item["entity_id"]: item["contact_role"] for item in persisted_after_reload["sensors"]["window"]}, first_save["persisted_contact_roles"])
                     reloaded_zone = next(item for item in persisted_after_reload["zones"] if item["id"] == "badezimmer")
                     self.assertEqual(reloaded_zone["thermostat_entities"], room_item["thermostat_entities"])
