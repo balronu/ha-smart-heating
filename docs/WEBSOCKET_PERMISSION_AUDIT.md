@@ -1,3 +1,19 @@
+## Nachtrag: Implementierung und Verifikation (2026-11-03)
+
+Der ursprüngliche Befund unten dokumentiert den **damaligen** Stand und ist nicht mehr der aktuelle Codezustand.
+
+- Alle **17 mutierenden Handler** tragen inzwischen `@websocket_api.require_admin` (Commit `48ec807`).
+- Der administrative Lesehandler `smart_heating/admin/get` ist ebenfalls auf Administratoren beschränkt (Commit `f825545`).
+- Laufzeittests prüfen verweigerte Schreibzugriffe mit authentifiziertem Nicht-Administrator und unveränderte Entry-Optionen; die Administrator-Verbindung wird unabhängig getestet (Commit `5816bdb`).
+- Ein zusätzlicher Negativtest prüft `admin/get` (Commit `e6d9f76`).
+- Der statische Test inventarisiert alle **23 Handler**, sichert die 17 Mutationen und den administrativen Lesehandler gegen versehentliche Entfernung der Berechtigungsprüfung ab (Commit `8c81860`).
+- Die weiteren fünf Lese-/Simulations-/Vorschauhandler bleiben lesend: `plan/get`, `simulate`, `migration/preview`, `admin/validate`, `cleanup/preview`. Die Rückgaben enthalten teils Konfigurations-/Diagnosedaten; eine feinere Trennung für Nicht-Administratoren ist bei späterer Berechtigungsmodellierung erneut zu prüfen.
+- Für `e6d9f76` waren HACS, Validate und UI erfolgreich. Für `8c81860` waren HACS und Validate erfolgreich; UI war zum Zeitpunkt dieses Nachtrags noch nicht abgeschlossen.
+
+**Freigabestatus:** Issue #56 bleibt bis zur vollständigen CI-Bestätigung und abschließenden Prüfung offen. Die passive Beta wird dadurch nicht automatisch veröffentlicht.
+
+---
+
 # Smart Heating – WebSocket-Berechtigungsaudit (2026-11-03)
 
 Status: **OFFEN / Beta-Freigabeblocker**. Read-only-Quellcodeprüfung im Branch `feature/internal-helper-state`. Kein produktiver Eingriff.
