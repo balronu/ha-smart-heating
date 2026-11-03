@@ -13,6 +13,10 @@ import sys
 import tempfile
 import unittest
 
+# Direct worker execution places tests/ rather than the repository root on sys.path.
+REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPOSITORY_ROOT))
+
 try:
     import custom_components
     from homeassistant import loader
