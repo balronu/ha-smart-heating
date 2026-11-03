@@ -833,3 +833,49 @@ class ScheduleTests(unittest.TestCase):
         self.assertFalse(summary["boiler_control_authorized"])
         self.assertEqual(summary["commands"], [])
         self.assertTrue(all(item["commands"] == [] for item in previews + assessments))
+
+
+    def test_window_and_thermostat_recovery_requires_fresh_safe_demand(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        zone = [{"id": "bathroom"}]
+        internal = {"internal_only": True, "comfort_temperature": 21, "night_temperature": 18}
+        def preview(window_state, measured, offline, history=None):
+            return calculate_zone_target_previews(
+                schedule, now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+                timezone="Europe/Berlin", zones=zone, internal=internal,
+                zone_diagnostics=[{"zone_id": "bathroom", "window_state": window_state,
+                                   "room_temperature": measured, "temperature_source": "sensor.bath",
+                                   "thermostat_count": 1, "unavailable_thermostats": offline}],
+                previous_demand=history or {},
+            )
+        initial = preview("closed", 20.0, 0)
+        self.assertIs(initial[0]["heat_demand"], True)
+        history, signatures = next_zone_demand_history(initial)
+        self.assertEqual(history, {"bathroom": True})
+
+        opened = preview("open", 20.0, 0, history)
+        self.assertIsNone(opened[0]["heat_demand"])
+        history, signatures = next_zone_demand_history(opened)
+        self.assertEqual(history, {})
+
+        closed_deadband = preview("closed", 20.9, 0, history)
+        self.assertIsNone(closed_deadband[0]["heat_demand"])
+        self.assertEqual(next_zone_demand_history(closed_deadband)[0], {})
+
+        closed_cold = preview("closed", 20.0, 0)
+        self.assertIs(closed_cold[0]["heat_demand"], True)
+        history, signatures = next_zone_demand_history(closed_cold)
+
+        offline = preview("closed", 20.0, 1, history)
+        self.assertIsNone(offline[0]["heat_demand"])
+        history, signatures = next_zone_demand_history(offline)
+        self.assertEqual(history, {})
+
+        online_deadband = preview("closed", 20.9, 0, history)
+        self.assertIsNone(online_deadband[0]["heat_demand"])
+        online_cold = preview("closed", 20.0, 0, history)
+        self.assertIs(online_cold[0]["heat_demand"], True)
+        self.assertFalse(summarize_zone_heat_demand(online_cold)["boiler_control_authorized"])
+        self.assertTrue(all(item["commands"] == [] for batch in (
+            initial, opened, closed_deadband, closed_cold, offline,
+            online_deadband, online_cold) for item in batch))
