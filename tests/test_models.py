@@ -642,3 +642,37 @@ class ScheduleTests(unittest.TestCase):
         confirmed = step("closed", 23.5, 18.1)
         self.assertIs(confirmed["bathroom"]["heat_demand"], True)
         self.assertIs(confirmed["bedroom"]["heat_demand"], False)
+
+
+    def test_multizone_shadow_offline_room_does_not_block_healthy_room(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        previews = calculate_zone_target_previews(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            timezone="Europe/Berlin",
+            zones=[{"id": "bathroom"}, {"id": "bedroom"}],
+            internal={
+                "internal_only": True, "comfort_temperature": 21,
+                "night_temperature": 18,
+                "zones": {
+                    "bathroom": {"comfort_temperature": 24},
+                    "bedroom": {"comfort_temperature": 18},
+                },
+            },
+            zone_diagnostics=[
+                {"zone_id": "bathroom", "window_state": "closed",
+                 "room_temperature": 23.0, "thermostat_count": 1,
+                 "unavailable_thermostats": 1, "temperature_source": "sensor.bath"},
+                {"zone_id": "bedroom", "window_state": "closed",
+                 "room_temperature": 17.0, "thermostat_count": 1,
+                 "unavailable_thermostats": 0, "temperature_source": "sensor.bed"},
+            ],
+            previous_demand={"bathroom": True, "bedroom": False},
+        )
+        summary = summarize_zone_heat_demand(previews)
+        self.assertEqual([item["heat_demand"] for item in previews], [None, True])
+        self.assertEqual(summary["unknown_zone_ids"], ["bathroom"])
+        self.assertEqual(summary["requesting_zone_ids"], ["bedroom"])
+        self.assertFalse(summary["all_zones_known"])
+        self.assertFalse(summary["boiler_control_authorized"])
+        self.assertTrue(all(not item["commands"] for item in previews))
