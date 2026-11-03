@@ -448,6 +448,7 @@ async def _ws_get_status(hass: HomeAssistant, connection: websocket_api.ActiveCo
         timezone=config.get("timezone", "Europe/Berlin"),
         zones=management["zones"],
         internal=internal,
+        zone_diagnostics=zone_backend_summary(hass, management["zones"], management),
         overrides=_read_overrides(hass, entry),
         context=_read_context(hass, entry),
     )
