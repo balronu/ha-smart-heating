@@ -237,6 +237,41 @@ class RuntimeTests(unittest.TestCase):
                             self.assertFalse(response["success"])
                             self.assertEqual(entry.options, options_before)
                         messages.clear()
+                    # Valid websocket schemas ensure the authorization layer,
+                    # rather than schema validation, rejects these mutations.
+                    additional_mutations = [
+                        ("smart_heating/admin/person/set", {"item": {"id": "blocked"}}),
+                        ("smart_heating/admin/zone/set", {"item": {"id": "blocked"}}),
+                        ("smart_heating/admin/area/relevance", {"area_id": "blocked", "relevant": True}),
+                        ("smart_heating/admin/sensor/set", {"item": {"id": "blocked"}}),
+                        ("smart_heating/admin/controller/set", {"item": {}}),
+                        ("smart_heating/admin/outdoor/set", {"item": {}}),
+                        ("smart_heating/admin/safety/set", {"item": {}}),
+                        ("smart_heating/admin/system/set", {"item": {}}),
+                        ("smart_heating/admin/special_mode/set", {"item": {"id": "blocked"}}),
+                    ]
+                    for offset, (message_type, payload) in enumerate(additional_mutations):
+                        message_id = 220 + offset
+                        options_before = dict(entry.options)
+                        connection.async_handle({
+                            "id": message_id, "type": message_type,
+                            "entry_id": entry.entry_id, **payload,
+                        })
+                        await hass.async_block_till_done()
+                        responses = [
+                            json.loads(item) if isinstance(item, (bytes, bytearray)) else item
+                            for item in messages
+                        ]
+                        response = next(
+                            (item for item in responses if item.get("id") == message_id), None
+                        )
+                        with self.subTest(message_type=message_type):
+                            self.assertIsNotNone(response, responses)
+                            self.assertEqual(response["type"], "result")
+                            self.assertFalse(response["success"])
+                            self.assertEqual(response["error"]["code"], "unauthorized")
+                            self.assertEqual(entry.options, options_before)
+                        messages.clear()
                     connection.user.is_admin = True
 
                     first_save = await save_room(101, ("tilt", "open"))
