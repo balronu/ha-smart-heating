@@ -496,3 +496,30 @@ class ScheduleTests(unittest.TestCase):
             previous_demand={"bathroom": True},
         )
         self.assertIsNone(previews[0]["heat_demand"])
+
+
+    def test_shadow_hysteresis_state_is_not_reused_after_missing_measurement(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        base = dict(
+            now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            timezone="Europe/Berlin",
+            zones=[{"id": "bathroom"}],
+            internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18},
+        )
+        first = calculate_zone_target_previews(
+            schedule, **base,
+            zone_diagnostics=[{"zone_id": "bathroom", "window_state": "closed", "room_temperature": 20.5}],
+        )
+        self.assertIs(first[0]["heat_demand"], True)
+        missing = calculate_zone_target_previews(
+            schedule, **base,
+            previous_demand={"bathroom": first[0]["heat_demand"]},
+            zone_diagnostics=[{"zone_id": "bathroom", "window_state": "closed", "room_temperature": None}],
+        )
+        self.assertIsNone(missing[0]["heat_demand"])
+        recovered = calculate_zone_target_previews(
+            schedule, **base,
+            previous_demand={},
+            zone_diagnostics=[{"zone_id": "bathroom", "window_state": "closed", "room_temperature": 20.9}],
+        )
+        self.assertIsNone(recovered[0]["heat_demand"])
