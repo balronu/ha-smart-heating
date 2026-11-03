@@ -263,3 +263,25 @@ def calculate_zone_target_previews(
             "commands": [],
         })
     return result
+
+
+def summarize_zone_heat_demand(previews: list[Mapping[str, Any]]) -> dict[str, Any]:
+    """Summarize passive room demand; never authorize boiler operation.
+
+    A single requesting room does not grant ownership of the shared boiler.
+    Unknown or missing room measurements remain visible and cannot be treated
+    as a reliable all-clear.
+    """
+    requesting = [str(item["zone_id"]) for item in previews if item.get("heat_demand") is True]
+    satisfied = [str(item["zone_id"]) for item in previews if item.get("heat_demand") is False]
+    unknown = [str(item["zone_id"]) for item in previews if item.get("heat_demand") is None]
+    return {
+        "requesting_zone_ids": requesting,
+        "satisfied_zone_ids": satisfied,
+        "unknown_zone_ids": unknown,
+        "any_heat_demand": bool(requesting),
+        "all_zones_known": bool(previews) and not unknown,
+        "boiler_control_authorized": False,
+        "passive": True,
+        "commands": [],
+    }
