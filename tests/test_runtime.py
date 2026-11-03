@@ -132,6 +132,7 @@ class RuntimeTests(unittest.TestCase):
                         self.assertIsNotNone(result, payloads)
                         messages.clear()
                         self.assertEqual(result["type"], "result", result)
+                        self.assertTrue(result.get("success"), result)
                         return result["result"]
 
                     async def save_room(message_id, roles):
