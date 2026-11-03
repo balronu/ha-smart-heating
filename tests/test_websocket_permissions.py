@@ -19,7 +19,37 @@ MUTATIONS = {
 }
 
 
+ADMIN_READS = {"_ws_admin_get"}
+READ_ONLY = {
+    "_ws_cleanup_preview", "_ws_get_status", "_ws_simulate",
+    "_ws_migration_preview", "_ws_admin_validate",
+}
+
+
 class WebSocketPermissionTests(unittest.TestCase):
+    def test_websocket_permission_inventory_is_complete(self):
+        tree = ast.parse(SOURCE.read_text(encoding="utf-8"))
+        handlers = {
+            node.name: node for node in tree.body
+            if isinstance(node, ast.AsyncFunctionDef) and node.name.startswith("_ws_")
+        }
+        self.assertEqual(set(handlers), MUTATIONS | ADMIN_READS | READ_ONLY)
+        for name in sorted(MUTATIONS | ADMIN_READS):
+            with self.subTest(handler=name):
+                decorators = {ast.unparse(d) for d in handlers[name].decorator_list}
+                self.assertIn("websocket_api.require_admin", decorators)
+
+    def test_full_administrative_read_requires_admin(self):
+        tree = ast.parse(SOURCE.read_text(encoding="utf-8"))
+        handler = next(
+            node for node in tree.body
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "_ws_admin_get"
+        )
+        self.assertIn(
+            "websocket_api.require_admin",
+            {ast.unparse(d) for d in handler.decorator_list},
+        )
+
     def test_every_configuration_mutation_requires_admin(self):
         tree = ast.parse(SOURCE.read_text(encoding="utf-8"))
         handlers = {
