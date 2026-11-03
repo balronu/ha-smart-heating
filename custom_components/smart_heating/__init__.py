@@ -96,10 +96,12 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
     for mode in ("party", "visit", "return_home", "summer", "chimney_sweep"):
         if internal.get(mode):
             result[mode] = True
-    for mode, settings in management.get("safety", {}).get("modes", {}).items():
-        helper_entity = settings.get("helper_entity") if isinstance(settings, dict) else ""
-        if isinstance(helper_entity, str) and helper_entity and settings.get("enabled", False):
-            result[mode] = hass.states.is_state(helper_entity, "on")
+    # Internal-only test state must not be overwritten by legacy helper values.
+    if not internal.get("internal_only", False):
+        for mode, settings in management.get("safety", {}).get("modes", {}).items():
+            helper_entity = settings.get("helper_entity") if isinstance(settings, dict) else ""
+            if isinstance(helper_entity, str) and helper_entity and settings.get("enabled", False):
+                result[mode] = hass.states.is_state(helper_entity, "on")
     presence = person_presence(hass, management["persons"])
     if presence["home"]:
         result["someone_home"] = True
@@ -107,9 +109,10 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
         result["away"] = True
     if presence["unknown"]:
         result["presence_unknown"] = True
-    for key, entity_id in config.get("special_modes", {}).items():
-        if isinstance(entity_id, str) and entity_id:
-            result[key] = hass.states.is_state(entity_id, "on")
+    if not internal.get("internal_only", False):
+        for key, entity_id in config.get("special_modes", {}).items():
+            if isinstance(entity_id, str) and entity_id:
+                result[key] = hass.states.is_state(entity_id, "on")
     from .backend_engine import evaluate_window_contacts
     configured_contacts = []
     configured_ids = set()
