@@ -66,19 +66,45 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.entry = entry
         self.runtime_management_raw: dict[str, Any] = {}
+        self._previous_zone_demand: dict[str, bool] = {}
         super().__init__(hass, config_entry=entry, logger=_LOGGER, name=DOMAIN)
 
     async def _async_update_data(self) -> dict[str, Any]:
         config = effective_config(self.entry)
         management = config.get("management", {})
         self.runtime_management_raw = deepcopy(management) if isinstance(management, Mapping) else {}
-        return calculate_status(
+        status = calculate_status(
             load_schedule(config),
             now=datetime.now().astimezone(),
             timezone=config.get("timezone", "Europe/Berlin"),
             overrides=_read_overrides(self.hass, self.entry),
             context=_read_context(self.hass, self.entry),
         )
+        normalized = normalize_management(management)
+        internal = normalized["internal"]
+        if not internal.get("internal_only", False):
+            self._previous_zone_demand.clear()
+        zone_previews = calculate_zone_target_previews(
+            load_schedule(config),
+            now=datetime.now().astimezone(),
+            timezone=config.get("timezone", "Europe/Berlin"),
+            zones=normalized["zones"],
+            internal=internal,
+            zone_diagnostics=zone_backend_summary(self.hass, normalized["zones"], normalized),
+            previous_demand=self._previous_zone_demand,
+            overrides=_read_overrides(self.hass, self.entry),
+            context=_read_context(self.hass, self.entry),
+        )
+        # Keep history only while the isolated shadow mode is active.
+        # Unknown readings invalidate previous certainty rather than carrying it.
+        self._previous_zone_demand = {
+            item["zone_id"]: item["heat_demand"]
+            for item in zone_previews
+            if type(item.get("heat_demand")) is bool
+        }
+        status["zone_target_previews"] = zone_previews
+        status["zone_heat_demand_summary"] = summarize_zone_heat_demand(zone_previews)
+        return status
 
 
 def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
@@ -441,17 +467,6 @@ async def _ws_get_status(hass: HomeAssistant, connection: websocket_api.ActiveCo
     management = normalize_management(config.get("management"))
     status["presence"] = person_presence(hass, management["persons"])
     status["zones"] = zone_status(hass, management["zones"])
-    internal = management["internal"]
-    zone_target_previews = calculate_zone_target_previews(
-        load_schedule(config),
-        now=datetime.now().astimezone(),
-        timezone=config.get("timezone", "Europe/Berlin"),
-        zones=management["zones"],
-        internal=internal,
-        zone_diagnostics=zone_backend_summary(hass, management["zones"], management),
-        overrides=_read_overrides(hass, entry),
-        context=_read_context(hass, entry),
-    )
     connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "schedule": load_schedule(config).as_dict(), "status": status, "options": {"name": entry.title, "timezone": config.get("timezone"), "operation_mode": config.get("operation_mode", "compatibility"), "discovery": config.get("discovery", {}), "special_modes": config.get("special_modes", {}), "control_plane": analyze_control_plane(hass, config), "management": management, "areas": area_suggestions(hass, management), "persons_discovered": discover_persons(hass)}})
 
 
@@ -537,6 +552,7 @@ async def _ws_admin_get(hass: HomeAssistant, connection: websocket_api.ActiveCon
         item for item in window_contacts["contacts"]
         if item.get("entity_id") in configured_ids and not item.get("ignored")
     ]
+    zone_target_previews = (coordinator.data or {}).get("zone_target_previews", []) if coordinator else []
     connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contacts, "window_role_diagnostics": build_window_role_diagnostics(config_entry_options=options_management, runtime_management=runtime_management, readback_management=management, assigned_contacts=assigned_contacts), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "backend_evaluations": zone_backend_summary(hass, management["zones"], management), "zone_target_previews": zone_target_previews, "zone_heat_demand_summary": summarize_zone_heat_demand(zone_target_previews), "preview": coordinator.data if coordinator else {}, "validation": validate_management(management)})
 
 
