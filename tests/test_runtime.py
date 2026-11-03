@@ -53,6 +53,7 @@ class RuntimeTests(unittest.TestCase):
                     hass.states.async_set("input_number.absenktemperatur", "17", {"friendly_name": "Absenktemperatur"})
                     hass.states.async_set("binary_sensor.fenster", "off", {"friendly_name": "Fenster", "device_class": "window"})
                     hass.states.async_set("person.michael", "home", {"friendly_name": "Michael"})
+                    hass.states.async_set("automation.heizung_automatik_ersetzt_node_red", "on", {"friendly_name": "Bestehende Tado-Heizungsautomation"})
 
                     flow = await hass.config_entries.flow.async_init("smart_heating", context={"source": "user"})
                     self.assertEqual(flow["type"], "form")
@@ -360,6 +361,11 @@ class RuntimeTests(unittest.TestCase):
                     self.assertEqual(internal_before_reload["comfort_temperature"], 22.5)
                     self.assertEqual(internal_before_reload["night_temperature"], 17.5)
 
+                    self.assertEqual(
+                        hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
+                        "on",
+                        "Passive Smart Heating must not disable the existing Tado automation",
+                    )
                     self.assertTrue(await hass.config_entries.async_unload(entry.entry_id))
                     await hass.async_block_till_done()
                     self.assertTrue(await hass.config_entries.async_setup(entry.entry_id))
@@ -439,6 +445,11 @@ class RuntimeTests(unittest.TestCase):
                     self.assertEqual(acknowledged["type"], "create_entry")
                     self.assertEqual(entry.options, preserved_before)
 
+                    self.assertEqual(
+                        hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
+                        "on",
+                        "Passive Smart Heating must not disable the existing Tado automation",
+                    )
                     self.assertTrue(await hass.config_entries.async_unload(entry.entry_id))
                     await hass.async_block_till_done()
                     self.assertTrue(await hass.config_entries.async_setup(entry.entry_id))
