@@ -179,3 +179,63 @@ def calculate_status(
             "data_sources": context.get("shadow_data_sources", {}),
         },
     }
+
+
+def calculate_zone_target_previews(
+    schedule: WeeklySchedule,
+    *,
+    now: datetime,
+    timezone: str,
+    zones: list[Mapping[str, Any]],
+    internal: Mapping[str, Any],
+    overrides: Mapping[str, bool] | None = None,
+    context: Mapping[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Calculate independent per-zone targets, without reading or actuating devices.
+
+    This is a target-only shadow preview, not a room demand or actuator plan.
+    It intentionally uses the same safety and schedule decision as the global
+    preview and does not claim independent physical boiler control.
+    """
+    if not internal.get("internal_only", False):
+        return []
+    active = schedule.active_at(now, timezone)
+    window = schedule.active_window_at(now, timezone)
+    base_context = dict(context or {})
+    zone_targets = internal.get("zones", {})
+    if not isinstance(zone_targets, Mapping):
+        zone_targets = {}
+    result = []
+    for zone in zones:
+        zone_id = str(zone.get("id") or "")
+        if not zone_id or zone.get("enabled") is False:
+            continue
+        settings = zone_targets.get(zone_id, {})
+        if not isinstance(settings, Mapping):
+            settings = {}
+        comfort = settings.get("comfort_temperature", internal.get("comfort_temperature", 21.0))
+        night = settings.get("night_temperature", internal.get("night_temperature", 18.0))
+        decision = evaluate_decision(
+            schedule_active=active,
+            overrides=overrides,
+            comfort_temperature=float(comfort),
+            night_temperature=float(night),
+            chimney_temperature=base_context.get("chimney_temperature", 25.0),
+            summer_mode=base_context.get("summer_mode", "compatibility"),
+            frost_temperature=base_context.get("frost_temperature", 5.0),
+            hvac_supports_off=base_context.get("hvac_supports_off", True),
+        )
+        if decision.mode == "comfort" and window is not None and window.target_temperature is not None:
+            decision = replace(decision, target_temperature=window.target_temperature)
+        result.append({
+            "zone_id": zone_id,
+            "name": str(zone.get("name") or zone_id),
+            "mode": decision.mode,
+            "target_temperature": decision.target_temperature,
+            "target_hvac_mode": decision.target_hvac_mode,
+            "reason": decision.reason,
+            "passive": True,
+            "scope": "target_only",
+            "commands": [],
+        })
+    return result
