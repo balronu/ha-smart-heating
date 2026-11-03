@@ -1,0 +1,28 @@
+# Smart Heating – Gate für die erste passive Beta
+
+Stand: 2026-11-03. Dieses Dokument ist eine Prüf- und Freigabeliste, **keine** Release-Freigabe.
+
+## Bereits im Entwicklungsbranch umgesetzt
+
+- Interner, vom bisherigen Helfersystem getrennter Zustand und raumbezogene Sollwerte.
+- Passive Vorschau von Raumentscheidungen und Heizbedarf, ohne Klimageräte- oder Kesselbefehle.
+- Sicherheitsregeln für Fenster, fehlende Messwerte, nicht erreichbare Thermostate und alte Hysteresezustände.
+- Read-only-Thermostatdiagnose inklusive Sollwertgrenzen und vier Eignungskategorien.
+- Automatisierte Backend- und mobile Frontend-Regressionstests.
+
+## Freigabekriterien (alle erforderlich)
+
+- [ ] HACS, Validate und UI für **denselben endgültigen Release-Commit** erfolgreich.
+- [ ] Vollständige Testabdeckung und Testergebnisse für den Release-Kandidaten geprüft; keine offenen kritischen Fehler.
+- [ ] Nachweis, dass die passive Integration keine climate-/Heizkessel-/Helfer-Serviceaufrufe ausführt.
+- [ ] Migrations- und Neustartverhalten einschließlich interner Zustände und Zeitpläne geprüft.
+- [ ] Fenster-, Sensor- und Thermostatausfälle sowie Wiederherstellung und Sondermodi geprüft.
+- [ ] WebSocket-Rechte, Schreibzugriffe auf interne Konfiguration und Frontend-Eingaben überprüft.
+- [ ] README DE/EN, Manifest, Changelog, HACS-Metadaten und tatsächlicher Release-Tag konsistent.
+- [ ] Installationsanleitung mit ausdrücklicher Kennzeichnung **passiver Parallelbetrieb** und manueller Rückkehr zur bisherigen Version.
+- [ ] Nutzerfreigabe vor produktiver Installation auf Home Assistant VM 104; vorhandene Heizungsautomation bleibt aktiv.
+- [ ] Nutzerfreigabe vor Beta-Veröffentlichung, sofern die abschließende Prüfung diese als reif bestätigt.
+
+## Verbindliche Grenzen
+
+Keine automatische Heizungssteuerung, keine Umschaltung oder Deaktivierung der bestehenden Automation, keine neuen Backups oder Snapshots und keine Löschung vorhandener Helfer oder Fenstersensoren. Aktive Heizungsregelung ist ein eigener späterer Meilenstein mit separater Freigabe.
