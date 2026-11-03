@@ -445,6 +445,14 @@ class RuntimeTests(unittest.TestCase):
                     await hass.async_block_till_done()
                     self.assertEqual(entry.state.value, "loaded")
                     self.assertEqual(entry.data["schedule"]["monday"][0]["end"], "08:00:00")
+                    self.assertEqual(
+                        normalize_management(entry.options["management"])["internal"]["comfort_temperature"],
+                        22.5,
+                    )
+                    self.assertEqual(
+                        normalize_management(entry.options["management"])["internal"]["night_temperature"],
+                        17.5,
+                    )
                     self.assertTrue(await hass.config_entries.async_remove(entry.entry_id))
                     await hass.async_block_till_done()
                     readd = await hass.config_entries.flow.async_init("smart_heating", context={"source": "user"})
