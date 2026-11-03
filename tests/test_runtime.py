@@ -370,6 +370,11 @@ class RuntimeTests(unittest.TestCase):
                     await hass.async_block_till_done()
                     self.assertTrue(await hass.config_entries.async_setup(entry.entry_id))
                     await hass.async_block_till_done()
+                    self.assertEqual(
+                        hass.states.get("automation.heizung_automatik_ersetzt_node_red").state,
+                        "on",
+                        "Passive reload must leave the existing Tado automation enabled",
+                    )
                     persisted_after_reload = normalize_management(entry.options["management"])
                     reloaded_internal = persisted_after_reload["internal"]
                     self.assertTrue(reloaded_internal["internal_only"])
