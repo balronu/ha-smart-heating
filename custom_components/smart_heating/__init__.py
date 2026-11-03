@@ -245,14 +245,17 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             context["chimney_temperature"] = float(chimney["temperature"])
         if frost.get("temperature") not in (None, ""):
             context["frost_temperature"] = float(frost["temperature"])
-    for key, config_key in (("comfort_temperature", "comfort_setpoint"), ("night_temperature", "night_setpoint")):
-        entity_id = config.get(config_key)
-        state = hass.states.get(entity_id) if isinstance(entity_id, str) else None
-        if state:
-            try:
-                context[key] = float(state.state)
-            except (TypeError, ValueError):
-                pass
+    # In isolated mode the persisted internal temperatures are authoritative.
+    # Reading legacy input_numbers here would silently undo the isolation.
+    if not internal.get("internal_only", False):
+        for key, config_key in (("comfort_temperature", "comfort_setpoint"), ("night_temperature", "night_setpoint")):
+            entity_id = config.get(config_key)
+            state = hass.states.get(entity_id) if isinstance(entity_id, str) else None
+            if state:
+                try:
+                    context[key] = float(state.state)
+                except (TypeError, ValueError):
+                    pass
     climate = hass.states.get(config.get("climate_entity")) if config.get("climate_entity") else None
     if climate:
         context["hvac_supports_off"] = "off" in climate.attributes.get("hvac_modes", []) or climate.state == "off"
