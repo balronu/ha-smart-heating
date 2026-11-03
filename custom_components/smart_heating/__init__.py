@@ -230,6 +230,14 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     if management.get("zones"):
         first_zone = management["zones"][0]
         context["zone_id"] = first_zone.get("id")
+        if internal.get("internal_only", False):
+            # Apply the selected zone's persisted targets, not another room's.
+            zone_targets = internal.get("zones", {}).get(str(first_zone.get("id")), {})
+            if isinstance(zone_targets, Mapping):
+                for key in ("comfort_temperature", "night_temperature"):
+                    value = zone_targets.get(key)
+                    if isinstance(value, (int, float)) and not isinstance(value, bool) and 5 <= value <= 35:
+                        context[key] = float(value)
         context["thermostats"] = [
             {"entity_id": entity_id, "state": str(getattr(hass.states.get(entity_id), "state", "missing")), "available": bool(hass.states.get(entity_id)) and str(hass.states.get(entity_id).state) not in {"unknown", "unavailable"}}
             for entity_id in first_zone.get("thermostat_entities", [])
