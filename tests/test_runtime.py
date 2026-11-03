@@ -500,6 +500,11 @@ class RuntimeTests(unittest.TestCase):
                     readd = await hass.config_entries.flow.async_configure(readd["flow_id"], {"confirm": True})
                     self.assertEqual(readd["result"].state.value, "loaded")
                     entry = readd["result"]
+                    self.assertEqual(
+                        passive_climate_calls,
+                        [],
+                        "Passive removal and fresh re-add must not issue climate commands",
+                    )
                     from custom_components.smart_heating.control import async_apply_decision
                     from custom_components.smart_heating.models import HeatingDecision
 
