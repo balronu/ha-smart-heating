@@ -325,12 +325,10 @@ def next_zone_demand_history(
     changes. The caller must recompute with filtered prior demand before
     applying this function to the final previews.
     """
-    old = previous_signatures or {}
     signatures = {str(item["zone_id"]): zone_demand_signature(item) for item in previews}
     history = {
         str(item["zone_id"]): item["heat_demand"]
         for item in previews
         if type(item.get("heat_demand")) is bool
-        and old.get(str(item["zone_id"]), signatures[str(item["zone_id"])]) == signatures[str(item["zone_id"])]
     }
     return history, signatures
