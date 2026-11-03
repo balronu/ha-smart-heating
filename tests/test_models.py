@@ -950,5 +950,5 @@ class ScheduleTests(unittest.TestCase):
             schedule=schedule, now=common["now"], timezone=common["timezone"],
             zones=common["zones"], previous_demand={})
         self.assertIsNone(resumed[0]["heat_demand"])
-        self.assertEqual(reusable_zone_demand(old_history, old_signatures, resumed), {})
+        self.assertEqual(next_zone_demand_history(disabled)[0], {})
         self.assertEqual(resumed[0]["commands"], [])
