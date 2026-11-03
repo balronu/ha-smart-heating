@@ -189,6 +189,7 @@ def calculate_zone_target_previews(
     zones: list[Mapping[str, Any]],
     internal: Mapping[str, Any],
     zone_diagnostics: list[Mapping[str, Any]] | None = None,
+    previous_demand: Mapping[str, bool] | None = None,
     overrides: Mapping[str, bool] | None = None,
     context: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
@@ -257,7 +258,10 @@ def calculate_zone_target_previews(
             elif delta <= -0.3:
                 heat_demand = False
             else:
-                heat_demand = None
+                # Preserve a prior *verified* shadow state inside the deadband.
+                # Without history, remain unknown rather than guessing.
+                prior = (previous_demand or {}).get(zone_id)
+                heat_demand = prior if type(prior) is bool else None
         result.append({
             "demand_deadband_celsius": 0.3,
             "room_temperature": measured,
