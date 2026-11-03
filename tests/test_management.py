@@ -12,6 +12,7 @@ from custom_components.smart_heating.management import (  # noqa: E402
     default_management,
     thermostat_capability_assessment,
     thermostat_target_assessment,
+    zone_target_capability_summary,
     normalize_management,
     discover_controller_entities,
     discover_temperature_entities,
@@ -437,3 +438,24 @@ class ManagementTests(unittest.TestCase):
         result = thermostat_target_assessment(broken, 24)
         self.assertFalse(result["target_supported"])
         self.assertIn("invalid_temperature_range", result["reasons"])
+
+
+    def test_zone_target_capability_summary_is_room_specific_and_passive(self):
+        def thermostat(entity, maximum=30):
+            return {"entity_id": entity, "state": "heat", "hvac_modes": ["heat"],
+                    "min_temp": 5, "max_temp": maximum, "target_temp_step": 0.5}
+        previews = [
+            {"zone_id": "bathroom", "target_temperature": 24},
+            {"zone_id": "bedroom", "target_temperature": 18},
+            {"zone_id": "living", "target_temperature": None},
+        ]
+        diagnostics = [
+            {"zone_id": "bathroom", "thermostats": [thermostat("climate.bath", 22)]},
+            {"zone_id": "bedroom", "thermostats": [thermostat("climate.bed")]},
+            {"zone_id": "living", "thermostats": []},
+        ]
+        summary = zone_target_capability_summary(previews, diagnostics)
+        self.assertEqual([item["all_targets_supported"] for item in summary], [False, True, False])
+        self.assertIn("target_out_of_range", summary[0]["thermostats"][0]["reasons"])
+        self.assertEqual(summary[1]["thermostats"][0]["entity_id"], "climate.bed")
+        self.assertTrue(all(item["passive"] and item["commands"] == [] for item in summary))
