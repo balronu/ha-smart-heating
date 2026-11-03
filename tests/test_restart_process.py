@@ -67,6 +67,8 @@ async def worker(stage, config_dir):
             assert (config_path / ".storage" / "core.config_entries").exists()
         else:
             # The fixture uses a fresh HA object in this entirely separate OS process.
+            # Unlike HA bootstrap, the fixture does not automatically initialize stored entries.
+            await hass.config_entries.async_initialize()
             entries = hass.config_entries.async_entries("smart_heating")
             assert len(entries) == 1, f"expected persisted entry, got {entries!r}"
             entry = entries[0]
