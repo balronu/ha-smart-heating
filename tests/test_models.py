@@ -879,3 +879,24 @@ class ScheduleTests(unittest.TestCase):
         self.assertTrue(all(item["commands"] == [] for batch in (
             initial, opened, closed_deadband, closed_cold, offline,
             online_deadband, online_cold) for item in batch))
+
+
+    def test_special_mode_priority_in_passive_preview(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        base = dict(schedule=schedule, now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+                    timezone="Europe/Berlin", zones=[{"id": "bathroom"}],
+                    internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18},
+                    zone_diagnostics=[{"zone_id": "bathroom", "window_state": "unknown",
+                                       "room_temperature": None}])
+        cases = [
+            ({"internal_enabled": False, "party": True}, "disabled"),
+            ({"heating_permission": False, "visit": True}, "disabled"),
+            ({"chimney_sweep": True, "internal_enabled": False}, "chimney_sweep"),
+        ]
+        for flags, expected in cases:
+            with self.subTest(expected=expected):
+                rows = calculate_zone_target_previews(overrides=flags, **base)
+                self.assertEqual(rows[0]["mode"], expected)
+                self.assertIsNone(rows[0]["heat_demand"])
+                self.assertEqual(rows[0]["commands"], [])
+                self.assertFalse(summarize_zone_heat_demand(rows)["boiler_control_authorized"])
