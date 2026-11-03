@@ -81,6 +81,7 @@ Die folgenden Testfälle wurden im Entwicklungsbranch konkret geprüft; sie sind
 - `tests/test_management.py::test_window_contact_failure_and_recovery_never_becomes_closed_implicitly`: Fensterkontakt `open → unavailable → unknown → open → closed`; kein implizites Schließen bei Ausfall.
 - `tests/test_management.py::test_live_state_to_zone_capability_diagnostics_remains_passive`: ergänzt um Thermostat-Wiederkehr nach `unavailable` mit erneuter passiver Eignungsbewertung.
 - `tests/test_management.py::test_chimney_sweep_overrides_conflicting_special_modes_in_passive_preview`: kombinierte Party-/Besuch-/Heimweg-/Sommer-/Abwesenheits- und Sicherheitsflags; Schornsteinfeger bleibt vorrangig. `Validate` inklusive Runtime für `bc8cec2` erfolgreich; UI war zum Dokumentationszeitpunkt noch nicht abgeschlossen.
+- `tests/test_runtime.py::test_config_options_entities_and_reload`: ergänzt um explizite Wochenplan-Prüfung nach Config-Entry-Reload (`c9588bc`) sowie Komfort-/Nachttemperaturen nach zweitem Reload (`a2bbe29`). HACS, Validate und UI für `a2bbe29` erfolgreich. Dies prüft **keinen vollständigen Home-Assistant-Prozessneustart**.
 
 Die ersten drei ergänzenden Tests sind Bestandteil späterer Commits; ein vollständiger gemeinsamer CI-Nachweis für den endgültigen Release-Commit bleibt erforderlich.
 
