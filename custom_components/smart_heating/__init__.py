@@ -87,15 +87,18 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
     result: dict[str, bool] = {}
     management = normalize_management(config.get("management"))
     internal = management["internal"]
-    if internal.get("enabled") is False:
-        result["internal_enabled"] = False
-    if internal.get("operating_mode") == "manual_heat":
-        result["manual_heat"] = True
-    elif internal.get("operating_mode") == "manual_setback":
-        result["manual_setback"] = True
-    for mode in ("party", "visit", "return_home", "summer", "chimney_sweep"):
-        if internal.get(mode):
-            result[mode] = True
+    # Preview-only controls must never affect legacy compatibility decisions.
+    # This also prevents stale internal flags from leaking after isolation is off.
+    if internal.get("internal_only", False):
+        if internal.get("enabled") is False:
+            result["internal_enabled"] = False
+        if internal.get("operating_mode") == "manual_heat":
+            result["manual_heat"] = True
+        elif internal.get("operating_mode") == "manual_setback":
+            result["manual_setback"] = True
+        for mode in ("party", "visit", "return_home", "summer", "chimney_sweep"):
+            if internal.get(mode):
+                result[mode] = True
     # Internal-only test state must not be overwritten by legacy helper values.
     if not internal.get("internal_only", False):
         for mode, settings in management.get("safety", {}).get("modes", {}).items():
