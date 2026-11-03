@@ -188,6 +188,12 @@ class SmartHeatingCard extends HTMLElement {
       @container(max-width:300px){.sh-grid,.sh-modes{grid-template-columns:1fr}}
       @media(max-width:600px){.sh-bottom{grid-template-columns:1fr}.sh-controls span{display:none}.sh-mode span{overflow-wrap:anywhere}}
     </style>`;
+    const scrollPositions=[];
+    for(let node=this.parentNode;node;node=node.parentNode||node.host){
+      if(typeof node.scrollTop==="number")scrollPositions.push([node,node.scrollTop]);
+    }
+    const pageScroller=document.scrollingElement;
+    if(pageScroller&&!scrollPositions.some(([node])=>node===pageScroller))scrollPositions.push([pageScroller,pageScroller.scrollTop]);
     this.innerHTML=`<ha-card><div class="sh-app">${css}<div class="sh-head"><div><h2>♨ ${esc(this._config.title||"Smart Heating")}</h2><small>Heizungsautomatik bleibt zuständig · ${esc(this._data?.version||"")}</small></div><span class="sh-state">${automation==="on"?"● Automatik aktiv":automation==="off"?"○ Automatik aus":"Automatik unbekannt"}</span></div>
       ${this._error?`<p class="sh-feedback" role="alert">${esc(this._error)}</p>`:""}
       <p class="sh-foot sh-release">Heizfreigabe: ${st("input_boolean.heizung_freigabe")?.state==="on"?"Ein":st("input_boolean.heizung_freigabe")?.state==="off"?"Aus":"Unbekannt"}</p>
@@ -197,6 +203,8 @@ class SmartHeatingCard extends HTMLElement {
       <p class="sh-foot">Temperatur- und Modusänderungen wirken ausschließlich auf vorhandene Home-Assistant-Helfer. Die bestehende Heizungsautomation bleibt unverändert.</p>
     </div></ha-card>`;
     this.querySelectorAll("details").forEach(el=>{el.open=currentOpen.has(el.dataset.panel);});
+    // Preserve Lovelace scroll containers when HA/iOS replaces card contents.
+    for(const [node,top] of scrollPositions){if(node.isConnected&&node.scrollTop!==top)node.scrollTop=top;}
     const saveInternal=async patch=>{
       const entryId=this._config.entry_id||this._data?.entry_id;
       if(!entryId){this._error="Konfigurationseintrag nicht gefunden";this._renderModern();return;}
