@@ -534,3 +534,49 @@ test("per-room internal temperatures use zone-scoped websocket writes",async({pa
   ]);
   expect(result.services).toHaveLength(0);
 });
+
+
+test("shows room thermostat target diagnostics on mobile without service calls", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => {
+    const card = document.querySelector("smart-heating-card");
+    card.setConfig({ entry_id: "fixture-0", display_mode: "dashboard" });
+    card.hass = window.hass;
+    card._data.options = card._data.options || {};
+    card._data.options.management = {
+      ...(card._data.options.management || {}),
+      zones: [
+        { id: "bathroom", name: "Badezimmer" },
+        { id: "bedroom", name: "Schlafzimmer" },
+        { id: "living", name: "Wohnzimmer" }
+      ],
+      internal: { internal_only: true, enabled: true, comfort_temperature: 21, night_temperature: 18 }
+    };
+    card._data.status = {
+      ...(card._data.status || {}),
+      zone_target_capability_summary: [
+        { zone_id: "bathroom", target_temperature: 24, all_targets_supported: false,
+          thermostats: [{ entity_id: "climate.bath", target_supported: false, reasons: ["target_out_of_range"] }] },
+        { zone_id: "bedroom", target_temperature: 18, all_targets_supported: true,
+          thermostats: [{ entity_id: "climate.bed", target_supported: true, reasons: [] }] },
+        { zone_id: "living", target_temperature: null, all_targets_supported: false, thermostats: [] }
+      ]
+    };
+    window.__services = [];
+    card._render();
+  });
+  const card = page.locator("smart-heating-card").first();
+  const panel = card.getByTestId("internal-panel");
+  await expect(panel).toContainText("Thermostat-Eignung");
+  await expect(panel).toContainText("Badezimmer");
+  await expect(panel).toContainText("Sollwert außerhalb des Bereichs");
+  await expect(panel).toContainText("Schlafzimmer");
+  await expect(panel).toContainText("Geeignet");
+  await expect(panel).toContainText("Kein Thermostat zugeordnet");
+  const overflow = await page.evaluate(() => {
+    const card = document.querySelector("smart-heating-card");
+    return card.getBoundingClientRect().right - document.documentElement.clientWidth;
+  });
+  expect(overflow).toBeLessThanOrEqual(2);
+  expect(await page.evaluate(() => window.__services)).toHaveLength(0);
+});
