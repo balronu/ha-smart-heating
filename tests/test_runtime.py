@@ -145,6 +145,29 @@ class RuntimeTests(unittest.TestCase):
                             },
                         )
 
+                    # A signed-in non-admin must not be able to mutate the room.
+                    connection.user.is_admin = False
+                    options_before_denial = dict(entry.options)
+                    connection.async_handle({
+                        "id": 100,
+                        "type": "smart_heating/admin/room/save",
+                        "entry_id": entry.entry_id,
+                        "item": room_item,
+                        "contacts": contacts,
+                    })
+                    await hass.async_block_till_done()
+                    denied_messages = [
+                        json.loads(item) if isinstance(item, (bytes, bytearray)) else item
+                        for item in messages
+                    ]
+                    denied = next((item for item in denied_messages if item.get("id") == 100), None)
+                    self.assertIsNotNone(denied, denied_messages)
+                    self.assertEqual(denied["type"], "result")
+                    self.assertFalse(denied["success"])
+                    self.assertEqual(entry.options, options_before_denial)
+                    messages.clear()
+                    connection.user.is_admin = True
+
                     first_save = await save_room(101, ("tilt", "open"))
                     self.assertEqual(first_save["persisted_contact_roles"], {contact["entity_id"]: role for contact, role in zip(contacts, ("tilt", "open"))})
                     persisted = normalize_management(entry.options["management"])
