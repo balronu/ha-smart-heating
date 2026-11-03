@@ -194,7 +194,7 @@ def zone_backend_summary(hass: Any, zones: list[Mapping[str, Any]], management: 
                 if candidate is not None and -40 <= candidate <= 80:
                     measured, measurement_source = candidate, entity_id
                     break
-        result.append({"room_temperature": measured, "temperature_source": measurement_source, "zone_id": zone.get("id"), "name": zone.get("name"), "thermostats": status.get("thermostats", []), "thermostat_count": len(status.get("thermostats", [])), "window_state": windows["state"], "window_groups": windows["windows"], "window_contacts": windows.get("contacts", []), "window_conflicts": windows["conflicts"], "window_reaction": reaction, "passive": True})
+        result.append({"room_temperature": measured, "temperature_source": measurement_source, "zone_id": zone.get("id"), "name": zone.get("name"), "thermostats": status.get("thermostats", []), "thermostat_count": len(status.get("thermostats", [])), "unavailable_thermostats": status.get("unavailable_thermostats", 0), "window_state": windows["state"], "window_groups": windows["windows"], "window_contacts": windows.get("contacts", []), "window_conflicts": windows["conflicts"], "window_reaction": reaction, "passive": True})
     return result
 
 
