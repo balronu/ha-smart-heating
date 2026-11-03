@@ -146,7 +146,15 @@ class RuntimeTests(unittest.TestCase):
                         )
 
                     # A signed-in non-admin must not be able to mutate the room.
-                    connection.user.is_admin = False
+                    # Use an independent non-admin connection so rejected requests
+                    # cannot affect the administrator's later lifecycle checks.
+                    admin_connection = connection
+                    connection = ActiveConnection(
+                        logging.getLogger("smart_heating.runtime_test.nonadmin"),
+                        hass, messages.append,
+                        SimpleNamespace(id="runtime-nonadmin", name="Runtime Non-Admin", is_admin=False),
+                        None, "127.0.0.1",
+                    )
                     options_before_denial = dict(entry.options)
                     connection.async_handle({
                         "id": 100,
@@ -272,7 +280,7 @@ class RuntimeTests(unittest.TestCase):
                             self.assertEqual(response["error"]["code"], "unauthorized")
                             self.assertEqual(entry.options, options_before)
                         messages.clear()
-                    connection.user.is_admin = True
+                    connection = admin_connection
 
                     first_save = await save_room(101, ("tilt", "open"))
                     self.assertEqual(first_save["persisted_contact_roles"], {contact["entity_id"]: role for contact, role in zip(contacts, ("tilt", "open"))})
