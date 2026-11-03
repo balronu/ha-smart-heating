@@ -334,6 +334,9 @@ class RuntimeTests(unittest.TestCase):
                     )
                     self.assertTrue(all(item["matches"] for item in diagnostics.values()))
 
+                    second_save = await save_room(103, ("tilt", "open"))
+                    self.assertEqual(second_save["persisted_contact_roles"], first_save["persisted_contact_roles"])
+
                     # Persist internal-only temperatures through an actual HA
                     # config-entry unload/setup cycle (without any actuation).
                     internal_saved = await ws_call(
@@ -356,8 +359,6 @@ class RuntimeTests(unittest.TestCase):
                     self.assertEqual(internal_before_reload["comfort_temperature"], 22.5)
                     self.assertEqual(internal_before_reload["night_temperature"], 17.5)
 
-                    second_save = await save_room(103, ("tilt", "open"))
-                    self.assertEqual(second_save["persisted_contact_roles"], first_save["persisted_contact_roles"])
                     self.assertTrue(await hass.config_entries.async_unload(entry.entry_id))
                     await hass.async_block_till_done()
                     self.assertTrue(await hass.config_entries.async_setup(entry.entry_id))
