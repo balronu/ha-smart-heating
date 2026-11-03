@@ -463,3 +463,36 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual([item["heat_demand"] for item in previews], [True, None, False])
         self.assertTrue(all(item["demand_deadband_celsius"] == 0.3 for item in previews))
         self.assertTrue(all(item["commands"] == [] for item in previews))
+
+
+    def test_shadow_hysteresis_preserves_verified_prior_demand_in_deadband(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        kwargs = dict(
+            now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            timezone="Europe/Berlin",
+            zones=[{"id": "bathroom"}, {"id": "bedroom"}, {"id": "new"}],
+            internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18},
+            zone_diagnostics=[
+                {"zone_id": "bathroom", "window_state": "closed", "room_temperature": 20.9},
+                {"zone_id": "bedroom", "window_state": "closed", "room_temperature": 21.1},
+                {"zone_id": "new", "window_state": "closed", "room_temperature": 21.0},
+            ],
+        )
+        previews = calculate_zone_target_previews(
+            schedule, previous_demand={"bathroom": True, "bedroom": False}, **kwargs
+        )
+        self.assertEqual([item["heat_demand"] for item in previews], [True, False, None])
+        self.assertTrue(all(item["commands"] == [] for item in previews))
+
+    def test_shadow_hysteresis_never_overrides_unknown_window_safety(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        previews = calculate_zone_target_previews(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            timezone="Europe/Berlin",
+            zones=[{"id": "bathroom"}],
+            internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18},
+            zone_diagnostics=[{"zone_id": "bathroom", "window_state": "unknown", "room_temperature": 20.9}],
+            previous_demand={"bathroom": True},
+        )
+        self.assertIsNone(previews[0]["heat_demand"])
