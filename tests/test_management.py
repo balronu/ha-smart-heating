@@ -10,6 +10,7 @@ sys.modules.setdefault("custom_components.smart_heating", package)
 
 from custom_components.smart_heating.management import (  # noqa: E402
     default_management,
+    thermostat_capability_assessment,
     normalize_management,
     discover_controller_entities,
     discover_temperature_entities,
@@ -392,3 +393,24 @@ class ManagementTests(unittest.TestCase):
         upsert_item(data, "sensors", {"id": "one", "type": "window", "entity_id": "binary_sensor.fenster", "area_id": "wohnzimmer"})
         with self.assertRaisesRegex(ValueError, "duplicate_sensor_entity"):
             upsert_item(data, "sensors", {"id": "two", "type": "tilt", "entity_id": "binary_sensor.fenster", "area_id": "bad"})
+
+
+    def test_thermostat_capabilities_are_assessed_passively(self):
+        capable = {"state": "heat", "hvac_modes": ["off", "heat"],
+                   "min_temp": 5, "max_temp": 30, "target_temp_step": 0.5}
+        result = thermostat_capability_assessment(capable)
+        self.assertTrue(result["suitable_for_future_control"])
+        self.assertTrue(result["passive"])
+        self.assertEqual(result["commands"], [])
+        cases = [
+            ({**capable, "state": "unavailable"}, "unavailable"),
+            ({**capable, "hvac_modes": ["off"]}, "no_heating_mode"),
+            ({**capable, "min_temp": 35}, "invalid_temperature_range"),
+            ({**capable, "target_temp_step": None}, "missing_temperature_range"),
+        ]
+        for thermostat, reason in cases:
+            with self.subTest(reason=reason):
+                assessment = thermostat_capability_assessment(thermostat)
+                self.assertFalse(assessment["suitable_for_future_control"])
+                self.assertIn(reason, assessment["reasons"])
+                self.assertEqual(assessment["commands"], [])
