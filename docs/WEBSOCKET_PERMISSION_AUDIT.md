@@ -1,0 +1,39 @@
+# Smart Heating – WebSocket-Berechtigungsaudit (2026-11-03)
+
+Status: **OFFEN / Beta-Freigabeblocker**. Read-only-Quellcodeprüfung im Branch `feature/internal-helper-state`. Kein produktiver Eingriff.
+
+## Befund
+
+In `custom_components/smart_heating/__init__.py` sind 23 WebSocket-Handler registriert. Im geprüften Stand ist an keinem dieser Handler eine explizite `@websocket_api.require_admin`-Dekoration erkennbar. Dies beweist allein noch keine erfolgreiche unberechtigte Nutzung; es fehlt ein Negativtest mit einem angemeldeten Nicht-Administrator.
+
+### Schreibende oder mutierende Handler – Priorität hoch
+
+- `smart_heating/plan/set` (Wochenplan)
+- `smart_heating/admin/person/set`, `person/delete`
+- `smart_heating/admin/zone/set`, `zone/delete`, `room/save`
+- `smart_heating/admin/area/relevance`
+- `smart_heating/admin/sensor/set`, `sensor/delete`
+- `smart_heating/admin/controller/set`
+- `smart_heating/admin/outdoor/set`
+- `smart_heating/admin/safety/set`
+- `smart_heating/admin/internal/set`
+- `smart_heating/admin/system/set`
+- `smart_heating/admin/special_mode/set`, `special_mode/delete`, `special_mode/duplicate`
+
+### Lesende oder prüfende Handler – gesondert bewerten
+
+- `smart_heating/plan/get`, `simulate`, `migration/preview`
+- `smart_heating/admin/get`, `admin/validate`
+- `smart_heating/cleanup/preview`
+
+## Erforderlicher nächster Code-Schritt
+
+1. Sämtliche mutierenden WebSocket-Handler mit der von der unterstützten Home-Assistant-Version vorgesehenen Administratorprüfung absichern, nicht nur `admin/internal/set`.
+2. Automatisierte Negativtests mit authentifiziertem Nicht-Administrator: jeder Schreibendpunkt muss ohne Änderung von `ConfigEntry.options`, Zeitplan oder internen Werten abgewiesen werden.
+3. Positivtests für Administratorzugriff und unveränderte passive Funktion.
+4. Lesende Handler auf Datenschutz-/Konfigurationssichtbarkeit prüfen und gegebenenfalls separat schützen.
+5. CI für denselben Commit vollständig erfolgreich; anschließend Code-Review.
+
+**Wichtig:** Der Versuch, `admin/internal/set` direkt zu ändern, wurde durch eine Tool-Sicherheitsprüfung blockiert. Der Code wurde dabei nicht verändert. Dieser Bericht ist keine Behauptung einer erfolgten Fehlerbehebung.
+
+Keine Heizbefehle, keine Abschaltung der bisherigen Automation, keine Installation, keine Backups oder Snapshots.
