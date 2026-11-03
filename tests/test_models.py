@@ -8,7 +8,7 @@ _package = types.ModuleType("custom_components.smart_heating")
 _package.__path__ = [str(Path(__file__).parents[1] / "custom_components" / "smart_heating")]
 sys.modules.setdefault("custom_components.smart_heating", _package)
 
-from custom_components.smart_heating.engine import calculate_status, calculate_zone_target_previews, summarize_zone_heat_demand, zone_demand_signature, next_zone_demand_history
+from custom_components.smart_heating.engine import calculate_status, calculate_zone_target_previews, summarize_zone_heat_demand, zone_demand_signature, next_zone_demand_history, reusable_zone_demand
 from custom_components.smart_heating.models import ScheduleValidationError, WeeklySchedule, evaluate_decision, reset_actions, summer_hysteresis_state
 
 
@@ -572,3 +572,20 @@ class ScheduleTests(unittest.TestCase):
         missing = [{**first[0], "heat_demand": None, "temperature_source": None}]
         history, _ = next_zone_demand_history(missing)
         self.assertEqual(history, {})
+
+
+    def test_hysteresis_history_is_filtered_when_target_or_sensor_changes(self):
+        old = {"bathroom": True, "bedroom": False}
+        signatures = {
+            "bathroom": (24.0, "comfort", "sensor.bathroom"),
+            "bedroom": (18.0, "comfort", "sensor.bedroom"),
+        }
+        previews = [
+            {"zone_id": "bathroom", "target_temperature": 25.0,
+             "mode": "comfort", "temperature_source": "sensor.bathroom"},
+            {"zone_id": "bedroom", "target_temperature": 18.0,
+             "mode": "comfort", "temperature_source": "sensor.bedroom"},
+        ]
+        self.assertEqual(reusable_zone_demand(old, signatures, previews), {"bedroom": False})
+        previews[1]["temperature_source"] = "climate.bedroom"
+        self.assertEqual(reusable_zone_demand(old, signatures, previews), {})
