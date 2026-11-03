@@ -174,6 +174,31 @@ def thermostat_target_assessment(thermostat: Mapping[str, Any], target: Any) -> 
             "passive": True, "commands": []}
 
 
+def zone_target_capability_summary(
+    previews: list[Mapping[str, Any]], diagnostics: list[Mapping[str, Any]]
+) -> list[dict[str, Any]]:
+    """Match passive per-room targets to assigned thermostat capabilities."""
+    diagnostics_by_zone = {str(item.get("zone_id")): item for item in diagnostics}
+    result = []
+    for preview in previews:
+        zone_id = str(preview["zone_id"])
+        target = preview.get("target_temperature")
+        thermostats = diagnostics_by_zone.get(zone_id, {}).get("thermostats", [])
+        assessments = []
+        for thermostat in thermostats:
+            assessment = thermostat_target_assessment(thermostat, target)
+            assessments.append({"entity_id": thermostat.get("entity_id"), **assessment})
+        result.append({
+            "zone_id": zone_id, "target_temperature": target,
+            "thermostats": assessments,
+            "all_targets_supported": bool(assessments) and all(
+                item["target_supported"] for item in assessments
+            ),
+            "passive": True, "commands": [],
+        })
+    return result
+
+
 def zone_status(hass: Any, zones: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
     """Return read-only availability and observed HVAC state per configured zone."""
     result = []
