@@ -771,3 +771,19 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(set(summary["unknown_zone_ids"]), {"bathroom", "bedroom", "living"})
         self.assertFalse(summary["boiler_control_authorized"])
         self.assertTrue(all(item["commands"] == [] for item in previews))
+
+
+    def test_malformed_zone_demand_values_fail_closed_in_summary(self):
+        previews = [
+            {"zone_id": "bathroom", "heat_demand": True},
+            {"zone_id": "bedroom", "heat_demand": "false"},
+            {"zone_id": "living", "heat_demand": 0},
+            {"zone_id": "office"},
+        ]
+        summary = summarize_zone_heat_demand(previews)
+        self.assertEqual(summary["requesting_zone_ids"], ["bathroom"])
+        self.assertEqual(summary["satisfied_zone_ids"], [])
+        self.assertEqual(summary["unknown_zone_ids"], ["bedroom", "living", "office"])
+        self.assertFalse(summary["all_zones_known"])
+        self.assertFalse(summary["boiler_control_authorized"])
+        self.assertEqual(summary["commands"], [])
