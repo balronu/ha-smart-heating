@@ -188,12 +188,15 @@ def zone_target_capability_summary(
         for thermostat in thermostats:
             assessment = thermostat_target_assessment(thermostat, target)
             assessments.append({"entity_id": thermostat.get("entity_id"), **assessment})
+        count = sum(item["target_supported"] is True for item in assessments)
+        suitability = ("not_assessable" if not assessments or target is None else
+                       "fully_suitable" if count == len(assessments) else
+                       "partially_suitable" if count else "not_suitable")
         result.append({
             "zone_id": zone_id, "target_temperature": target,
             "thermostats": assessments,
-            "all_targets_supported": bool(assessments) and all(
-                item["target_supported"] for item in assessments
-            ),
+            "all_targets_supported": suitability == "fully_suitable",
+            "suitability": suitability,
             "passive": True, "commands": [],
         })
     return result
