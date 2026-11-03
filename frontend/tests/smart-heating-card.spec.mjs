@@ -580,3 +580,36 @@ test("shows room thermostat target diagnostics on mobile without service calls",
   expect(overflow).toBeLessThanOrEqual(2);
   expect(await page.evaluate(() => window.__services)).toHaveLength(0);
 });
+
+
+test("thermostat diagnostics remain safe with missing data and unavailable devices", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.evaluate(() => {
+    const card = document.querySelector("smart-heating-card");
+    card.setConfig({ entry_id: "fixture-0", display_mode: "dashboard" });
+    card.hass = window.hass;
+    card._data.status = { ...(card._data.status || {}), zone_target_capability_summary: null };
+    window.__services = [];
+    card._render();
+  });
+  const card = page.locator("smart-heating-card").first();
+  await expect(card.getByTestId("internal-panel")).toContainText("Noch keine Raumdiagnose verfügbar");
+  await page.evaluate(() => {
+    const card = document.querySelector("smart-heating-card");
+    card._data.status.zone_target_capability_summary = [
+      { zone_id: "offline", target_temperature: 22, all_targets_supported: false,
+        thermostats: [{ entity_id: "climate.offline", target_supported: false, reasons: ["unavailable"] }] },
+      { zone_id: "step", target_temperature: 21.3, all_targets_supported: false,
+        thermostats: [{ entity_id: "climate.step", target_supported: false, reasons: ["target_not_on_step"] }] },
+      { zone_id: "invalid", target_temperature: null, all_targets_supported: false,
+        thermostats: [{ entity_id: "climate.invalid", target_supported: false, reasons: ["invalid_target"] }] }
+    ];
+    card._render();
+  });
+  const panel = card.getByTestId("internal-panel");
+  await expect(panel).toContainText("Nicht erreichbar");
+  await expect(panel).toContainText("Sollwert passt nicht zum Einstellschritt");
+  await expect(panel).toContainText("Kein gültiger Sollwert");
+  expect(await page.evaluate(() => document.querySelector("smart-heating-card").getBoundingClientRect().right - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
+  expect(await page.evaluate(() => window.__services)).toHaveLength(0);
+});
