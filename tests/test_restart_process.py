@@ -60,6 +60,22 @@ async def worker(stage, config_dir):
                 entry,
                 data={**entry.data, "schedule": {"monday": [{"start": "06:00:00", "end": "08:00:00", "target_temperature": 20.5}]}},
             )
+            from custom_components.smart_heating.management import default_management
+            management = default_management()
+            management["internal"]["comfort_temperature"] = 22.5
+            management["internal"]["night_temperature"] = 17.5
+            management["internal"]["party"] = True
+            management["zones"] = [{
+                "id": "badezimmer", "name": "Badezimmer",
+                "comfort_temperature": 24.0, "night_temperature": 18.0,
+                "thermostat_entities": ["climate.badezimmer_1"],
+            }]
+            management["sensors"]["window"] = [{
+                "id": "bad-fenster", "type": "window",
+                "entity_id": "binary_sensor.bad_fenster",
+                "contact_role": "open", "area_id": "badezimmer",
+            }]
+            hass.config_entries.async_update_entry(entry, options={**entry.options, "management": management})
             await hass.async_block_till_done()
             assert entry.state.value == "loaded", entry.state
             # Flush HA's config-entry storage via the underlying Store API.
@@ -73,6 +89,15 @@ async def worker(stage, config_dir):
             assert len(entries) == 1, f"expected persisted entry, got {entries!r}"
             entry = entries[0]
             assert entry.data["schedule"]["monday"][0]["target_temperature"] == 20.5
+            from custom_components.smart_heating.management import normalize_management
+            restored = normalize_management(entry.options["management"])
+            assert restored["internal"]["comfort_temperature"] == 22.5
+            assert restored["internal"]["night_temperature"] == 17.5
+            assert restored["internal"]["party"] is True
+            assert restored["zones"][0]["comfort_temperature"] == 24.0
+            assert restored["zones"][0]["thermostat_entities"] == ["climate.badezimmer_1"]
+            assert restored["sensors"]["window"][0]["entity_id"] == "binary_sensor.bad_fenster"
+            assert restored["sensors"]["window"][0]["contact_role"] == "open"
             await hass.config_entries.async_setup(entry.entry_id)
             await hass.async_block_till_done()
             assert entry.state.value == "loaded", entry.state
