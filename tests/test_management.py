@@ -13,6 +13,7 @@ from custom_components.smart_heating.management import (  # noqa: E402
     thermostat_capability_assessment,
     thermostat_target_assessment,
     zone_target_capability_summary,
+    zone_status,
     normalize_management,
     discover_controller_entities,
     discover_temperature_entities,
@@ -502,3 +503,42 @@ class ManagementTests(unittest.TestCase):
         self.assertEqual([item["all_targets_supported"] for item in summary],
                          [True, False, False, False, False])
         self.assertTrue(all(item["commands"] == [] for item in summary))
+
+
+    def test_live_state_to_zone_capability_diagnostics_remains_passive(self):
+        zones = [
+            {"id": "bathroom", "name": "Badezimmer",
+             "thermostat_entities": ["climate.bath_a", "climate.bath_b"]},
+            {"id": "bedroom", "name": "Schlafzimmer",
+             "thermostat_entities": ["climate.bed"]},
+        ]
+        def climate(maximum):
+            return State("heat", {"hvac_modes": ["heat", "off"],
+                                  "min_temp": 5, "max_temp": maximum,
+                                  "target_temp_step": 0.5})
+        hass = Hass({
+            "climate.bath_a": climate(30),
+            "climate.bath_b": climate(22),
+            "climate.bed": climate(30),
+        })
+        previews = [
+            {"zone_id": "bathroom", "target_temperature": 24},
+            {"zone_id": "bedroom", "target_temperature": 18},
+        ]
+        diagnostics = zone_status(hass, zones)
+        summary = zone_target_capability_summary(previews, diagnostics)
+        self.assertEqual([item["suitability"] for item in summary],
+                         ["partially_suitable", "fully_suitable"])
+        self.assertEqual([item["entity_id"] for item in summary[0]["thermostats"]],
+                         ["climate.bath_a", "climate.bath_b"])
+        self.assertIn("target_out_of_range", summary[0]["thermostats"][1]["reasons"])
+        self.assertTrue(all(item["passive"] and not item["commands"] for item in summary))
+
+        hass.states.values["climate.bath_b"] = climate(30)
+        recovered = zone_target_capability_summary(previews, zone_status(hass, zones))
+        self.assertEqual(recovered[0]["suitability"], "fully_suitable")
+
+        hass.states.values.pop("climate.bath_b")
+        unavailable = zone_target_capability_summary(previews, zone_status(hass, zones))
+        self.assertEqual(unavailable[0]["suitability"], "partially_suitable")
+        self.assertIn("unavailable", unavailable[0]["thermostats"][1]["reasons"])
