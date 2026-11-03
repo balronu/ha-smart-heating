@@ -134,6 +134,18 @@ class ManagementTests(unittest.TestCase):
         self.assertEqual(aggregate_window_status(["closed", "unavailable"]), "unavailable")
         self.assertFalse(is_eligible_window_entity("sensor.window_state", "opening"))
         self.assertFalse(is_eligible_window_entity("sensor.window_state", "temperature"))
+    def test_window_contact_failure_and_recovery_never_becomes_closed_implicitly(self):
+        # A missing contact is not silently treated as closed, even when
+        # another contact reports closed. Recovery is evaluated afresh.
+        states = [("closed", "open"), ("closed", "unavailable"),
+                  ("closed", "unknown"), ("closed", "open"),
+                  ("closed", "closed")]
+        self.assertEqual(
+            [aggregate_window_status(list(pair)) for pair in states],
+            ["open", "unavailable", "unknown", "open", "closed"],
+        )
+        self.assertEqual(aggregate_window_status([]), "unknown")
+
     def test_legacy_special_modes_migrate_idempotently_and_keep_entity_binding(self):
         legacy = {"safety": {"modes": {"party": {"enabled": True, "helper_entity": "input_boolean.party", "temperature": 22, "zone_ids": ["zone"]}}}}
         first = normalize_management(legacy)
