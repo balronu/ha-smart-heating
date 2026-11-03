@@ -53,6 +53,14 @@ Der isolierte Wiederherstellungstest prüft jetzt zusätzlich zu Wochenplan und 
 
 **Release-Metadaten (Lesekontrolle):** Manifest `0.1.0-beta.52`, HACS-Minimum `2026.10.0`; README DE/EN und Changelog kennzeichnen die Beta als unveröffentlicht. Kein Tag, keine Release-Freigabe und keine Installation daraus abgeleitet.
 
+## Abschlussprüfung – Entwicklungsstand `7845ff3`
+
+- HACS: [success](https://github.com/balronu/ha-smart-heating/actions/runs/41653086166).
+- Validate einschließlich Runtime/Hassfest: [success](https://github.com/balronu/ha-smart-heating/actions/runs/41653086083).
+- UI/Playwright: [Lauf 41653086178](https://github.com/balronu/ha-smart-heating/actions/runs/41653086178) bei der letzten Abfrage noch in Bearbeitung; **nicht als bestanden werten**.
+- Der vorangehende funktionale Commit `278dc23` hatte alle drei Workflows erfolgreich abgeschlossen.
+- Release-Gate bleibt gesperrt, bis alle Checks auf dem endgültigen Commit erfolgreich sind und die Nutzerfreigaben ausdrücklich vorliegen.
+
 ## Freigabekriterien (alle erforderlich)
 
 - [ ] HACS, Validate und UI für **denselben endgültigen Release-Commit** erfolgreich.
