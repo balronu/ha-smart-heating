@@ -104,16 +104,7 @@ class SmartHeatingCard extends HTMLElement {
       button.classList.toggle("sh-on",on);button.disabled=!available||!button.dataset.toggle;button.setAttribute("aria-pressed",String(on));
       const label=button.querySelector("small");if(label)label.textContent=!available?"Nicht verfügbar":on?"Aktiv":button.dataset.toggle?"Aus":"Inaktiv · nur Anzeige";
     });
-    this.querySelectorAll(".sh-ir[data-ir-switch]").forEach(button=>button.addEventListener("click",async event=>{
-      event.stopPropagation();
-      const id=button.dataset.irSwitch,state=this._hass?.states?.[id]?.state;
-      if(this._config.allow_manual_ir_control!==true||!["on","off"].includes(state))return;
-      button.disabled=true;
-      try{await this._hass.callService("switch",state==="on"?"turn_off":"turn_on",{entity_id:id});}
-      catch(error){this._error="Infrarot-Panel: "+(error?.message||error);this._renderModern();}
-      finally{button.disabled=false;}
-    }));
-    this.querySelectorAll(".sh-room[data-climate]").forEach(room=>{
+    this.querySelectorAll(".sh-room").forEach(room=>{
       const entity=st(room.dataset.climate),actual=entity?.attributes?.current_temperature,target=entity?.attributes?.temperature;
       const ir=room.querySelector(".sh-ir");if(ir){const state=st(ir.dataset.irSwitch)?.state;ir.setAttribute("aria-pressed",String(state==="on"));ir.textContent="Infrarot-Panel: "+(state==="on"?"Ein":state==="off"?"Aus":"Nicht verfügbar")+(this._config.allow_manual_ir_control===true?"":" · Anzeige");ir.disabled=this._config.allow_manual_ir_control!==true||!["on","off"].includes(state);}
       const label=room.querySelector(".sh-room-values");
@@ -135,7 +126,7 @@ class SmartHeatingCard extends HTMLElement {
     };
     const modes=this._dashboardModes().map(mode=>{
       const state=st(mode.source)?.state,on=state==="on",available=mode.enabled&&["on","off"].includes(state);
-      const canToggle=mode.enabled&&mode.source.startsWith("input_boolean.");
+      const canToggle=available&&mode.source.startsWith("input_boolean.");
       return `<button class="sh-mode ${on?"sh-on":""}" data-mode-source="${esc(mode.source)}" ${canToggle?`data-toggle="${esc(mode.source)}"`:""} ${!canToggle?"disabled":""} aria-pressed="${on}"><span>${mode.icon} ${esc(mode.label)}</span><small>${!available?"Nicht verfügbar":on?"Aktiv":canToggle?"Aus":"Inaktiv · nur Anzeige"}</small></button>`;
     }).join("");
     const schedule=this._data?.schedule||{};
@@ -171,6 +162,15 @@ class SmartHeatingCard extends HTMLElement {
       <p class="sh-foot">Temperatur- und Modusänderungen wirken ausschließlich auf vorhandene Home-Assistant-Helfer. Die bestehende Heizungsautomation bleibt unverändert.</p>
     </div></ha-card>`;
     this.querySelectorAll("details").forEach(el=>{el.open=currentOpen.has(el.dataset.panel);});
+    this.querySelectorAll(".sh-ir[data-ir-switch]").forEach(button=>button.addEventListener("click",async event=>{
+      event.stopPropagation();
+      const id=button.dataset.irSwitch,state=this._hass?.states?.[id]?.state;
+      if(this._config.allow_manual_ir_control!==true||!["on","off"].includes(state))return;
+      button.disabled=true;
+      try{await this._hass.callService("switch",state==="on"?"turn_off":"turn_on",{entity_id:id});}
+      catch(error){this._error="Infrarot-Panel: "+(error?.message||error);this._renderModern();}
+      finally{button.disabled=false;}
+    }));
     this.querySelectorAll(".sh-room[data-climate]").forEach(room=>{
       const open=()=>this.dispatchEvent(new CustomEvent("hass-more-info",{bubbles:true,composed:true,detail:{entityId:room.dataset.climate}}));
       room.addEventListener("click",open);
