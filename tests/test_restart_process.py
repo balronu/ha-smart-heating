@@ -69,13 +69,16 @@ async def worker(stage, config_dir):
             management["zones"] = [{
                 "id": "badezimmer", "name": "Badezimmer",
                 "comfort_temperature": 24.0, "night_temperature": 18.0,
-                "thermostat_entities": ["climate.badezimmer_1"],
+                "thermostat_entities": ["climate.badezimmer_1", "climate.badezimmer_2"],
             }]
-            management["sensors"]["window"] = [{
-                "id": "bad-fenster", "type": "window",
-                "entity_id": "binary_sensor.bad_fenster",
-                "contact_role": "open", "area_id": "badezimmer",
-            }]
+            management["sensors"]["window"] = [
+                {"id": "bad-fenster-offen", "type": "window",
+                 "entity_id": "binary_sensor.bad_fenster",
+                 "contact_role": "open", "zone_ids": ["badezimmer"]},
+                {"id": "bad-fenster-gekippt", "type": "window",
+                 "entity_id": "binary_sensor.bad_fenster_gekippt",
+                 "contact_role": "tilt", "zone_ids": ["badezimmer"]},
+            ]
             hass.config_entries.async_update_entry(entry, options={**entry.options, "management": management})
             await hass.async_block_till_done()
             assert entry.state.value == "loaded", entry.state
@@ -101,9 +104,11 @@ async def worker(stage, config_dir):
             assert restored["control_plane"]["rollback_ready"] is True
             assert restored["internal"]["enabled"] is True
             assert restored["zones"][0]["comfort_temperature"] == 24.0
-            assert restored["zones"][0]["thermostat_entities"] == ["climate.badezimmer_1"]
-            assert restored["sensors"]["window"][0]["entity_id"] == "binary_sensor.bad_fenster"
-            assert restored["sensors"]["window"][0]["contact_role"] == "open"
+            assert restored["zones"][0]["thermostat_entities"] == ["climate.badezimmer_1", "climate.badezimmer_2"]
+            assert [(contact["entity_id"], contact["contact_role"]) for contact in restored["sensors"]["window"]] == [
+                ("binary_sensor.bad_fenster", "open"),
+                ("binary_sensor.bad_fenster_gekippt", "tilt"),
+            ]
             await hass.config_entries.async_setup(entry.entry_id)
             await hass.async_block_till_done()
             assert entry.state.value == "loaded", entry.state
