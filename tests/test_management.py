@@ -79,6 +79,34 @@ class ManagementTests(unittest.TestCase):
         self.assertEqual(data["zones"][0]["thermostat_entities"], ["climate.bathroom_a", "climate.bathroom_b"])
         self.assertEqual(data["zones"][0]["temperature_entities"], ["sensor.bathroom_temperature"])
 
+    def test_legacy_zone_and_window_migration_is_idempotent_and_passive(self):
+        legacy = {
+            "schema_version": 5,
+            "zones": [{
+                "id": "bathroom",
+                "name": "Badezimmer",
+                "thermostat_entities": ["climate.bathroom_a", "climate.bathroom_b"],
+                "temperature_entities": ["sensor.bathroom_temperature"],
+            }],
+            "sensors": {"window": [
+                {"id": "upper", "entity_id": "binary_sensor.upper", "contact_role": "tilt", "zone_ids": ["bathroom"]},
+                {"id": "lower", "entity_id": "binary_sensor.lower", "contact_role": "open", "zone_ids": ["bathroom"]},
+            ]},
+        }
+        migrated = normalize_management(legacy)
+        again = normalize_management(migrated)
+        self.assertEqual(again, migrated)
+        self.assertEqual(again["control_plane"]["operating_state"], "LEGACY")
+        self.assertFalse(again["control_plane"]["switch_ready"])
+        self.assertEqual(
+            again["zones"][0]["thermostat_entities"],
+            ["climate.bathroom_a", "climate.bathroom_b"],
+        )
+        self.assertEqual(
+            {item["entity_id"]: item["contact_role"] for item in again["sensors"]["window"]},
+            {"binary_sensor.upper": "tilt", "binary_sensor.lower": "open"},
+        )
+
     def test_migration_never_activates_requested_smart_state(self):
         data = normalize_management({"control_plane": {"operating_state": "SMART", "confirmed_control_ownership": "smart"}})
         self.assertEqual(set(OPERATING_STATES), {"LEGACY", "TRANSITIONING", "SMART"})
