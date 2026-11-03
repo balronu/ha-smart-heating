@@ -498,3 +498,39 @@ test("internal dashboard settings persist without legacy helper service calls", 
   expect(result.services).toHaveLength(0);
   await expect(card.locator('[data-internal-mode="party"]')).toHaveAttribute("aria-pressed","true");
 });
+
+
+test("per-room internal temperatures use zone-scoped websocket writes",async({page})=>{
+  await page.evaluate(()=>{
+    const card=document.querySelector("smart-heating-card");
+    card.setConfig({entry_id:"fixture-0",display_mode:"dashboard"});
+    card.hass=window.hass;
+    card._data.options=card._data.options||{};
+    card._data.options.management={
+      ...(card._data.options.management||{}),
+      zones:[{id:"bathroom",name:"Badezimmer"},{id:"bedroom",name:"Schlafzimmer"}],
+      internal:{internal_only:true,enabled:true,comfort_temperature:21,night_temperature:18,zones:{bathroom:{comfort_temperature:24},bedroom:{comfort_temperature:18}}}
+    };
+    window.__zoneCalls=[];
+    window.__services=[];
+    const original=window.hass.callWS.bind(window.hass);
+    window.hass.callWS=async msg=>{
+      if(msg.type!=="smart_heating/admin/internal/set")return original(msg);
+      window.__zoneCalls.push(msg.item);
+      const internal=card._data.options.management.internal;
+      const {zone_id,...patch}=msg.item;
+      return {internal:{...internal,zones:{...internal.zones,[zone_id]:{...internal.zones[zone_id],...patch}}},active_control:false};
+    };
+    card._render();
+  });
+  const card=page.locator("smart-heating-card").first();
+  await expect(card.locator('[data-zone-id="bathroom"][data-zone-key="comfort_temperature"]')).toHaveCount(2);
+  await card.locator('[data-zone-id="bathroom"][data-zone-key="comfort_temperature"][data-zone-step="0.5"]').click();
+  await card.locator('[data-zone-id="bedroom"][data-zone-key="comfort_temperature"][data-zone-step="-0.5"]').click();
+  const result=await page.evaluate(()=>({calls:window.__zoneCalls,services:window.__services}));
+  expect(result.calls).toEqual([
+    {zone_id:"bathroom",comfort_temperature:24.5},
+    {zone_id:"bedroom",comfort_temperature:17.5}
+  ]);
+  expect(result.services).toHaveLength(0);
+});
