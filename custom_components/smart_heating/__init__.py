@@ -494,6 +494,7 @@ async def _ws_get_status(hass: HomeAssistant, connection: websocket_api.ActiveCo
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/plan/set", vol.Required("entry_id"): cv.string, vol.Required("schedule"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_set_schedule(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, coordinator = _entry_from_connection(hass, msg["entry_id"])
@@ -580,18 +581,21 @@ async def _ws_admin_get(hass: HomeAssistant, connection: websocket_api.ActiveCon
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/person/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_person_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     await _admin_mutation(hass, connection, msg, "persons")
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/person/delete", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_person_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     await _admin_mutation(hass, connection, msg, "persons", True)
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/zone/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_zone_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     await _admin_mutation(hass, connection, msg, "zones")
@@ -603,6 +607,7 @@ async def _ws_admin_zone_set(hass: HomeAssistant, connection: websocket_api.Acti
     vol.Required("item"): dict,
     vol.Optional("contacts", default=[]): list,
 })
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_room_save(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Persist one room and its contact roles as one verified transaction."""
@@ -660,12 +665,14 @@ async def _ws_admin_room_save(hass: HomeAssistant, connection: websocket_api.Act
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/zone/delete", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_zone_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     await _admin_mutation(hass, connection, msg, "zones", True)
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/area/relevance", vol.Required("entry_id"): cv.string, vol.Required("area_id"): cv.string, vol.Required("relevant"): cv.boolean})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_area_relevance_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Persist only the panel's explicit area relevance preference."""
@@ -687,18 +694,21 @@ async def _ws_admin_area_relevance_set(hass: HomeAssistant, connection: websocke
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/sensor/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_sensor_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     await _admin_mutation(hass, connection, msg, "sensors")
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/sensor/delete", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_sensor_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     await _admin_mutation(hass, connection, msg, "sensors", True)
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/controller/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_controller_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])
@@ -730,6 +740,7 @@ async def _admin_mapping_set(hass: HomeAssistant, connection: websocket_api.Acti
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/outdoor/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_outdoor_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entity_id = msg["item"].get("entity_id")
@@ -740,6 +751,7 @@ async def _ws_admin_outdoor_set(hass: HomeAssistant, connection: websocket_api.A
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/safety/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_safety_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     item = msg["item"]
@@ -779,6 +791,7 @@ async def _ws_admin_safety_set(hass: HomeAssistant, connection: websocket_api.Ac
     vol.Required("entry_id"): cv.string,
     vol.Required("item"): dict,
 })
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_internal_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     """Persist isolated helper-equivalent values without issuing heating commands."""
@@ -845,6 +858,7 @@ async def _ws_admin_internal_set(hass: HomeAssistant, connection: websocket_api.
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/system/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_system_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, _ = _admin_entry(hass, msg["entry_id"])
@@ -902,6 +916,7 @@ def _validate_special_mode(hass: HomeAssistant, current: dict[str, Any], item: d
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/special_mode/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_special_mode_set(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])
@@ -924,6 +939,7 @@ async def _ws_admin_special_mode_set(hass: HomeAssistant, connection: websocket_
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/special_mode/delete", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_special_mode_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])
@@ -941,6 +957,7 @@ async def _ws_admin_special_mode_delete(hass: HomeAssistant, connection: websock
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/special_mode/duplicate", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
+@websocket_api.require_admin
 @websocket_api.async_response
 async def _ws_admin_special_mode_duplicate(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     entry, management = _admin_entry(hass, msg["entry_id"])
