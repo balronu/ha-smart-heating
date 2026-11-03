@@ -45,6 +45,14 @@ Der isolierte Wiederherstellungstest prüft jetzt zusätzlich zu Wochenplan und 
 
 **Nicht durch diesen Test belegt:** realer HAOS-/VM-Neustart, vollständige produktive Migration aller historischen Helfer, echtes Tado-Verhalten und finale Freigabe. Der vorherige CI-Fehler von `54a60ac` ist historisch und nicht der Stand des aktuellen Entwicklungsbranches.
 
+## Wiederholte Legacy-Migration – bestätigt am 03.11.2026
+
+`tests/test_management.py::test_legacy_migration_keeps_both_window_roles_and_all_thermostats_across_repeated_loads` prüft die Migration eines älteren Schema-5-Raums mit zwei Thermostaten, Temperaturfühler sowie getrennten Kontakten für „gekippt“ und „offen“. Alle Bindungen und Sollwerte bleiben erhalten. Ein angeforderter, nicht freigegebener Zustand `TRANSITIONING` wird auf `LEGACY` zurückgesetzt und als abgelehnt diagnostiziert; der nachfolgende sichere Zustand normalisiert stabil. Das ist ein isolierter Modelltest, **keine** Migration realer HA-Produktivdaten.
+
+**CI-Nachweis:** Commit [`278dc23`](https://github.com/balronu/ha-smart-heating/commit/278dc23732b743b8d82ca5bb579a7e38385a27f9): [HACS](https://github.com/balronu/ha-smart-heating/actions/runs/41650844326), [Validate](https://github.com/balronu/ha-smart-heating/actions/runs/41650844374) und [UI](https://github.com/balronu/ha-smart-heating/actions/runs/41650844328) – alle **success**.
+
+**Release-Metadaten (Lesekontrolle):** Manifest `0.1.0-beta.52`, HACS-Minimum `2026.10.0`; README DE/EN und Changelog kennzeichnen die Beta als unveröffentlicht. Kein Tag, keine Release-Freigabe und keine Installation daraus abgeleitet.
+
 ## Freigabekriterien (alle erforderlich)
 
 - [ ] HACS, Validate und UI für **denselben endgültigen Release-Commit** erfolgreich.
