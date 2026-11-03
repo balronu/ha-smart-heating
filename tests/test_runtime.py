@@ -155,6 +155,25 @@ class RuntimeTests(unittest.TestCase):
                         SimpleNamespace(id="runtime-nonadmin", name="Runtime Non-Admin", is_admin=False),
                         None, "127.0.0.1",
                     )
+                    # Full administrative diagnostics must not leak to non-admins.
+                    connection.async_handle({
+                        "id": 97,
+                        "type": "smart_heating/admin/get",
+                        "entry_id": entry.entry_id,
+                    })
+                    await hass.async_block_till_done()
+                    read_responses = [
+                        json.loads(item) if isinstance(item, (bytes, bytearray)) else item
+                        for item in messages
+                    ]
+                    denied_read = next(
+                        (item for item in read_responses if item.get("id") == 97), None
+                    )
+                    self.assertIsNotNone(denied_read, read_responses)
+                    self.assertEqual(denied_read["type"], "result")
+                    self.assertFalse(denied_read["success"])
+                    self.assertEqual(denied_read["error"]["code"], "unauthorized")
+                    messages.clear()
                     options_before_denial = dict(entry.options)
                     connection.async_handle({
                         "id": 100,
