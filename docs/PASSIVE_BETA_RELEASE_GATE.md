@@ -29,6 +29,14 @@ Für Entwicklungs-Commit [`3a025040c5566f047f879ebd3271ec35a653e9ba`](https://gi
 
 Der vorherige Runtime-Fehler war eine nicht monoton steigende WebSocket-Nachrichten-ID (`id_reuse`) im Lifecycle-Test; Korrektur im genannten Commit. Diese Ergebnisse gelten **nur für diesen Entwicklungs-Commit**. Eine nachfolgende Änderung erfordert neue CI-Prüfungen. Der Commit ist weder ein freigegebener Release-Kandidat noch ein veröffentlichter Beta-Tag. Die untenstehenden Release-Kriterien bleiben offen, soweit nicht gesondert nachgewiesen.
 
+## Zwei-Prozess-Neustarttest – bestätigt am 03.11.2026
+
+Der neue Test `tests/test_restart_process.py::SeparateProcessRestartTests.test_persist_and_restore_across_two_processes` startet zwei **getrennte Python-/HA-Testprozesse** mit gemeinsamem temporärem Konfigurationsverzeichnis. Prozess 1 erstellt und persistiert einen Smart-Heating-Config-Entry mit Montag-Zeitplan; Prozess 2 initialisiert die gespeicherten HA-Config-Entries, lädt Smart Heating und prüft den erhaltenen Sollwert von 20,5 °C. Beide Prozesse überwachen climate-, automation- und generische homeassistant-Steuerdienste; die simulierte Bestandsautomation bleibt eingeschaltet.
+
+**CI-Nachweis:** Commit [`a9fe937`](https://github.com/balronu/ha-smart-heating/commit/a9fe9379298765eb174c91d495f099bdcbe8126a): [HACS](https://github.com/balronu/ha-smart-heating/actions/runs/41638959664), [Validate](https://github.com/balronu/ha-smart-heating/actions/runs/41638959493) einschließlich Zwei-Prozess-Test und Runtime, [UI](https://github.com/balronu/ha-smart-heating/actions/runs/41638959533) – alle **success**.
+
+**Grenzen:** Dies ist kein vollständiger HAOS-/VM-Neustart und kein produktiver Tado-Test. Nicht separat nachgewiesen sind alle internen Raum-/Kontakt-/Sondermodus-Zustände über den Prozessneustart sowie reale Migration. Release-Gate und Nutzerfreigaben bleiben offen.
+
 ## Freigabekriterien (alle erforderlich)
 
 - [ ] HACS, Validate und UI für **denselben endgültigen Release-Commit** erfolgreich.
