@@ -171,7 +171,30 @@ def zone_backend_summary(hass: Any, zones: list[Mapping[str, Any]], management: 
         delays = zone.get("window_delays", {})
         reaction = evaluate_window_strategy(state=windows["state"], strategy=zone.get("window_strategy", "none"), tilted_delay=delays.get("tilted", 0), open_delay=delays.get("open", 0), close_delay=delays.get("closed", 0))
         status = next((item for item in zone_status(hass, [zone]) if item["zone_id"] == zone.get("id")), {})
-        result.append({"zone_id": zone.get("id"), "name": zone.get("name"), "thermostats": status.get("thermostats", []), "thermostat_count": len(status.get("thermostats", [])), "window_state": windows["state"], "window_groups": windows["windows"], "window_contacts": windows.get("contacts", []), "window_conflicts": windows["conflicts"], "window_reaction": reaction, "passive": True})
+        # Prefer an explicitly configured room sensor; never substitute a
+        # different room's thermostat or an unavailable measurement.
+        measured = None
+        measurement_source = None
+        for entity_id in zone.get("temperature_entities", []):
+            state = hass.states.get(entity_id)
+            try:
+                candidate = float(state.state) if state else None
+            except (TypeError, ValueError):
+                candidate = None
+            if candidate is not None and -40 <= candidate <= 80:
+                measured, measurement_source = candidate, entity_id
+                break
+        if measured is None:
+            for entity_id in zone.get("thermostat_entities", []):
+                state = hass.states.get(entity_id)
+                try:
+                    candidate = float(state.attributes.get("current_temperature")) if state else None
+                except (TypeError, ValueError):
+                    candidate = None
+                if candidate is not None and -40 <= candidate <= 80:
+                    measured, measurement_source = candidate, entity_id
+                    break
+        result.append({"room_temperature": measured, "temperature_source": measurement_source, "zone_id": zone.get("id"), "name": zone.get("name"), "thermostats": status.get("thermostats", []), "thermostat_count": len(status.get("thermostats", [])), "window_state": windows["state"], "window_groups": windows["windows"], "window_contacts": windows.get("contacts", []), "window_conflicts": windows["conflicts"], "window_reaction": reaction, "passive": True})
     return result
 
 
