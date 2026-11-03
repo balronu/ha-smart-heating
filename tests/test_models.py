@@ -350,6 +350,7 @@ class ScheduleTests(unittest.TestCase):
             now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
             timezone="Europe/Berlin",
             zones=[{"id": "bathroom", "name": "Bad"}, {"id": "bedroom", "name": "Schlafzimmer"}],
+            zone_diagnostics=[{"zone_id": "bathroom", "window_state": "closed"}, {"zone_id": "bedroom", "window_state": "closed"}],
             internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18,
                       "zones": {"bathroom": {"comfort_temperature": 24}, "bedroom": {"comfort_temperature": 18}}},
             overrides={"heating_permission": True},
@@ -366,3 +367,20 @@ class ScheduleTests(unittest.TestCase):
             internal={"internal_only": False},
         )
         self.assertEqual(result, [])
+
+
+    def test_zone_open_window_does_not_disable_other_room(self):
+        schedule = WeeklySchedule.from_mapping({"monday": [{"start": "06:00", "end": "22:00"}]})
+        previews = calculate_zone_target_previews(
+            schedule,
+            now=datetime.fromisoformat("2026-11-02T12:00:00+01:00"),
+            timezone="Europe/Berlin",
+            zones=[{"id": "bathroom"}, {"id": "bedroom"}],
+            internal={"internal_only": True, "comfort_temperature": 21, "night_temperature": 18},
+            zone_diagnostics=[{"zone_id": "bathroom", "window_state": "open"}, {"zone_id": "bedroom", "window_state": "closed"}],
+            overrides={"window_open": True},
+        )
+        self.assertNotEqual(previews[0]["mode"], "comfort")
+        self.assertEqual(previews[1]["mode"], "comfort")
+        self.assertEqual(previews[1]["target_temperature"], 21)
+        self.assertTrue(all(not item["commands"] for item in previews))
