@@ -192,6 +192,25 @@ class ManagementTests(unittest.TestCase):
         self.assertEqual(evaluate_decision(schedule_active=False, overrides={"manual_heat": True}, comfort_temperature=21).mode, "manual_heat")
         self.assertTrue(load_schedule({"schedule": {}, "management": data}).windows["monday"])
 
+    def test_internal_weekly_schedule_crosses_midnight_without_helper_actuation(self):
+        from datetime import datetime, timezone
+        from custom_components.smart_heating.models import WeeklySchedule
+
+        schedule = WeeklySchedule.from_mapping({
+            "monday": [{"start": "22:00", "end": "01:00"}],
+            "wednesday": [{"start": "06:00", "end": "07:00"}],
+        })
+        def active(year, month, day, hour, minute):
+            return schedule.active_at(datetime(year, month, day, hour, minute, tzinfo=timezone.utc), "UTC")
+
+        self.assertFalse(active(2026, 11, 2, 21, 59))
+        self.assertTrue(active(2026, 11, 2, 22, 0))
+        self.assertTrue(active(2026, 11, 3, 0, 59))
+        self.assertFalse(active(2026, 11, 3, 1, 0))
+        self.assertFalse(active(2026, 11, 4, 5, 59))
+        self.assertTrue(active(2026, 11, 4, 6, 0))
+        self.assertFalse(active(2026, 11, 4, 7, 0))
+
     def test_only_binary_opening_sensors_are_eligible(self):
         self.assertTrue(is_eligible_window_entity("binary_sensor.fenster_wohnzimmer", "window"))
         self.assertTrue(is_eligible_window_entity("binary_sensor.tuer", "door"))
