@@ -9,6 +9,15 @@
 > [!IMPORTANT]
 > **Stable – Coming Soon.** Smart Heating is currently in beta and undergoing real-world testing. **No stable release is available yet.** The development-branch manifest currently declares `0.1.0-beta.54`; this is not evidence that a release has been approved or published. The current integration is **passive**: it displays schedules and decisions but does **not** autonomously control heating. Active control requires separate validation and explicit approval.
 
+## Next beta – separate room targets (development)
+
+The next development separates the desired room temperature, measured room
+temperature, thermostat setpoint, and passive heat demand. Internal default
+room targets are 24 °C, 21 °C, 22 °C, and 18 °C for the bathroom, dining room,
+living room, and bedroom. Existing thermostat setpoints—for example 27 °C in
+the bathroom to keep the valve open—are read only and are not treated as room
+targets.
+
 ## Overview
 
 Smart Heating brings weekly schedules, comfort and setback temperatures, rooms, window contacts, presence signals, and special modes into a Home Assistant integration. Its goal is transparent, auditable heating decisions without silently taking over existing automation.

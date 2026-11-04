@@ -1,3 +1,13 @@
+## Next beta – getrennte Raumziel-/Thermostat-Diagnose
+
+- Benannte Räume erhalten sichere interne Raumziel-Vorgaben: Badezimmer 24 °C,
+  Esszimmer 21 °C, Wohnzimmer 22 °C und Schlafzimmer 18 °C.
+- Gemessene Raumtemperatur, Thermostat-Sollwert und passiver Heizbedarf werden
+  im Backend-Datenvertrag getrennt ausgewiesen; ein Thermostat-Sollwert von
+  27 °C wird nicht als gewünschte Raumtemperatur interpretiert.
+- Bestehende Werte werden bei der Normalisierung beibehalten; es werden keine
+  Thermostat-Serviceaufrufe ausgeführt.
+
 ## v0.1.0-beta.54 – Internal special-mode passive preview (release candidate)
 
 - Fix: Party, Besuch, Heimweg, Sommer and Schornsteinfeger toggles now atomically activate the isolated internal preview, so the visible state affects passive decision previews immediately.

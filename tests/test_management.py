@@ -28,6 +28,7 @@ from custom_components.smart_heating.management import (  # noqa: E402
     aggregate_window_status,
     is_eligible_window_entity,
     OPERATING_STATES,
+    default_room_temperatures,
 )
 from custom_components.smart_heating.models import evaluate_decision  # noqa: E402
 from custom_components.smart_heating.storage import load_schedule  # noqa: E402
@@ -57,6 +58,17 @@ class Hass:
 
 
 class ManagementTests(unittest.TestCase):
+    def test_room_defaults_are_room_targets_and_do_not_change_thermostat_setpoints(self):
+        self.assertEqual(default_room_temperatures("Badezimmer"), {"comfort_temperature": 24.0, "night_temperature": 17.0})
+        self.assertEqual(default_room_temperatures("Esszimmer"), {"comfort_temperature": 21.0, "night_temperature": 17.0})
+        self.assertEqual(default_room_temperatures("Wohnzimmer"), {"comfort_temperature": 22.0, "night_temperature": 17.0})
+        self.assertEqual(default_room_temperatures("Schlafzimmer"), {"comfort_temperature": 18.0, "night_temperature": 17.0})
+
+    def test_room_defaults_are_persisted_in_internal_zone_settings(self):
+        data = normalize_management({"zones": [{"id": "bathroom", "name": "Badezimmer"}]})
+        self.assertEqual(data["internal"]["zones"]["bathroom"]["comfort_temperature"], 24.0)
+        self.assertNotIn("temperature", data["internal"]["zones"]["bathroom"])
+
     def test_beta38_management_migrates_to_fenced_passive_control_plane(self):
         data = normalize_management({
             "schema_version": 5,
@@ -674,3 +686,18 @@ class ManagementTests(unittest.TestCase):
         restored = zone_target_capability_summary(previews, zone_status(hass, zones))
         self.assertEqual(restored[0]["suitability"], "fully_suitable")
         self.assertTrue(all(item["passive"] and not item["commands"] for item in restored))
+
+    def test_zone_status_exposes_thermostat_setpoint_separately(self):
+        hass = Hass({"climate.bath": State("heat", {
+            "current_temperature": 20.5,
+            "temperature": 27.0,
+            "hvac_action": "heating",
+            "hvac_modes": ["heat", "off"],
+            "min_temp": 5,
+            "max_temp": 30,
+            "target_temp_step": 0.5,
+        })})
+        item = zone_status(hass, [{"id": "bathroom", "name": "Badezimmer", "thermostat_entities": ["climate.bath"]}])[0]["thermostats"][0]
+        self.assertEqual(item["current_temperature"], 20.5)
+        self.assertEqual(item["setpoint_temperature"], 27.0)
+        self.assertEqual(item["hvac_action"], "heating")

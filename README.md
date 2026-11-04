@@ -10,6 +10,15 @@
 > [!IMPORTANT]
 > **Stable – Coming Soon.** Smart Heating befindet sich in der Beta- und Praxistestphase. **Eine Stable-Version ist noch nicht freigegeben.** Das Manifest des Entwicklungsbranches trägt derzeit `0.1.0-beta.54`; daraus folgt noch keine Freigabe oder Veröffentlichung eines Releases. Die Integration arbeitet im aktuellen Entwicklungsstand **passiv**: Sie zeigt Planungen und Entscheidungen an, übernimmt aber **nicht** selbstständig die Heizungssteuerung. Ein späterer aktiver Betrieb wird erst nach gesonderter Prüfung und ausdrücklicher Freigabe möglich.
 
+## Nächste Beta – getrennte Raumziele (Entwicklung)
+
+Die nächste Entwicklung trennt Raumziel, gemessene Raumtemperatur,
+Thermostat-Sollwert und passiven Heizbedarf. Für Badezimmer, Esszimmer,
+Wohnzimmer und Schlafzimmer gelten nur als interne Standard-Raumziele 24 °C,
+21 °C, 22 °C und 18 °C. Bestehende Thermostat-Sollwerte – beispielsweise 27 °C
+im Badezimmer zum Offenhalten des Ventils – werden nur gelesen und nicht als
+Raumziel übernommen.
+
 ## Was ist Smart Heating?
 
 Smart Heating führt Wochenpläne, Heiz- und Absenktemperaturen, Raumdaten, Fensterkontakte, Anwesenheit und Sondermodi in einer zentralen Home-Assistant-Oberfläche zusammen. Entscheidungen werden nachvollziehbar dargestellt, statt die bestehende Heizung unbemerkt zu verändern.

@@ -67,6 +67,22 @@ SPECIAL_MODE_DEFINITIONS = {
     "frost_protection": ("Frostschutz", "Frostschutzstatus passiv anzeigen."),
 }
 
+ROOM_COMFORT_DEFAULTS = {
+    "badezimmer": 24.0,
+    "esszimmer": 21.0,
+    "wohnzimmer": 22.0,
+    "schlafzimmer": 18.0,
+}
+
+
+def default_room_temperatures(name: Any) -> dict[str, float]:
+    """Return room-target defaults without touching thermostat state."""
+    value = str(name or "").strip().casefold()
+    for room, comfort in ROOM_COMFORT_DEFAULTS.items():
+        if room in value:
+            return {"comfort_temperature": comfort, "night_temperature": 17.0}
+    return {"comfort_temperature": 20.0, "night_temperature": 17.0}
+
 
 def discover_persons(hass: Any) -> list[dict[str, Any]]:
     """Return all native HA person entities; never discover trackers as persons."""
@@ -209,7 +225,7 @@ def zone_status(hass: Any, zones: list[Mapping[str, Any]]) -> list[dict[str, Any
         thermostats = []
         for entity_id in zone.get("thermostat_entities", []):
             state = hass.states.get(entity_id)
-            thermostats.append({"entity_id": entity_id, "state": str(state.state) if state else "missing", "hvac_action": state.attributes.get("hvac_action") if state else None, "hvac_modes": list(state.attributes.get("hvac_modes")) if state and isinstance(state.attributes.get("hvac_modes"), (list, tuple)) else [], "min_temp": state.attributes.get("min_temp") if state else None, "max_temp": state.attributes.get("max_temp") if state else None, "target_temp_step": state.attributes.get("target_temp_step") if state else None, "passive": True})
+            thermostats.append({"entity_id": entity_id, "state": str(state.state) if state else "missing", "hvac_action": state.attributes.get("hvac_action") if state else None, "current_temperature": state.attributes.get("current_temperature") if state else None, "setpoint_temperature": state.attributes.get("temperature") if state else None, "hvac_modes": list(state.attributes.get("hvac_modes")) if state and isinstance(state.attributes.get("hvac_modes"), (list, tuple)) else [], "min_temp": state.attributes.get("min_temp") if state else None, "max_temp": state.attributes.get("max_temp") if state else None, "target_temp_step": state.attributes.get("target_temp_step") if state else None, "passive": True})
             thermostats[-1]["capability_assessment"] = thermostat_capability_assessment(thermostats[-1])
         temperatures = []
         for entity_id in zone.get("temperature_entities", []):
@@ -271,7 +287,11 @@ def zone_backend_summary(hass: Any, zones: list[Mapping[str, Any]], management: 
                 if candidate is not None and -40 <= candidate <= 80:
                     measured, measurement_source = candidate, entity_id
                     break
-        result.append({"room_temperature": measured, "temperature_source": measurement_source, "zone_id": zone.get("id"), "name": zone.get("name"), "thermostats": status.get("thermostats", []), "thermostat_count": len(status.get("thermostats", [])), "unavailable_thermostats": status.get("unavailable_thermostats", 0), "window_state": windows["state"], "window_groups": windows["windows"], "window_contacts": windows.get("contacts", []), "window_conflicts": windows["conflicts"], "window_reaction": reaction, "passive": True})
+        settings = (management or {}).get("internal", {}).get("zones", {}).get(zone.get("id"), {}) if management else {}
+        thermostats = status.get("thermostats", [])
+        setpoint = next((item.get("setpoint_temperature") for item in thermostats if item.get("setpoint_temperature") is not None), None)
+        demand = any(item.get("hvac_action") in {"heating", "heat"} for item in thermostats)
+        result.append({"room_temperature": measured, "temperature_source": measurement_source, "desired_room_temperature": settings.get("comfort_temperature"), "thermostat_setpoint": setpoint, "heating_demand": demand, "zone_id": zone.get("id"), "name": zone.get("name"), "thermostats": thermostats, "thermostat_count": len(thermostats), "unavailable_thermostats": status.get("unavailable_thermostats", 0), "window_state": windows["state"], "window_groups": windows["windows"], "window_contacts": windows.get("contacts", []), "window_conflicts": windows["conflicts"], "window_reaction": reaction, "passive": True})
     return result
 
 
@@ -543,8 +563,9 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
             zone["temperature_entities"] = [zone["temperature_entity"]]
         zone["temperature_entities"] = list(dict.fromkeys(str(item) for item in zone.get("temperature_entities", []) if str(item).startswith("sensor.")))
         settings = result["internal"]["zones"].setdefault(zone["id"], {})
-        settings.setdefault("comfort_temperature", zone.get("comfort_temperature", 20.0))
-        settings.setdefault("night_temperature", zone.get("night_temperature", 17.0))
+        defaults = default_room_temperatures(zone.get("name") or zone.get("id"))
+        settings.setdefault("comfort_temperature", zone.get("comfort_temperature", defaults["comfort_temperature"]))
+        settings.setdefault("night_temperature", zone.get("night_temperature", defaults["night_temperature"]))
         settings.setdefault("operating_mode", "automatic")
         settings.setdefault("schedule", deepcopy(zone.get("schedule", {})))
     for kind, items in result["sensors"].items():
