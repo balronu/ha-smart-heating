@@ -493,12 +493,39 @@ test("internal dashboard settings persist without legacy helper service calls", 
   await card.locator('[data-internal-mode="party"]').click();
   const result=await page.evaluate(()=>({calls:window.__internalCalls,services:window.__services||[]}));
   expect(result.calls.map(call=>call.item)).toEqual([
-    {internal_only:true},{enabled:false},{operating_mode:"manual_setback"},{party:true}
+    {internal_only:true},{enabled:false},{operating_mode:"manual_setback"},{internal_only:true,party:true}
   ]);
   expect(result.services).toHaveLength(0);
   await expect(card.locator('[data-internal-mode="party"]')).toHaveAttribute("aria-pressed","true");
 });
 
+
+test("all five internal special modes atomically activate passive isolation without service writes", async ({ page }) => {
+  await page.evaluate(() => {
+    const card=document.querySelector("smart-heating-card");
+    card.setConfig({entry_id:"fixture-0",display_mode:"dashboard"});
+    card._data.options=card._data.options||{};
+    card._data.options.management={...(card._data.options.management||{}),internal:{enabled:true,internal_only:false,operating_mode:"automatic"}};
+    window.__specialCalls=[];
+    const original=window.hass.callWS.bind(window.hass);
+    window.hass.callWS=async msg=>{
+      if(msg.type!=="smart_heating/admin/internal/set")return original(msg);
+      window.__specialCalls.push(msg.item);
+      return {internal:{...card._data.options.management.internal,...msg.item},active_control:false};
+    };
+    window.__services=[];
+    card._render();
+  });
+  const card=page.locator("smart-heating-card").first();
+  for(const mode of ["party","visit","return_home","summer","chimney_sweep"]){
+    await card.locator('[data-internal-mode="'+mode+'"]').click();
+    await expect(card.locator('[data-internal-mode="'+mode+'"]')).toHaveAttribute("aria-pressed","true");
+  }
+  const result=await page.evaluate(()=>({calls:window.__specialCalls,services:window.__services||[]}));
+  expect(result.calls).toEqual(["party","visit","return_home","summer","chimney_sweep"].map(mode=>({internal_only:true,[mode]:true})));
+  expect(result.services).toHaveLength(0);
+  await expect(card.getByTestId("internal-mode-preview-status")).toContainText("passive Vorschau");
+});
 
 test("per-room internal temperatures use zone-scoped websocket writes",async({page})=>{
   await page.evaluate(()=>{
