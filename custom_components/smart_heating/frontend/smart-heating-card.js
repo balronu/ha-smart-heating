@@ -173,6 +173,7 @@ class SmartHeatingCard extends HTMLElement {
         ${[["automatic","Automatik"],["manual_heat","Dauerhaft Komfort"],["manual_setback","Dauerhaft Absenkung"]].map(([key,label])=>`<button type="button" class="sh-mode ${(internal.operating_mode||"automatic")===key?"sh-on":""}" data-internal-operating="${key}" aria-pressed="${(internal.operating_mode||"automatic")===key}">${label}</button>`).join("")}
       </div>
       <div class="sh-grid">${[["comfort_temperature","Komfort"],["night_temperature","Absenkung"]].map(([key,label])=>`<div class="sh-tile"><span class="sh-muted">${label}</span><strong>${esc(internal[key]??(key==="comfort_temperature"?21:18))} °C</strong><div class="sh-controls"><button type="button" data-internal-adjust="${key}" data-step="-0.5">−</button><button type="button" data-internal-adjust="${key}" data-step="0.5">+</button></div></div>`).join("")}</div>
+      <p class="sh-foot" data-testid="internal-mode-preview-status">${isolated?"Interne Sondermodi beeinflussen die passive Vorschau.":"Ein interner Sondermodus aktiviert automatisch die isolierte Vorschau. Die bisherige Automation bleibt unverändert."}</p>
       <div class="sh-modes">${internalModes.map(([key,label])=>`<button type="button" class="sh-mode ${internal[key]===true?"sh-on":""}" data-internal-mode="${key}" aria-pressed="${internal[key]===true}">${label}: ${internal[key]===true?"Ein":"Aus"}</button>`).join("")}</div>
       <h4>Raumtemperaturen · passive Vorschau</h4>${zoneRows}
       <h4>Thermostat-Eignung · nur Diagnose</h4>${capabilityRows||'<p class="sh-foot">Noch keine Raumdiagnose verfügbar.</p>'}
@@ -222,8 +223,8 @@ class SmartHeatingCard extends HTMLElement {
     this.querySelectorAll("[data-internal-operating]").forEach(button=>button.addEventListener("click",()=>saveInternal({operating_mode:button.dataset.internalOperating})));
     this.querySelectorAll("[data-internal-mode]").forEach(button=>button.addEventListener("click",()=>{
       const key=button.dataset.internalMode;
-      if(key==="chimney_sweep"&&internal[key]===true)return saveInternal({chimney_sweep:false});
-      return saveInternal({[key]:internal[key]!==true});
+      // One atomic admin-only update activates the passive preview without changing HA helpers.
+      return saveInternal({internal_only:true,[key]:internal[key]!==true});
     }));
     this.querySelectorAll("[data-internal-adjust]").forEach(button=>button.addEventListener("click",()=>{
       const key=button.dataset.internalAdjust;
