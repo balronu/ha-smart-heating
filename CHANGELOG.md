@@ -1,4 +1,12 @@
-## v0.1.0-beta.53 – Lovelace iPhone hotfix (release candidate)
+## v0.1.0-beta.54 – Internal special-mode passive preview (release candidate)
+
+- Fix: Party, Besuch, Heimweg, Sommer and Schornsteinfeger toggles now atomically activate the isolated internal preview, so the visible state affects passive decision previews immediately.
+- Add Playwright regression coverage for all five mode buttons and ensure no Home Assistant service calls are issued by these controls.
+- Preserve the beta.53 iPhone scroll-position fix and mobile priority layout.
+- The integration remains passive: no heating commands, legacy automation cutover or changes to existing Home Assistant helpers.
+- Release candidate only; passing CI and a version bump do not publish a GitHub prerelease.
+
+## v0.1.0-beta.54 – Lovelace iPhone hotfix (release candidate)
 
 - Fix: preserve Lovelace scroll position when dashboard content refreshes after changes.
 - Fix: improve mobile readability of diagnostic priority rows and special-mode buttons.
@@ -12,7 +20,7 @@
 - All 17 configuration-mutating WebSocket commands require Home Assistant administrator privileges; full administrative diagnostics also require admin access.
 - Non-admin denial regression tests, WebSocket handler inventory and mobile UI regression coverage.
 - No automatic climate, boiler or helper actuation. The existing heating automation must remain active.
-- Manifest currently declares `0.1.0-beta.53`. This entry does **not** represent a published release or an approved installation.
+- Manifest currently declares `0.1.0-beta.54`. This entry does **not** represent a published release or an approved installation.
 
 ## v0.1.0-beta.46 (vorbereitet – passiver Betrieb)
 
