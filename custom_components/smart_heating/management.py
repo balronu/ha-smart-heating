@@ -324,7 +324,9 @@ def zone_backend_summary(hass: Any, zones: list[Mapping[str, Any]], management: 
         thermostats = status.get("thermostats", [])
         setpoint = next((item.get("setpoint_temperature") for item in thermostats if item.get("setpoint_temperature") is not None), None)
         demand = any(item.get("hvac_action") in {"heating", "heat"} for item in thermostats)
-        result.append({"room_temperature": measured, "temperature_source": measurement_source, "desired_room_temperature": settings.get("comfort_temperature"), "thermostat_setpoint": setpoint, "heating_demand": demand, "zone_id": zone.get("id"), "name": zone.get("name"), "thermostats": thermostats, "thermostat_count": len(thermostats), "unavailable_thermostats": status.get("unavailable_thermostats", 0), "window_state": windows["state"], "window_groups": windows["windows"], "window_contacts": windows.get("contacts", []), "window_conflicts": windows["conflicts"], "window_reaction": reaction, "passive": True})
+        infrared = status.get("infrared_thermostats", [])
+        infrared_config = normalize_infrared_config(zone)
+        result.append({"room_temperature": measured, "temperature_source": measurement_source, "desired_room_temperature": settings.get("comfort_temperature"), "thermostat_setpoint": setpoint, "heating_demand": demand, "zone_id": zone.get("id"), "name": zone.get("name"), "thermostats": thermostats, "thermostat_count": len(thermostats), "unavailable_thermostats": status.get("unavailable_thermostats", 0), "infrared_thermostats": infrared, "infrared": {**status.get("infrared", {}), "entity_ids": infrared_config["climate_entities"], "automatic_control": infrared_config["automatic_control"], "setback_strategy": infrared_config["setback_strategy"], "comfort_temperature": infrared_config["comfort_temperature"], "setback_temperature": infrared_config["setback_temperature"], "passive": True, "commands": []}, "window_state": windows["state"], "window_groups": windows["windows"], "window_contacts": windows.get("contacts", []), "window_conflicts": windows["conflicts"], "window_reaction": reaction, "passive": True})
     return result
 
 

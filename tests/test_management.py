@@ -723,6 +723,29 @@ class ManagementTests(unittest.TestCase):
         self.assertEqual(config["comfort_temperature"], 24.0)
         self.assertEqual(config["setback_temperature"], 35.0)
 
+    def test_bathroom_keeps_radiator_setpoint_and_ir_source_separate(self):
+        data = normalize_management({"zones": [{
+            "id": "bathroom", "name": "Badezimmer",
+            "thermostat_entities": ["climate.heizthermostat_badezimmer"],
+            "infrared_climate_entities": ["climate.metal_panel_heater"],
+            "comfort_temperature": 24,
+        }]})
+        zone = data["zones"][0]
+        self.assertEqual(zone["thermostat_entities"], ["climate.heizthermostat_badezimmer"])
+        self.assertEqual(zone["infrared_climate_entities"], ["climate.metal_panel_heater"])
+        self.assertEqual(data["internal"]["zones"]["bathroom"]["comfort_temperature"], 24.0)
+
+    def test_zone_status_reports_ir_capabilities_without_commands(self):
+        hass = Hass({
+            "climate.heizthermostat_badezimmer": State("heat", {"temperature": 27, "current_temperature": 23.5, "hvac_modes": ["heat", "off"], "min_temp": 5, "max_temp": 30, "target_temp_step": 0.5}),
+            "climate.metal_panel_heater": State("off", {"temperature": 24, "current_temperature": 22, "hvac_modes": ["heat", "off"], "min_temp": 5, "max_temp": 35, "target_temp_step": 0.5}),
+        })
+        item = zone_status(hass, [{"id": "bathroom", "name": "Badezimmer", "thermostat_entities": ["climate.heizthermostat_badezimmer"], "infrared_climate_entities": ["climate.metal_panel_heater"]}])[0]
+        self.assertEqual(item["thermostats"][0]["setpoint_temperature"], 27)
+        self.assertEqual(item["infrared_thermostats"][0]["setpoint_temperature"], 24)
+        self.assertTrue(item["infrared_thermostats"][0]["capability_assessment"]["suitable_for_future_control"])
+        self.assertEqual(item["infrared"]["commands"], [])
+
     def test_infrared_preview_never_authorizes_commands_when_disabled(self):
         result = infrared_passive_preview(
             {"infrared_climate_entities": ["climate.badezimmer_ir"], "infrared_automatic_control": False},
