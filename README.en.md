@@ -7,9 +7,9 @@
 <p align="center"><a href="README.md">🇩🇪 Deutsch (primary)</a> · <a href="README.en.md">🇬🇧 English</a></p>
 
 > [!IMPORTANT]
-> **Stable – Coming Soon.** Smart Heating is currently in beta and undergoing real-world testing. **No stable release is available yet.** The development-branch manifest currently declares `0.1.0-beta.56`; this is not evidence that a release has been approved or published. The current integration is **passive**: it displays schedules and decisions but does **not** autonomously control heating. Active control requires separate validation and explicit approval.
+> **Stable – Coming Soon.** Smart Heating is currently in beta and undergoing real-world testing. **No stable release is available yet.** The current published pre-release is **[v0.1.0-beta.56](https://github.com/balronu/ha-smart-heating/releases/tag/v0.1.0-beta.56)**. The integration is **passive**: it displays schedules and decisions but does **not** autonomously control heating. Active control requires separate validation and explicit approval. Production HVAC modes could not be verified because of `CONNECTION_TIMEOUT`.
 
-## Next beta – separate room targets and bathroom IR (development)
+## Current pre-release – separate room targets and bathroom IR
 
 The next development separates the desired room temperature, measured room
 temperature, thermostat setpoint, and passive heat demand. Internal default

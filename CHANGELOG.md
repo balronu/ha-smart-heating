@@ -1,9 +1,10 @@
-## v0.1.0-beta.56 – Separate bathroom heating sources (development)
+## v0.1.0-beta.56 – Separate bathroom heating sources (published pre-release)
 
 - Fix: keep `climate.heizthermostat_badezimmer` and `climate.metal_panel_heater` as separate internal room assignments.
 - Add passive capability diagnostics and distinct Lovelace display for the bathroom room target, radiator setpoint, and IR climate source.
 - Keep IR automation disabled by default; setback strategy and comfort values remain configuration-only/passive.
 - Add backend and Playwright regression coverage; no Climate service calls, automation switch, or productive HA changes are introduced.
+- Release limitation: productive HVAC modes remain unverified because the read-only HA state checks returned `CONNECTION_TIMEOUT`.
 
 ## Next beta – getrennte Raumziel-/Thermostat-Diagnose
 
