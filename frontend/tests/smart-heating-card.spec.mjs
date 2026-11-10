@@ -39,6 +39,24 @@ test("editor keeps IR automation disabled by default and persists passive settin
   expect(result.initial.auto).toBeFalsy(); expect(result.initial.strategy).toBe("off"); expect(result.config.infrared_automatic_control).toBeTruthy(); expect(result.config.infrared_climate_entity).toBe("climate.badezimmer_ir"); expect(result.config.infrared_setback_strategy).toBe("temperature"); expect(result.config.infrared_comfort_temperature).toBe(24); expect(result.config.infrared_setback_temperature).toBe(17);
 });
 
+test("shows bathroom room target, radiator setpoint, and IR climate separately without writes", async ({ page }) => {
+  await page.evaluate(() => {
+    const card = document.querySelector("smart-heating-card");
+    card._data.options.management.zones = [{ id: "bathroom", name: "Badezimmer", thermostat_entities: ["climate.heizthermostat_badezimmer"], infrared_climate_entities: ["climate.metal_panel_heater"] }];
+    card._data.status.zones = [{ zone_id: "bathroom", name: "Badezimmer", desired_room_temperature: 24, thermostat_setpoint: 27, room_temperature: 23.5, thermostats: [{ entity_id: "climate.heizthermostat_badezimmer", state: "heat", hvac_action: "idle", setpoint_temperature: 27 }], infrared_thermostats: [{ entity_id: "climate.metal_panel_heater", state: "off", current_temperature: 22, setpoint_temperature: 24 }], infrared: { entity_ids: ["climate.metal_panel_heater"], automatic_control: false, comfort_temperature: 24, setback_strategy: "off" } }];
+    window.hass.states = { "climate.heizthermostat_badezimmer": { state: "heat", attributes: { current_temperature: 23.5, temperature: 27, hvac_action: "idle" } }, "climate.metal_panel_heater": { state: "off", attributes: { current_temperature: 22, temperature: 24 } } };
+    window.__serviceCalls = [];
+    card._render();
+  });
+  const room = page.locator("smart-heating-card").first().locator('[data-section=rooms] [data-room=bathroom]');
+  await expect(room).toContainText("Raumziel: 24 °C");
+  await expect(room).toContainText("Zigbee-Thermostat");
+  await expect(room).toContainText("Soll 27 °C");
+  await expect(room).toContainText("Infrarotheizung");
+  await expect(room).toContainText("Komfort 24 °C");
+  expect(await page.evaluate(() => window.__serviceCalls.length)).toBe(0);
+});
+
 test("editor persists filter, order, sorting, visibility, and display options", async ({ page }) => {
   const result = await page.evaluate(async () => { const editor = document.createElement("smart-heating-card-editor"); document.body.append(editor); editor.setConfig({ entry_id: "fixture", visible_sections: ["rooms", "operation"] }); return await new Promise((resolve) => { editor.addEventListener("config-changed", event => resolve(event.detail.config), { once: true }); editor.querySelector("[data-room-filter]").value = "bathroom, Küche"; editor.querySelector("[data-order]").value = "rooms, operation"; editor.querySelector("[data-sort]").value = "name"; editor.querySelector("[data-windows]").checked = false; editor.querySelector("[data-windows]").dispatchEvent(new Event("change", { bubbles: true })); }); });
   expect(result.room_filter).toEqual(["bathroom", "Küche"]); expect(result.visible_sections.slice(0, 2)).toEqual(["rooms", "operation"]); expect(result.sort).toBe("name"); expect(result.show_windows).toBeFalsy();

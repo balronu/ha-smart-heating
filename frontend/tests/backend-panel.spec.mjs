@@ -54,6 +54,30 @@ test("edits a Smart-Heating room internally and leaves the HA area contract inta
   await expect(page.locator("details[data-room=room-wohnzimmer]")).toContainText("Smart-Heating-Raum aktiv");
 });
 
+test("keeps the bathroom radiator and IR climate source as separate passive assignments", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.climate_entities = [
+      { entity_id: "climate.wohnzimmer", name: "Wohnzimmer Heizung", state: "heat" },
+      { entity_id: "climate.heizthermostat_badezimmer", name: "Bad Heizkörper", state: "heat" },
+      { entity_id: "climate.metal_panel_heater", name: "Infrarotheizung Badezimmer", state: "off", hvac_modes: ["heat", "off"] },
+    ];
+    panel._data.areas[0].area_id = "badezimmer";
+    panel._data.areas[0].name = "Badezimmer";
+    panel._data.management.zones = [{ id: "bathroom", name: "Badezimmer", area_ids: ["badezimmer"], thermostat_entities: ["climate.heizthermostat_badezimmer"], infrared_climate_entities: [] }];
+    panel._render();
+  });
+  await page.locator("details[data-section=rooms] > summary").first().click();
+  await page.locator("details[data-room] summary").first().click();
+  const form = page.locator("form[data-room-form]");
+  await expect(form.locator("select[name=infrared_climate_entities]")).toBeVisible();
+  await form.locator("select[name=thermostat_entity]").selectOption("climate.heizthermostat_badezimmer");
+  await form.locator("select[name=infrared_climate_entities]").selectOption("climate.metal_panel_heater");
+  await form.locator("button[type=submit]").click();
+  await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel")._data.management.zones[0].infrared_climate_entities)).toEqual(["climate.metal_panel_heater"]);
+  expect(await page.evaluate(() => window.__calls?.filter((call) => call.domain === "climate" || call.type?.includes("climate")).length || 0)).toBe(0);
+});
+
 test("persists passive special-mode configuration with a helper status source", async ({ page }) => {
   await page.locator("details[data-section=safety] > summary").click();
   const party = page.locator('[data-safety-mode="party"]');
