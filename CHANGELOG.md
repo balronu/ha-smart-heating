@@ -1,3 +1,13 @@
+## Next beta – getrennte Raumziel-/Thermostat-Diagnose
+
+- Benannte Räume erhalten sichere interne Raumziel-Vorgaben: Badezimmer 24 °C,
+  Esszimmer 21 °C, Wohnzimmer 22 °C und Schlafzimmer 18 °C.
+- Gemessene Raumtemperatur, Thermostat-Sollwert und passiver Heizbedarf werden
+  im Backend-Datenvertrag getrennt ausgewiesen; ein Thermostat-Sollwert von
+  27 °C wird nicht als gewünschte Raumtemperatur interpretiert.
+- Bestehende Werte werden bei der Normalisierung beibehalten; es werden keine
+  Thermostat-Serviceaufrufe ausgeführt.
+
 ## v0.1.0-beta.54 – Internal special-mode passive preview (release candidate)
 
 - Fix: Party, Besuch, Heimweg, Sommer and Schornsteinfeger toggles now atomically activate the isolated internal preview, so the visible state affects passive decision previews immediately.
@@ -1222,3 +1232,14 @@ Control mode remains locked and no productive heating service is called.
 - Room cards and special modes start collapsed with separated status information and touch-safe controls.
 
 Compatibility: existing management data remains backward compatible; missing `ignored` flags default to `false`. Beta 21 remains passive and sends no heating commands.
+## Next beta – Badezimmer-Infrarotheizung (passive Vorschau)
+
+- Separate, dauerhaft normalisierte IR-Klimaquelle für das Badezimmer mit
+  Komfort- und Absenktemperatur sowie den Strategien `off` und `temperature`.
+- Lovelace-Editor: Automatik standardmäßig deaktiviert; bei Aktivierung sind
+  IR-Entität, Absenkstrategie und Temperaturen konfigurierbar.
+- IR-Entscheidungen berücksichtigen Fenster, Zeitplan, Anwesenheit und interne
+  Sondermodi unabhängig von der zentralen Gasheizungsanforderung.
+- Ausschließlich passive Simulation: Es werden keine Climate-Serviceaufrufe
+  erzeugt. Der Badezimmer-Raumzielwert 24 °C bleibt vom Heizkörper-Sollwert
+  27 °C getrennt.

@@ -28,8 +28,11 @@ from custom_components.smart_heating.management import (  # noqa: E402
     aggregate_window_status,
     is_eligible_window_entity,
     OPERATING_STATES,
+    default_room_temperatures,
+    normalize_infrared_config,
 )
 from custom_components.smart_heating.models import evaluate_decision  # noqa: E402
+from custom_components.smart_heating.backend_engine import infrared_passive_preview  # noqa: E402
 from custom_components.smart_heating.storage import load_schedule  # noqa: E402
 
 
@@ -57,6 +60,17 @@ class Hass:
 
 
 class ManagementTests(unittest.TestCase):
+    def test_room_defaults_are_room_targets_and_do_not_change_thermostat_setpoints(self):
+        self.assertEqual(default_room_temperatures("Badezimmer"), {"comfort_temperature": 24.0, "night_temperature": 17.0})
+        self.assertEqual(default_room_temperatures("Esszimmer"), {"comfort_temperature": 21.0, "night_temperature": 17.0})
+        self.assertEqual(default_room_temperatures("Wohnzimmer"), {"comfort_temperature": 22.0, "night_temperature": 17.0})
+        self.assertEqual(default_room_temperatures("Schlafzimmer"), {"comfort_temperature": 18.0, "night_temperature": 17.0})
+
+    def test_room_defaults_are_persisted_in_internal_zone_settings(self):
+        data = normalize_management({"zones": [{"id": "bathroom", "name": "Badezimmer"}]})
+        self.assertEqual(data["internal"]["zones"]["bathroom"]["comfort_temperature"], 24.0)
+        self.assertNotIn("temperature", data["internal"]["zones"]["bathroom"])
+
     def test_beta38_management_migrates_to_fenced_passive_control_plane(self):
         data = normalize_management({
             "schema_version": 5,
@@ -674,3 +688,46 @@ class ManagementTests(unittest.TestCase):
         restored = zone_target_capability_summary(previews, zone_status(hass, zones))
         self.assertEqual(restored[0]["suitability"], "fully_suitable")
         self.assertTrue(all(item["passive"] and not item["commands"] for item in restored))
+
+    def test_zone_status_exposes_thermostat_setpoint_separately(self):
+        hass = Hass({"climate.bath": State("heat", {
+            "current_temperature": 20.5,
+            "temperature": 27.0,
+            "hvac_action": "heating",
+            "hvac_modes": ["heat", "off"],
+            "min_temp": 5,
+            "max_temp": 30,
+            "target_temp_step": 0.5,
+        })})
+        item = zone_status(hass, [{"id": "bathroom", "name": "Badezimmer", "thermostat_entities": ["climate.bath"]}])[0]["thermostats"][0]
+        self.assertEqual(item["current_temperature"], 20.5)
+        self.assertEqual(item["setpoint_temperature"], 27.0)
+        self.assertEqual(item["hvac_action"], "heating")
+
+    def test_infrared_climate_is_separate_and_passive_by_default(self):
+        config = normalize_infrared_config({
+            "name": "Badezimmer",
+            "infrared_climate_entity": "climate.badezimmer_ir",
+            "infrared_setback_strategy": "temperature",
+            "infrared_comfort_temperature": 24,
+            "infrared_setback_temperature": 17,
+        })
+        self.assertEqual(config["climate_entities"], ["climate.badezimmer_ir"])
+        self.assertFalse(config["automatic_control"])
+        self.assertEqual(config["setback_strategy"], "temperature")
+        self.assertEqual(config["comfort_temperature"], 24.0)
+        self.assertEqual(config["commands"], [])
+
+    def test_infrared_temperature_values_are_normalized_without_actuation(self):
+        config = normalize_infrared_config({"infrared_comfort_temperature": "invalid", "infrared_setback_temperature": 100})
+        self.assertEqual(config["comfort_temperature"], 24.0)
+        self.assertEqual(config["setback_temperature"], 35.0)
+
+    def test_infrared_preview_never_authorizes_commands_when_disabled(self):
+        result = infrared_passive_preview(
+            {"infrared_climate_entities": ["climate.badezimmer_ir"], "infrared_automatic_control": False},
+            [{"entity_id": "climate.badezimmer_ir", "capability_assessment": {"suitable_for_future_control": True}}],
+        )
+        self.assertEqual(result["status"], "disabled")
+        self.assertEqual(result["commands"], [])
+        self.assertTrue(result["passive"])

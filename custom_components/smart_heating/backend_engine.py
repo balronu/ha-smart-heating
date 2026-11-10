@@ -32,6 +32,73 @@ SPECIAL_MODE_ACTIONS = {"observe", "comfort", "setback", "fixed_temperature", "r
 UNKNOWN_STATES = {"unknown", "unavailable", "missing", "none", ""}
 
 
+def calculate_infrared_passive_decision(
+    config: Mapping[str, Any],
+    *,
+    schedule_active: bool | None = None,
+    presence: str | None = None,
+    window_state: str | None = None,
+    special_modes: Mapping[str, bool] | None = None,
+) -> dict[str, Any]:
+    """Calculate the IR target independently from central boiler demand.
+
+    This is deliberately a data-only decision.  ``hvac_mode`` and
+    ``target_temperature`` describe what a future, separately armed adapter
+    could do; ``commands`` is always empty during the passive beta phase.
+    """
+    modes = special_modes or {}
+    comfort = config.get("infrared_comfort_temperature", 24.0)
+    setback = config.get("infrared_setback_temperature", 17.0)
+    strategy = config.get("infrared_setback_strategy") if config.get("infrared_setback_strategy") in {"off", "temperature"} else "off"
+    if config.get("infrared_automatic_control") is not True:
+        return {"status": "disabled", "reason": "Automatik deaktiviert", "hvac_mode": None, "target_temperature": None, "commands": [], "passive": True}
+    if window_state in {"open", "open_unknown", "unknown", "unavailable"}:
+        return {"status": "blocked_window", "reason": "Fensterzustand verhindert eine IR-Heizentscheidung", "hvac_mode": "off", "target_temperature": None, "commands": [], "passive": True}
+    if modes.get("chimney_sweep"):
+        return {"status": "comfort", "reason": "Schornsteinfeger-Priorität; IR bleibt unabhängig vom zentralen Kessel", "hvac_mode": "heat", "target_temperature": comfort, "commands": [], "passive": True}
+    comfort_mode = any(modes.get(key) for key in ("party", "visit", "return_home"))
+    setback_mode = not comfort_mode and (schedule_active is False or presence in {"away", "not_home"} or modes.get("summer") is True)
+    if setback_mode:
+        if strategy == "off":
+            return {"status": "setback_off", "reason": "Absenkbetrieb: IR würde ausgeschaltet", "hvac_mode": "off", "target_temperature": None, "commands": [], "passive": True}
+        return {"status": "setback_temperature", "reason": "Absenkbetrieb: IR würde auf Absenktemperatur regeln", "hvac_mode": "heat", "target_temperature": setback, "commands": [], "passive": True}
+    return {"status": "comfort", "reason": "Komfortbetrieb", "hvac_mode": "heat", "target_temperature": comfort, "commands": [], "passive": True}
+
+
+def infrared_passive_preview(config: Mapping[str, Any], observed: list[Mapping[str, Any]], **context: Any) -> dict[str, Any]:
+    """Describe an optional IR climate path without issuing a service call."""
+    entities = config.get("infrared_climate_entities", [])
+    if isinstance(entities, str):
+        entities = [entities]
+    source = observed[0] if observed else None
+    automatic = config.get("infrared_automatic_control") is True
+    strategy = config.get("infrared_setback_strategy") if config.get("infrared_setback_strategy") in {"off", "temperature"} else "off"
+    capability = source.get("capability_assessment", {}) if isinstance(source, Mapping) else {}
+    if not entities:
+        status, reason = "not_configured", "Keine separate IR-Klimaquelle konfiguriert."
+    elif not automatic:
+        status, reason = "disabled", "Automatik deaktiviert; es werden keine Climate-Befehle gesendet."
+    elif capability.get("suitable_for_future_control") is not True:
+        status, reason = "not_checkable", "HVAC-Modi, Temperaturgrenzen oder Schrittweite sind nicht vollständig nachgewiesen."
+    else:
+        status, reason = "passive_preview", "Nur passive Vorschau; produktive Climate-Aufrufe bleiben gesperrt."
+    decision = calculate_infrared_passive_decision(config, **context) if automatic and capability.get("suitable_for_future_control") is True else {"status": status, "reason": reason, "hvac_mode": None, "target_temperature": None, "commands": [], "passive": True}
+    return {
+        "entity_ids": list(entities),
+        "automatic_control": automatic,
+        "setback_strategy": strategy,
+        "comfort_temperature": config.get("infrared_comfort_temperature", 24.0),
+        "setback_temperature": config.get("infrared_setback_temperature", 17.0),
+        "observed": list(observed),
+        "capability": capability,
+        "status": status,
+        "reason": reason,
+        "decision": decision,
+        "passive": True,
+        "commands": [],
+    }
+
+
 def normalize_window_state(value: Any, semantics: str = "binary") -> str:
     """Map a sensor value according to its declared semantics.
 
