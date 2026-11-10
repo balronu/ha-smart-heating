@@ -1232,3 +1232,14 @@ Control mode remains locked and no productive heating service is called.
 - Room cards and special modes start collapsed with separated status information and touch-safe controls.
 
 Compatibility: existing management data remains backward compatible; missing `ignored` flags default to `false`. Beta 21 remains passive and sends no heating commands.
+## Next beta – Badezimmer-Infrarotheizung (passive Vorschau)
+
+- Separate, dauerhaft normalisierte IR-Klimaquelle für das Badezimmer mit
+  Komfort- und Absenktemperatur sowie den Strategien `off` und `temperature`.
+- Lovelace-Editor: Automatik standardmäßig deaktiviert; bei Aktivierung sind
+  IR-Entität, Absenkstrategie und Temperaturen konfigurierbar.
+- IR-Entscheidungen berücksichtigen Fenster, Zeitplan, Anwesenheit und interne
+  Sondermodi unabhängig von der zentralen Gasheizungsanforderung.
+- Ausschließlich passive Simulation: Es werden keine Climate-Serviceaufrufe
+  erzeugt. Der Badezimmer-Raumzielwert 24 °C bleibt vom Heizkörper-Sollwert
+  27 °C getrennt.

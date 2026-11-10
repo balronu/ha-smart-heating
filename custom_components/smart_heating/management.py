@@ -84,6 +84,32 @@ def default_room_temperatures(name: Any) -> dict[str, float]:
     return {"comfort_temperature": 20.0, "night_temperature": 17.0}
 
 
+def normalize_infrared_config(zone: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize the optional IR climate source for passive preview."""
+    entities = zone.get("infrared_climate_entities", zone.get("infrared_climate_entity", []))
+    if isinstance(entities, str):
+        entities = [entities]
+    entities = list(dict.fromkeys(str(item) for item in (entities or []) if str(item).startswith("climate.")))
+    strategy = str(zone.get("infrared_setback_strategy") or "off")
+    if strategy not in {"off", "temperature"}:
+        strategy = "off"
+    def temperature(value: Any, default: float) -> float:
+        try:
+            result = float(value)
+        except (TypeError, ValueError):
+            return default
+        return max(5.0, min(35.0, result))
+    return {
+        "climate_entities": entities,
+        "automatic_control": zone.get("infrared_automatic_control") is True,
+        "setback_strategy": strategy,
+        "comfort_temperature": temperature(zone.get("infrared_comfort_temperature", 24.0), 24.0),
+        "setback_temperature": temperature(zone.get("infrared_setback_temperature", 17.0), 17.0),
+        "passive": True,
+        "commands": [],
+    }
+
+
 def discover_persons(hass: Any) -> list[dict[str, Any]]:
     """Return all native HA person entities; never discover trackers as persons."""
     states = getattr(getattr(hass, "states", None), "async_all", lambda _domain: [])("person")
@@ -220,6 +246,8 @@ def zone_target_capability_summary(
 
 def zone_status(hass: Any, zones: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
     """Return read-only availability and observed HVAC state per configured zone."""
+    from .backend_engine import infrared_passive_preview
+
     result = []
     for zone in zones:
         thermostats = []
@@ -231,7 +259,12 @@ def zone_status(hass: Any, zones: list[Mapping[str, Any]]) -> list[dict[str, Any
         for entity_id in zone.get("temperature_entities", []):
             state = hass.states.get(entity_id)
             temperatures.append({"entity_id": entity_id, "state": str(state.state) if state else "missing"})
-        result.append({"zone_id": zone.get("id"), "name": zone.get("name"), "enabled": zone.get("enabled", True), "thermostats": thermostats, "temperatures": temperatures, "available": bool(thermostats) and any(item["state"] not in {"missing", "unknown", "unavailable"} for item in thermostats), "thermostat_count": len(thermostats), "unavailable_thermostats": sum(item["state"] in {"missing", "unknown", "unavailable"} for item in thermostats), "lead_thermostat_entity": zone.get("lead_thermostat_entity")})
+        infrared = []
+        for entity_id in zone.get("infrared_climate_entities", []):
+            state = hass.states.get(entity_id)
+            infrared.append({"entity_id": entity_id, "state": str(state.state) if state else "missing", "hvac_action": state.attributes.get("hvac_action") if state else None, "current_temperature": state.attributes.get("current_temperature") if state else None, "setpoint_temperature": state.attributes.get("temperature") if state else None, "hvac_modes": list(state.attributes.get("hvac_modes")) if state and isinstance(state.attributes.get("hvac_modes"), (list, tuple)) else [], "min_temp": state.attributes.get("min_temp") if state else None, "max_temp": state.attributes.get("max_temp") if state else None, "target_temp_step": state.attributes.get("target_temp_step") if state else None, "passive": True})
+            infrared[-1]["capability_assessment"] = thermostat_capability_assessment(infrared[-1])
+        result.append({"zone_id": zone.get("id"), "name": zone.get("name"), "enabled": zone.get("enabled", True), "thermostats": thermostats, "infrared_thermostats": infrared, "infrared": infrared_passive_preview(zone, infrared), "temperatures": temperatures, "available": bool(thermostats) and any(item["state"] not in {"missing", "unknown", "unavailable"} for item in thermostats), "thermostat_count": len(thermostats), "unavailable_thermostats": sum(item["state"] in {"missing", "unknown", "unavailable"} for item in thermostats), "lead_thermostat_entity": zone.get("lead_thermostat_entity")})
     return result
 
 
@@ -562,6 +595,12 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
         if not zone.get("temperature_entities") and zone.get("temperature_entity"):
             zone["temperature_entities"] = [zone["temperature_entity"]]
         zone["temperature_entities"] = list(dict.fromkeys(str(item) for item in zone.get("temperature_entities", []) if str(item).startswith("sensor.")))
+        ir = normalize_infrared_config(zone)
+        zone["infrared_climate_entities"] = ir["climate_entities"]
+        zone["infrared_automatic_control"] = ir["automatic_control"]
+        zone["infrared_setback_strategy"] = ir["setback_strategy"]
+        zone["infrared_comfort_temperature"] = ir["comfort_temperature"]
+        zone["infrared_setback_temperature"] = ir["setback_temperature"]
         settings = result["internal"]["zones"].setdefault(zone["id"], {})
         defaults = default_room_temperatures(zone.get("name") or zone.get("id"))
         settings.setdefault("comfort_temperature", zone.get("comfort_temperature", defaults["comfort_temperature"]))

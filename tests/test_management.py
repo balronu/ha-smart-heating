@@ -29,8 +29,10 @@ from custom_components.smart_heating.management import (  # noqa: E402
     is_eligible_window_entity,
     OPERATING_STATES,
     default_room_temperatures,
+    normalize_infrared_config,
 )
 from custom_components.smart_heating.models import evaluate_decision  # noqa: E402
+from custom_components.smart_heating.backend_engine import infrared_passive_preview  # noqa: E402
 from custom_components.smart_heating.storage import load_schedule  # noqa: E402
 
 
@@ -701,3 +703,31 @@ class ManagementTests(unittest.TestCase):
         self.assertEqual(item["current_temperature"], 20.5)
         self.assertEqual(item["setpoint_temperature"], 27.0)
         self.assertEqual(item["hvac_action"], "heating")
+
+    def test_infrared_climate_is_separate_and_passive_by_default(self):
+        config = normalize_infrared_config({
+            "name": "Badezimmer",
+            "infrared_climate_entity": "climate.badezimmer_ir",
+            "infrared_setback_strategy": "temperature",
+            "infrared_comfort_temperature": 24,
+            "infrared_setback_temperature": 17,
+        })
+        self.assertEqual(config["climate_entities"], ["climate.badezimmer_ir"])
+        self.assertFalse(config["automatic_control"])
+        self.assertEqual(config["setback_strategy"], "temperature")
+        self.assertEqual(config["comfort_temperature"], 24.0)
+        self.assertEqual(config["commands"], [])
+
+    def test_infrared_temperature_values_are_normalized_without_actuation(self):
+        config = normalize_infrared_config({"infrared_comfort_temperature": "invalid", "infrared_setback_temperature": 100})
+        self.assertEqual(config["comfort_temperature"], 24.0)
+        self.assertEqual(config["setback_temperature"], 35.0)
+
+    def test_infrared_preview_never_authorizes_commands_when_disabled(self):
+        result = infrared_passive_preview(
+            {"infrared_climate_entities": ["climate.badezimmer_ir"], "infrared_automatic_control": False},
+            [{"entity_id": "climate.badezimmer_ir", "capability_assessment": {"suitable_for_future_control": True}}],
+        )
+        self.assertEqual(result["status"], "disabled")
+        self.assertEqual(result["commands"], [])
+        self.assertTrue(result["passive"])

@@ -15,6 +15,7 @@ _SPEC.loader.exec_module(_ENGINE)
 
 from smart_heating_backend_engine import (
     aggregate_window_states,
+    calculate_infrared_passive_decision,
     calculate_room_demand,
     evaluate_window_contacts,
     evaluate_window_groups,
@@ -26,6 +27,22 @@ from smart_heating_backend_engine import (
 
 
 class BackendEngineTests(unittest.TestCase):
+    def test_infrared_decision_is_independent_and_passive(self):
+        config = {"infrared_automatic_control": True, "infrared_setback_strategy": "temperature", "infrared_comfort_temperature": 24, "infrared_setback_temperature": 17}
+        result = calculate_infrared_passive_decision(config, schedule_active=False, presence="home", window_state="closed")
+        self.assertEqual(result["status"], "setback_temperature")
+        self.assertEqual(result["target_temperature"], 17)
+        self.assertEqual(result["commands"], [])
+
+    def test_infrared_window_and_special_mode_rules(self):
+        config = {"infrared_automatic_control": True, "infrared_setback_strategy": "off", "infrared_comfort_temperature": 24}
+        blocked = calculate_infrared_passive_decision(config, schedule_active=True, presence="home", window_state="open")
+        self.assertEqual(blocked["status"], "blocked_window")
+        comfort = calculate_infrared_passive_decision(config, schedule_active=False, presence="away", window_state="closed", special_modes={"chimney_sweep": True, "summer": True})
+        self.assertEqual(comfort["status"], "comfort")
+        self.assertEqual(comfort["target_temperature"], 24)
+        self.assertEqual(comfort["commands"], [])
+
     def test_contact_roles_use_open_precedence_and_ignore_invalid_states(self):
         result = evaluate_window_contacts([
             {"entity_id": "binary_sensor.tilt", "contact_role": "tilt", "state": "on"},
