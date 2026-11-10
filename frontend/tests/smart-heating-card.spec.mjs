@@ -103,6 +103,26 @@ test("keeps multiple card instances independent", async ({ page }) => { await ex
 
 test("uses the full narrow viewport without horizontal overflow", async ({ page }) => { const widths = await page.evaluate(() => ({ body: document.body.scrollWidth, viewport: window.innerWidth })); expect(widths.body).toBeLessThanOrEqual(widths.viewport + 1); });
 
+test("beta57 keeps bathroom room target, radiator setpoint, and infrared values separate", async ({ page }) => {
+  await page.evaluate(() => {
+    const card = document.querySelector("smart-heating-card");
+    card._config.display_mode = "dashboard";
+    card._data.options.management.zones = [{ id: "bathroom", name: "Badezimmer", thermostat_entities: ["climate.heizthermostat_badezimmer"], infrared_climate_entities: ["climate.metal_panel_heater"] }];
+    card._data.status.zones = [{ zone_id: "bathroom", name: "Badezimmer", room_temperature: 23.5, desired_room_temperature: 24, thermostat_setpoint: 27, thermostats: [{ entity_id: "climate.heizthermostat_badezimmer", state: "heat", setpoint_temperature: 27 }], infrared_thermostats: [{ entity_id: "climate.metal_panel_heater", state: "off", current_temperature: 22, setpoint_temperature: 24 }], infrared: { entity_ids: ["climate.metal_panel_heater"], comfort_temperature: 24, automatic_control: false, commands: [] } }];
+    window.hass.states = { "climate.heizthermostat_badezimmer": { state: "heat", attributes: { current_temperature: 23.5, temperature: 27, hvac_action: "idle" } }, "climate.metal_panel_heater": { state: "off", attributes: { current_temperature: 22, temperature: 24 } } };
+    window.__serviceCalls = [];
+    card._render();
+  });
+  const room = page.locator('smart-heating-card .sh-room[data-climate="climate.heizthermostat_badezimmer"]');
+  await expect(room).toContainText("Ziel 24 °C");
+  await expect(room).toContainText("Heizkörperthermostat");
+  await expect(room).toContainText("Soll 27 °C");
+  await expect(room).toContainText("Infrarotheizung");
+  await expect(room).toContainText("Komfort 24 °C");
+  await expect(page.locator("smart-heating-card > ha-card > .sh-app > .sh-section > h3", { hasText: "Temperaturen" })).toHaveCount(0);
+  expect(await page.evaluate(() => window.__serviceCalls.length)).toBe(0);
+});
+
 
 test("beta46 renders responsive theme-aware rooms and collapsible special modes", async ({ page }) => {
   const card = page.locator("smart-heating-card").first();

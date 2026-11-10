@@ -1,3 +1,10 @@
+## v0.1.0-beta.57 – Consolidated Lovelace room presentation
+
+- Bathroom room target, radiator thermostat setpoint, and infrared comfort/setpoint values are rendered separately.
+- Actual Home Assistant entity states determine reachability diagnostics; no unavailable state is inferred from a stale snapshot.
+- Duplicate global temperature controls are moved into an explicitly marked legacy/test-only area.
+- Special modes are presented as one passive overview and diagnostics remain collapsed by default.
+
 ## v0.1.0-beta.56 – Separate bathroom heating sources (published pre-release)
 
 - Fix: keep `climate.heizthermostat_badezimmer` and `climate.metal_panel_heater` as separate internal room assignments.

@@ -71,8 +71,12 @@ test("keeps the bathroom radiator and IR climate source as separate passive assi
   await page.locator("details[data-room] summary").first().click();
   const form = page.locator("form[data-room-form]");
   await expect(form.locator("select[name=infrared_climate_entities]")).toBeVisible();
+  await expect(form.locator("[data-room-ir-settings]")).toContainText("Infrarot-Automatik");
+  await expect(form.locator("[name=infrared_automatic_control]")).not.toBeChecked();
   await form.locator("select[name=thermostat_entity]").selectOption("climate.heizthermostat_badezimmer");
   await form.locator("select[name=infrared_climate_entities]").selectOption("climate.metal_panel_heater");
+  await form.locator("[name=infrared_comfort_temperature]").fill("24");
+  await form.locator("[name=infrared_setback_temperature]").fill("17");
   await form.locator("button[type=submit]").click();
   await expect.poll(() => page.evaluate(() => document.querySelector("smart-heating-backend-panel")._data.management.zones[0].infrared_climate_entities)).toEqual(["climate.metal_panel_heater"]);
   expect(await page.evaluate(() => window.__calls?.filter((call) => call.domain === "climate" || call.type?.includes("climate")).length || 0)).toBe(0);
