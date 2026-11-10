@@ -108,7 +108,8 @@ class SmartHeatingCard extends HTMLElement {
       const entity=st(room.dataset.climate),actual=entity?.attributes?.current_temperature,target=entity?.attributes?.temperature;
       const ir=room.querySelector(".sh-ir");if(ir){const state=st(ir.dataset.irSwitch)?.state;ir.setAttribute("aria-pressed",String(state==="on"));ir.textContent="Infrarot-Panel: "+(state==="on"?"Ein":state==="off"?"Aus":"Nicht verfügbar")+(this._config.allow_manual_ir_control===true?"":" · Anzeige");ir.disabled=this._config.allow_manual_ir_control!==true||!["on","off"].includes(state);}
       const label=room.querySelector(".sh-room-values");
-      if(label)label.textContent=(actual==null?"Ist –":"Ist "+actual+" °C")+" · "+(target==null?"Soll –":"Soll "+target+" °C");
+      const first=label?.querySelector("span");
+      if(first)first.innerHTML=`<strong>Raum:</strong> ${actual==null?"Ist –":"Ist "+actual+" °C"} · ${room.dataset.roomTarget?"Ziel "+room.dataset.roomTarget+" °C":"Ziel –"}`;
     });
   }
   _renderModern(){
@@ -135,13 +136,24 @@ class SmartHeatingCard extends HTMLElement {
     const scheduleHtml=groups.map(([name,keys])=>{const values=times(keys);return `<div class="sh-schedule-row"><b>${name}</b><span>${values.every(v=>v===values[0])?esc(values[0]):esc(values.join(" · "))}</span></div>`;}).join("");
     const rooms=this._rooms().map(room=>{
       const thermostat=(room.thermostats||room.thermostat_entities||[])[0];
-      const id=typeof thermostat==="string"?thermostat:thermostat?.entity_id;
-      const climate=id?st(id):null;
-      const temp=climate?.attributes?.current_temperature;
-      const target=climate?.attributes?.temperature??room.target_temperature;
-      const ir=this._dashboardIr(room),irState=ir?st(ir)?.state:null,irAvailable=["on","off"].includes(irState);
-      const irButton=ir?`<button type="button" class="sh-ir" data-ir-switch="${esc(ir)}" ${!irAvailable||this._config.allow_manual_ir_control!==true?"disabled":""} aria-pressed="${irState==="on"}">Infrarot-Panel: ${irState==="on"?"Ein":irState==="off"?"Aus":"Nicht verfügbar"}${this._config.allow_manual_ir_control===true?"":" · Anzeige"}</button>`:"";
-      return `<div class="sh-room" ${id?`data-climate="${esc(id)}" role="button" tabindex="0" aria-label="${esc(room.name||room.id)} öffnen"`:""}><b>${esc(room.name||room.id)}</b><span class="sh-room-values">${temp==null?"Ist –":"Ist "+esc(temp)+" °C"} · ${target==null?"Soll –":"Soll "+esc(target)+" °C"}</span>${irButton}</div>`;
+      const thermostatId=typeof thermostat==="string"?thermostat:thermostat?.entity_id;
+      const climate=thermostatId?st(thermostatId):null;
+      const radiatorState=thermostat?.state||climate?.state;
+      const radiatorSetpoint=room.thermostat_setpoint??thermostat?.setpoint_temperature??climate?.attributes?.temperature;
+      const roomTarget=room.desired_room_temperature??room.target_temperature;
+      const roomTemp=room.room_temperature??climate?.attributes?.current_temperature;
+      const irThermostat=(room.infrared_thermostats||[])[0];
+      const irId=typeof irThermostat==="string"?irThermostat:irThermostat?.entity_id||(room.infrared?.entity_ids||room.infrared_climate_entities||[])[0];
+      const irClimate=irId?st(irId):null;
+      const irState=irThermostat?.state||irClimate?.state;
+      const irSetpoint=irThermostat?.setpoint_temperature??irClimate?.attributes?.temperature;
+      const irComfort=room.infrared?.comfort_temperature;
+      const unavailable=(id,value)=>!id||!value||["unknown","unavailable"].includes(String(value));
+      const radiatorDiagnostic=unavailable(thermostatId,radiatorState)?"Nicht erreichbar":"Erreichbar";
+      const irDiagnostic=irId&&unavailable(irId,irState)?"Nicht erreichbar":"Erreichbar";
+      const irSwitch=this._dashboardIr(room),irSwitchState=irSwitch?st(irSwitch)?.state:null,irAvailable=["on","off"].includes(irSwitchState);
+      const irButton=irSwitch?`<button type="button" class="sh-ir" data-ir-switch="${esc(irSwitch)}" ${!irAvailable||this._config.allow_manual_ir_control!==true?"disabled":""} aria-pressed="${irSwitchState==="on"}">Infrarot-Panel: ${irSwitchState==="on"?"Ein":irSwitchState==="off"?"Aus":"Nicht verfügbar"}${this._config.allow_manual_ir_control===true?"":" · Anzeige"}</button>`:"";
+      return `<div class="sh-room" data-room="${esc(room.id||room.name)}" data-room-target="${esc(roomTarget??"")}" ${thermostatId?`data-climate="${esc(thermostatId)}" role="button" tabindex="0" aria-label="${esc(room.name||room.id)} öffnen"`:""}><b>${esc(room.name||room.id)}</b><div class="sh-room-values"><span><strong>Raum:</strong> ${roomTemp==null?"Ist –":"Ist "+esc(roomTemp)+" °C"} · ${roomTarget==null?"Ziel –":"Ziel "+esc(roomTarget)+" °C"}</span><span><strong>Heizkörperthermostat</strong> · ${esc(radiatorState||"unbekannt")} · Soll ${radiatorSetpoint==null?"–":esc(radiatorSetpoint)+" °C"} · ${radiatorDiagnostic}</span>${irId?`<span data-ir-climate="${esc(irId)}"><strong>Infrarotheizung</strong> · ${esc(irState||"unbekannt")} · Soll ${irSetpoint==null?"–":esc(irSetpoint)+" °C"}${irComfort==null?"":` · Komfort ${esc(irComfort)} °C`} · ${irDiagnostic}</span>`:""}</div>${irButton}</div>`;
     }).join("");
     const internal=this._management().internal||{};
     const isolated=internal.internal_only===true;
@@ -173,6 +185,7 @@ class SmartHeatingCard extends HTMLElement {
         ${[["automatic","Automatik"],["manual_heat","Dauerhaft Komfort"],["manual_setback","Dauerhaft Absenkung"]].map(([key,label])=>`<button type="button" class="sh-mode ${(internal.operating_mode||"automatic")===key?"sh-on":""}" data-internal-operating="${key}" aria-pressed="${(internal.operating_mode||"automatic")===key}">${label}</button>`).join("")}
       </div>
       <div class="sh-grid">${[["comfort_temperature","Komfort"],["night_temperature","Absenkung"]].map(([key,label])=>`<div class="sh-tile"><span class="sh-muted">${label}</span><strong>${esc(internal[key]??(key==="comfort_temperature"?21:18))} °C</strong><div class="sh-controls"><button type="button" data-internal-adjust="${key}" data-step="-0.5">−</button><button type="button" data-internal-adjust="${key}" data-step="0.5">+</button></div></div>`).join("")}</div>
+      <details class="sh-test-values"><summary>Legacy-Helfer · nur Testwerte</summary><p class="sh-foot">Diese beiden Regler dienen ausschließlich der passiven Vorschau. Sie sind keine Raumziele und senden keine Climate-Serviceaufrufe.</p><div class="sh-grid">${tempTile("input_number.heiztemperatur","Legacy-Komfort","🌡")}${tempTile("input_number.absenktemperatur","Legacy-Absenkung","☾")}</div></details>
       <p class="sh-foot" data-testid="internal-mode-preview-status">${isolated?"Interne Sondermodi beeinflussen die passive Vorschau.":"Ein interner Sondermodus aktiviert automatisch die isolierte Vorschau. Die bisherige Automation bleibt unverändert."}</p>
       <div class="sh-modes">${internalModes.map(([key,label])=>`<button type="button" class="sh-mode ${internal[key]===true?"sh-on":""}" data-internal-mode="${key}" aria-pressed="${internal[key]===true}">${label}: ${internal[key]===true?"Ein":"Aus"}</button>`).join("")}</div>
       <h4>Raumtemperaturen · passive Vorschau</h4>${zoneRows}
@@ -199,11 +212,11 @@ class SmartHeatingCard extends HTMLElement {
       ${this._error?`<p class="sh-feedback" role="alert">${esc(this._error)}</p>`:""}
       <p class="sh-foot sh-release">Heizfreigabe: ${st("input_boolean.heizung_freigabe")?.state==="on"?"Ein":st("input_boolean.heizung_freigabe")?.state==="off"?"Aus":"Unbekannt"}</p>
       ${internalPanel}
-      <section class="sh-section"><h3>Temperaturen</h3><div class="sh-grid">${tempTile("input_number.heiztemperatur","Heizen","🌡")}${tempTile("input_number.absenktemperatur","Absenken","☾")}</div></section>
-      <div class="sh-bottom"><div><section class="sh-section"><h3>Wochenprogramm</h3>${scheduleHtml}<p class="sh-foot">Nächster Wechsel: ${esc(formatTime(next))}</p></section><section class="sh-section"><h3>Räume</h3>${rooms||'<p class="sh-muted">Keine Räume konfiguriert</p>'}<p class="sh-foot">Weitere Räume erscheinen nach ihrer Einrichtung als Smart-Heating-Zonen.</p></section></div><div><section class="sh-section"><h3>Sondermodi</h3><div class="sh-modes">${modes}</div></section><section class="sh-section"><details data-panel="diagnostics"><summary>Diagnose & Prioritäten</summary><div class="sh-detail">${this._priorities()}${this._diagnostics()}</div></details></section></div></div>
+      <div class="sh-bottom"><div><section class="sh-section"><h3>Wochenprogramm</h3>${scheduleHtml}<p class="sh-foot">Nächster Wechsel: ${esc(formatTime(next))}</p></section><section class="sh-section"><h3>Räume</h3>${rooms||'<p class="sh-muted">Keine Räume konfiguriert</p>'}<p class="sh-foot">Raumziel, Heizkörper-Sollwert und IR-Komfortwert bleiben getrennte Werte. Weitere Räume erscheinen nach ihrer Einrichtung als Smart-Heating-Zonen.</p></section></div><div><section class="sh-section"><h3>Sondermodi</h3><div class="sh-modes">${modes}</div></section><section class="sh-section"><details data-panel="diagnostics"><summary>Diagnose & Prioritäten</summary><div class="sh-detail">${this._priorities()}${this._diagnostics()}</div></details></section></div></div>
       <p class="sh-foot">Temperatur- und Modusänderungen wirken ausschließlich auf vorhandene Home-Assistant-Helfer. Die bestehende Heizungsautomation bleibt unverändert.</p>
     </div></ha-card>`;
     this.querySelectorAll("details").forEach(el=>{el.open=currentOpen.has(el.dataset.panel);});
+    this.querySelector(".sh-test-values")?.setAttribute("open", "");
     // Preserve Lovelace scroll containers when HA/iOS replaces card contents.
     for(const [node,top] of scrollPositions){if(node.isConnected&&node.scrollTop!==top)node.scrollTop=top;}
     const saveInternal=async patch=>{
