@@ -8,7 +8,7 @@ SOURCE = Path(__file__).parents[1] / "custom_components" / "smart_heating" / "__
 MUTATIONS = {
     "_ws_set_schedule",
     "_ws_admin_person_set", "_ws_admin_person_delete",
-    "_ws_admin_zone_set", "_ws_admin_room_save", "_ws_admin_zone_delete",
+    "_ws_admin_zone_set", "_ws_admin_room_save", "_ws_admin_room_delete", "_ws_admin_zone_delete",
     "_ws_admin_area_relevance_set",
     "_ws_admin_sensor_set", "_ws_admin_sensor_delete",
     "_ws_admin_controller_set", "_ws_admin_outdoor_set",
