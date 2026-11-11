@@ -1272,3 +1272,22 @@ Compatibility: existing management data remains backward compatible; missing `ig
 - Keep bathroom radiator and infrared sources separate, add explicit `off` operation state, and retain passive priority/shadow safeguards.
 - Add Dashboard/Settings navigation with an optional configurable dashboard path and keep all weekly-program, mapping, IR, diagnostic, migration, and test settings in the sidebar administration panel.
 - No climate service calls, legacy automation changes, VM 104 changes, backups, snapshots, or Phase-89 worktree changes.
+## v0.1.0-beta.60 – Lovelace reference design
+
+### Deutsch
+
+- Lovelace-Dashboard ausschließlich auf Heizungssteuerung, Hauptheizung und Räume fokussiert.
+- Farbige, abgerundete Betriebsarten-Kacheln für Heizfreigabe, Heizbetrieb, Besuch, Heimweg, Party und Schornsteinfeger ergänzt.
+- Hauptheizung mit verständlichem Status, großer Isttemperatur und kompakter passiver Sollwert-Bedienung.
+- Responsive Raumkarten mit `minmax(0, 1fr)`: einspaltig auf iPhone, ein- bis zweispaltig auf iPad und bis zu drei Spalten am Desktop.
+- Badezimmer-Raumziel (24 °C), Heizkörperthermostat und Infrarotheizung getrennt dargestellt; technische Entity-IDs bleiben verborgen.
+- Keine Climate-Serviceaufrufe oder Änderungen an der produktiven Heizungsautomation.
+
+### English
+
+- Refined the Lovelace dashboard to heating control, central heating, and rooms only.
+- Added colored rounded mode tiles for heating release, heating operation, visit, return home, party, and chimney sweep.
+- Added readable central-heating status, large current temperature, and compact passive target controls.
+- Added responsive room cards using `minmax(0, 1fr)`: one column on iPhone, one or two on iPad, and up to three on desktop.
+- Kept the bathroom room target (24 °C), radiator thermostat, and infrared heater separate; technical entity IDs stay hidden.
+- No Climate service calls or productive heating-automation changes are introduced.

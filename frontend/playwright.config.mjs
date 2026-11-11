@@ -9,7 +9,8 @@ export default defineConfig({
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], colorScheme: "light" } },
     { name: "iphone", use: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 3, colorScheme: "light" } },
-    { name: "ipad", use: { ...devices["iPad (gen 9)"], colorScheme: "dark" } },
+    { name: "ipad-portrait", use: { viewport: { width: 810, height: 1080 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2, colorScheme: "light" } },
+    { name: "ipad-landscape", use: { viewport: { width: 1080, height: 810 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2, colorScheme: "light" } },
     { name: "touch-monitor", use: { viewport: { width: 800, height: 600 }, hasTouch: true, colorScheme: "dark" } },
   ],
   webServer: { command: "python3 -m http.server 4173 --directory ..", cwd: ".", url: "http://127.0.0.1:4173/frontend/fixtures/harness.html", reuseExistingServer: false, timeout: 10_000 },

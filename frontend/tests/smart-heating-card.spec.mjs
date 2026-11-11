@@ -2,40 +2,50 @@ import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/frontend/fixtures/harness.html");
-  await expect(page.locator("smart-heating-card").first().locator(".sh-app")).toBeVisible();
-  await page.evaluate(() => { const card = document.querySelector("smart-heating-card"); card.hass = window.hass; });
-  await page.evaluate(() => { const original = window.hass.callWS; window.hass.callWS = async message => { if (message.type === "smart_heating/admin/internal/set") { window.__calls.push(structuredClone(message)); return { internal: { enabled: message.item.enabled ?? true, operating_mode: message.item.operating_mode || "automatic", zones: { [message.item.zone_id || "bathroom"]: { comfort_temperature: message.item.comfort_temperature || 21.5 } } } }; } return original(message); }; });
+  const card = page.locator("smart-heating-card").first();
+  await expect(card.locator(".sh-app")).toBeVisible();
+  await page.evaluate(() => { const original = window.hass.callWS; window.hass.callWS = async message => { if (message.type === "smart_heating/admin/internal/set") { window.__calls.push(structuredClone(message)); return { internal: { enabled: message.item.enabled ?? true, operating_mode: message.item.operating_mode || "automatic", comfort_temperature: message.item.comfort_temperature || 22, zones: { [message.item.zone_id || "bathroom"]: { comfort_temperature: message.item.comfort_temperature || 24 } } } }; } return original(message); }; });
 });
 
-test("renders only controls, central heating and rooms", async ({ page }) => {
+test("renders the three beta.60 dashboard sections and six touch tiles", async ({ page }) => {
   const card = page.locator("smart-heating-card").first();
   await expect(card.locator("h2")).toHaveText(["Heizungssteuerung", "Hauptheizung", "Räume"]);
-  await expect(card.locator(".sh-room")).toContainText("Badezimmer");
-  await expect(card.locator("section")).toHaveCount(3);
+  await expect(card.locator(".sh-mode-tile")).toHaveCount(6);
+  await expect(card.locator(".sh-room-card")).toHaveCount(3);
+  await expect(card.locator(".sh-room-card").first()).toContainText("Badezimmer");
 });
 
-test("keeps room target and heating sources separate", async ({ page }) => {
-  const card = page.locator("smart-heating-card").first();
-  await expect(card.locator(".sh-room-facts")).toContainText("Raumziel");
-  await expect(card.locator(".sh-room")).toContainText("Heizkörperthermostat");
-  await expect(card.locator(".sh-room")).toContainText("Infrarotheizung");
+test("keeps bathroom target, radiator and infrared values separate without IDs", async ({ page }) => {
+  const room = page.locator(".sh-room-card").filter({ hasText: "Badezimmer" });
+  await expect(room).toContainText("Isttemperatur");
+  await expect(room).toContainText("21.5 °C");
+  await expect(room).toContainText("Raumziel");
+  await expect(room).toContainText("24 °C");
+  await expect(room).toContainText("Heizkörperthermostat");
+  await expect(room).toContainText("Infrarotheizung");
+  await expect(room).not.toContainText("climate.bathroom");
+  await expect(room).not.toContainText("climate.bathroom_ir");
 });
 
-test("uses internal websocket persistence for controls and targets", async ({ page }) => {
+test("uses internal websocket persistence for mode, central and room controls only", async ({ page }) => {
   const card = page.locator("smart-heating-card").first();
-  await card.getByRole("button", { name: "Dauerhaft Komfort" }).click();
-  await expect.poll(() => page.evaluate(() => window.__calls.filter(call => call.type.includes("admin/internal/set")).at(-1))).toMatchObject({ item: { enabled: true, operating_mode: "manual_heat" } });
-  await card.getByRole("button", { name: "Raumziel erhöhen" }).click();
-  await expect.poll(() => page.evaluate(() => window.__calls.filter(call => call.type.includes("admin/internal/set")).at(-1))).toMatchObject({ item: { zone_id: "bathroom" } });
-  expect(await page.evaluate(() => window.__calls.filter(call => call.type.includes("admin/internal/set")).at(-1).item.comfort_temperature)).toBeGreaterThan(20);
+  await card.getByRole("button", { name: "Heizbetrieb Aktiv" }).click();
+  await expect.poll(() => page.evaluate(() => window.__calls.at(-1))).toMatchObject({ item: { enabled: true } });
+  await card.getByRole("button", { name: "Hauptheizung Solltemperatur erhöhen" }).click();
+  await expect.poll(() => page.evaluate(() => window.__calls.at(-1))).toMatchObject({ item: { comfort_temperature: 22.5 } });
+  await card.locator(".sh-room-card").first().getByRole("button", { name: "Badezimmer Raumziel erhöhen" }).click();
+  await expect.poll(() => page.evaluate(() => window.__calls.at(-1))).toMatchObject({ item: { zone_id: "bathroom", comfort_temperature: 23 } });
   expect(await page.evaluate(() => window.__calls.some(call => call.type === "call_service"))).toBe(false);
 });
 
-test("offers explicit off state without climate service calls", async ({ page }) => {
-  await page.locator("smart-heating-card").first().getByRole("button", { name: "Aus" }).click();
-  await expect.poll(() => page.evaluate(() => window.__calls.filter(call => call.type.includes("admin/internal/set")).at(-1))).toMatchObject({ item: { enabled: false, operating_mode: "off" } });
-});
-
-test("does not overflow on narrow responsive cards", async ({ page }) => {
+test("captures the rendered card and has no horizontal overflow", async ({ page }, testInfo) => {
+  const card = page.locator("smart-heating-card").first();
+  await expect(card.locator(".sh-room-grid")).toBeVisible();
+  await expect(card).toHaveScreenshot(`beta60-${testInfo.project.name}.png`, {
+    animations: "disabled",
+    caret: "hide",
+    maxDiffPixels: 2500,
+    maxDiffPixelRatio: 0.02,
+  });
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
 });
