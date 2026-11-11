@@ -85,7 +85,7 @@ class ManagementTests(unittest.TestCase):
             ]},
             "internal": {"zones": {"bathroom": {"comfort_temperature": 21, "night_temperature": 17}}},
         })
-        self.assertEqual(data["schema_version"], 6)
+        self.assertEqual(data["schema_version"], 7)
         self.assertEqual(data["control_plane"]["operating_state"], "LEGACY")
         self.assertFalse(data["control_plane"]["switch_ready"])
         self.assertTrue(data["control_plane"]["rollback_ready"])
@@ -402,7 +402,8 @@ class ManagementTests(unittest.TestCase):
         by_id = {item["area_id"]: item for item in result}
         self.assertFalse(by_id["wohnmobil"]["relevant"])
         self.assertEqual(by_id["wohnmobil"]["relevance_source"], "unassigned")
-        self.assertTrue(by_id["wohnzimmer"]["relevant"])
+        self.assertFalse(by_id["wohnzimmer"]["relevant"])
+        self.assertEqual(by_id["wohnzimmer"]["filter_state"], "suggested")
         self.assertEqual(by_id["wohnzimmer"]["relevance_source"], "local_heating_device")
 
     def test_helper_discovery_is_read_only_and_selectable(self):

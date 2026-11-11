@@ -1,4 +1,4 @@
-const VERSION = "0.1.0-beta.60";
+const VERSION = "0.1.0-beta.61";
 const DAYS = [["monday", "Montag", "Mo"], ["tuesday", "Dienstag", "Di"], ["wednesday", "Mittwoch", "Mi"], ["thursday", "Donnerstag", "Do"], ["friday", "Freitag", "Fr"], ["saturday", "Samstag", "Sa"], ["sunday", "Sonntag", "So"]];
 
 class SmartHeatingBackendPanel extends HTMLElement {
@@ -403,6 +403,69 @@ class SmartHeatingBackendPanel extends HTMLElement {
   async _admin(type, data, successMessage = "") { try { await this._hass.callWS({ type, entry_id: this._entryId, ...data }); this._data = this._adminPayload(await this._hass.callWS({ type: "smart_heating/admin/get", entry_id: this._entryId })); this._error = null; this._saveMessage = successMessage; } catch (error) { this._error = error.message || String(error); this._saveMessage = "Speichern fehlgeschlagen."; } this._render(); }
   _style() { return `.priority-list{display:grid;gap:8px;margin:12px 0}.priority-row{display:flex;align-items:center;gap:12px;border:1px solid var(--divider-color);border-radius:10px;padding:9px 12px;min-width:0}.priority-row strong{flex:1;min-width:0}.priority-position{font-weight:700}.priority-row.priority-locked{border:2px solid var(--primary-color);background:var(--secondary-background-color)}.priority-locked strong{font-weight:800}.priority-fixed{font-weight:600;color:var(--secondary-text-color)}.priority-buttons,.priority-actions{display:flex;gap:8px}.priority-buttons button{min-width:44px;min-height:40px}.priority-buttons button:disabled{opacity:.28!important;cursor:not-allowed!important;filter:grayscale(1);pointer-events:none}.priority-actions{flex-wrap:wrap}.priority-actions button{width:auto}@media(max-width:600px){.priority-row{gap:8px;padding:8px}.priority-buttons button{min-width:40px}.priority-actions button{flex:1}}.smart-heating-backend{--panel-max:1200px;max-width:var(--panel-max);margin:0 auto;padding:clamp(16px,3vw,32px);box-sizing:border-box;color:var(--primary-text-color);overflow-wrap:anywhere}.smart-heating-backend h1,.smart-heating-backend h2,.smart-heating-backend h3{margin:0}.smart-heating-backend p{line-height:1.5}.hero,.section-heading,.editor-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.hero{padding-bottom:20px;border-bottom:1px solid var(--divider-color)}.hero h1{font-size:clamp(1.7rem,4vw,2.4rem);margin:4px 0}.eyebrow{margin:0;color:var(--secondary-text-color);font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.passive-badge{align-self:center;border:1px solid var(--divider-color);border-radius:999px;padding:7px 12px;color:var(--secondary-text-color);white-space:nowrap;font-size:.85rem}.intro{max-width:75ch;margin:18px 0}.weekly-planner,.backend-sections{margin-top:24px}.weekly-planner{padding:clamp(16px,2.5vw,24px);border:1px solid var(--divider-color);border-radius:18px;background:var(--card-background-color)}.section-heading{margin-bottom:16px}.day-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}.day-card{min-width:0;margin:0;padding:10px;border:1px solid var(--divider-color);border-radius:12px;background:var(--secondary-background-color)}.day-card[data-selected=true]{border-color:var(--primary-color);box-shadow:0 0 0 1px var(--primary-color)}.day-card legend{padding:0;max-width:100%}.day-button{display:flex;align-items:center;gap:7px;flex-wrap:wrap;width:100%;min-height:42px;padding:0;border:0;background:transparent;color:var(--primary-text-color);font:inherit;font-weight:700;text-align:left;cursor:pointer}.day-short{display:none;color:var(--primary-color)}.day-summary{min-height:42px;margin:8px 0 0;color:var(--secondary-text-color);font-size:.86rem}.day-editor{width:100%;box-sizing:border-box;min-width:0;margin-top:10px;padding:12px;border:1px solid var(--divider-color);border-radius:12px;background:var(--secondary-background-color)}.editor-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}.editor-actions{display:flex;gap:8px;flex-wrap:wrap}.editor-actions button{width:auto;min-width:110px}.schedule-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:10px;align-items:end;margin:8px 0}.smart-heating-backend label{display:grid;gap:5px}.unit{color:var(--secondary-text-color);font-weight:400}.smart-heating-backend input,.smart-heating-backend select,.smart-heating-backend button{box-sizing:border-box;min-height:44px;padding:8px 10px;border:1px solid var(--divider-color);border-radius:10px;background:var(--secondary-background-color);color:var(--primary-text-color);font:inherit}.smart-heating-backend button{cursor:pointer}.smart-heating-backend button:focus-visible,.smart-heating-backend input:focus-visible,.smart-heating-backend select:focus-visible{outline:2px solid var(--primary-color);outline-offset:2px}.primary{border-color:var(--primary-color)!important;background:var(--primary-color)!important;color:var(--text-primary-color,#fff)!important;font-weight:700}.secondary{background:transparent!important}.planner-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.planner-actions .save-feedback{grid-column:1/-1}.copy-dialog{margin-top:12px;padding:14px;border:1px solid var(--divider-color);border-radius:12px}.copy-day-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}.copy-day{display:flex!important;align-items:center;justify-content:flex-start;gap:10px;min-width:0;width:100%;box-sizing:border-box;padding:12px;border:1px solid var(--divider-color);border-radius:10px;background:var(--card-background-color);cursor:pointer;white-space:nowrap;overflow-wrap:normal;word-break:normal}.copy-day:has(input:checked){border-color:var(--primary-color);background:var(--secondary-background-color)}.copy-day input{display:block;flex:0 0 20px;width:20px;height:20px;min-height:20px!important;margin:0;padding:0;accent-color:var(--primary-color)}.copy-day span{display:block;min-width:0;white-space:nowrap;word-break:normal;overflow-wrap:normal}.copy-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}.copy-actions button{width:auto;min-width:130px}.editor-heading{align-items:center!important;flex-direction:row!important}.editor-actions{display:flex;flex-direction:row;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;width:auto}.editor-actions button{width:auto!important;flex:0 1 auto;min-width:110px}.day-editor .schedule-row{grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:10px}.day-editor .schedule-row label{min-width:0}.day-editor .schedule-row input{width:100%;min-width:0}@media(max-width:700px){.copy-day-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.copy-day{padding:10px 8px;gap:7px;font-size:.92rem}.copy-actions{display:grid;grid-template-columns:1fr 1fr}.copy-actions button{width:100%;min-width:0}.editor-heading{align-items:stretch!important;flex-direction:column!important}.editor-actions{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.editor-actions button{min-width:0;width:100%!important;padding:8px 5px;font-size:.86rem}.day-editor .schedule-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.day-editor .schedule-row label:nth-child(3){grid-column:1 / -1}.day-editor .schedule-row button[data-schedule-remove]{grid-column:1 / -1;width:100%}.planner-actions{grid-template-columns:1fr}}@media(max-width:390px){.copy-day-grid{grid-template-columns:1fr 1fr}.copy-day{font-size:.85rem;padding:9px 6px;gap:5px}.editor-actions{grid-template-columns:1fr 1fr}.editor-actions button:first-child{grid-column:1 / -1}.copy-actions{grid-template-columns:1fr}}@media(max-width:700px){.copy-day-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.editor-actions{width:100%}.editor-actions button{flex:1}.planner-actions{grid-template-columns:1fr}}.save-feedback{margin:0;color:var(--success-color,#2e7d32);font-weight:600}.empty-state,.hint{color:var(--secondary-text-color)}.backend-sections details{margin:10px 0;padding:14px;border:1px solid var(--divider-color);border-radius:14px;background:var(--card-background-color)}.backend-sections summary{cursor:pointer;font-size:1.05rem;font-weight:700;min-height:28px}.section-body{padding:12px 0 2px}.rooms details{margin:7px 0}.smart-heating-backend form{display:grid;gap:10px;margin-top:14px}.smart-heating-backend select[multiple]{min-height:96px}.filters{display:grid;grid-template-columns:minmax(0,2fr) minmax(150px,1fr);gap:10px}.table-wrap{max-width:100%;overflow-x:auto;margin-top:14px}table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;vertical-align:top;padding:9px;border-bottom:1px solid var(--divider-color)}code{font-size:.8em;overflow-wrap:anywhere}.warning{color:var(--warning-color,#d79b00)}.error{color:var(--error-color)}@media(max-width:760px){.day-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.day-card[data-selected=true]{grid-column:span 4}.day-label{display:none}.day-short{display:inline}.schedule-row{grid-template-columns:repeat(2,minmax(0,1fr))}.schedule-row label:nth-child(3){grid-column:span 2}.schedule-row button{grid-column:span 2}.hero,.section-heading{flex-direction:column}.passive-badge{align-self:flex-start}.planner-actions{align-items:stretch;flex-direction:column}.planner-actions button{width:100%}}@media(max-width:420px){.smart-heating-backend{padding:12px}.day-grid{gap:6px}.day-card{padding:8px}.day-card[data-selected=true]{grid-column:span 4}.filters{grid-template-columns:1fr}.editor-heading{align-items:stretch;flex-direction:column}.editor-heading button{width:100%}}`; }
 }
+// beta.61 navigation contract: HA panel routes use a query parameter rather
+// than the old zone anchor, so desktop, mobile and kiosk routers resolve the
+// same selected room.
+const smartHeatingRenderBase = SmartHeatingBackendPanel.prototype._render;
+SmartHeatingBackendPanel.prototype._render = function () {
+  smartHeatingRenderBase.call(this);
+  const roomsSection = this.querySelector("details[data-section=rooms] .section-body");
+  if (roomsSection && !roomsSection.querySelector("form[data-standalone-room-form]")) {
+    const form = document.createElement("form");
+    form.dataset.standaloneRoomForm = "true";
+    form.innerHTML = `<h3>Eigenen Raum anlegen</h3><p class="hint">Ein Smart-Heating-Raum kann ohne HA-Bereich angelegt werden. HA-Bereiche bleiben unverändert und sind nur Vorschläge.</p><label>Raumname<input name="name" required placeholder="z. B. Gästezimmer"></label><button class="primary" type="submit">Raum anlegen</button><p class="save-feedback" data-standalone-room-feedback></p>`;
+    roomsSection.prepend(form);
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const name = form.name.value.trim();
+      if (!name) return;
+      this._saveRoom({ name, enabled: true, area_ids: [], thermostat_entities: [], temperature_entities: [], window_entities: [], tilt_entities: [], schedule: {} }, [], null);
+    });
+  }
+  const roomId = new URLSearchParams(window.location.search).get("room_id");
+  if (roomId) {
+    const room = [...this.querySelectorAll("details[data-room]")].find((node) => node.dataset.roomId === roomId || node.dataset.room === `room-${roomId}`);
+    if (room) { room.open = true; room.closest("details[data-section]")?.setAttribute("open", ""); room.scrollIntoView({ block: "start", behavior: "instant" }); }
+  }
+  this.querySelectorAll("details[data-room]").forEach((node) => {
+    const areaId = node.dataset.room?.replace(/^room-/, "");
+    const configured = (this._data?.management?.rooms || this._data?.management?.zones || []).find((item) => (item.area_ids || []).includes(areaId));
+    const id = node.dataset.roomId || configured?.id || areaId;
+    node.dataset.roomId = id;
+    if (id) node.querySelector(":scope > summary")?.setAttribute("data-room-route", `/smart_heating?room_id=${encodeURIComponent(id)}`);
+    if (node.dataset.relevanceSource === "hidden") {
+      const button = node.querySelector("[data-area-relevance]");
+      if (button) { button.textContent = "Ausgeblendeten Bereich einblenden"; button.dataset.relevant = "true"; }
+    }
+  });
+  const zoneForm = this.querySelector("form[data-zone-form]");
+  if (zoneForm && !zoneForm.dataset.beta61Bound) {
+    zoneForm.dataset.beta61Bound = "true";
+    const areaLabel = zoneForm.querySelector("select[name=area_ids]")?.closest("label");
+    if (areaLabel) {
+      areaLabel.firstChild.textContent = "Räume der optionalen Gruppe";
+      areaLabel.insertAdjacentHTML("beforeend", `<small class="hint">Gruppen referenzieren Räume; ihre Sensoren und Temperaturen werden nicht dupliziert.</small>`);
+    }
+    zoneForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const areaIds = [...zoneForm.area_ids.selectedOptions].map((option) => option.value);
+      const rooms = this._data?.management?.rooms || this._data?.management?.zones || [];
+      const roomIds = rooms.filter((room) => (room.area_ids || []).some((areaId) => areaIds.includes(areaId))).map((room) => room.id);
+      this._admin("smart_heating/admin/zone/set", { item: { name: zoneForm.name.value.trim(), room_ids: roomIds } }, "Klimazone gespeichert.");
+    }, true);
+  }
+};
+
+const smartHeatingSaveRoomBase = SmartHeatingBackendPanel.prototype._saveRoom;
+SmartHeatingBackendPanel.prototype._saveRoom = function (item, contacts, areaId) {
+  if (!item.id) {
+    const existing = (this._data?.management?.rooms || []).find((room) => areaId && (room.area_ids || []).includes(areaId));
+    if (existing) item = { ...item, id: existing.id };
+  }
+  return smartHeatingSaveRoomBase.call(this, item, contacts, areaId);
+};
+
 const smartHeatingRoomSelectorBase = SmartHeatingBackendPanel.prototype._enhanceRoomSelectors;
 SmartHeatingBackendPanel.prototype._enhanceRoomSelectors = function () {
   smartHeatingRoomSelectorBase.call(this);

@@ -1291,3 +1291,20 @@ Compatibility: existing management data remains backward compatible; missing `ig
 - Added responsive room cards using `minmax(0, 1fr)`: one column on iPhone, one or two on iPad, and up to three on desktop.
 - Kept the bathroom room target (24 °C), radiator thermostat, and infrared heater separate; technical entity IDs stay hidden.
 - No Climate service calls or productive heating-automation changes are introduced.
+## v0.1.0-beta.61 – Raumverwaltung und Navigation
+
+### Deutsch
+
+- Eindeutige Smart-Heating-Routen für Einstellungen, Raumkonfiguration und Dashboard-Rückweg ergänzt.
+- Räume speichern ihre vollständige passive Konfiguration unabhängig von einem HA-Bereich; bestehende beta.60-Zuordnungen werden verlustfrei und idempotent übernommen.
+- Optionale Zonen referenzieren nur Raum-IDs; Räume funktionieren ohne Zone.
+- HA-Bereiche werden als Vorschläge sowie mit explizitem Aktivieren/Ausblenden geführt; Smart Heating verändert keine HA-Registry-Daten.
+- Keine Heizbefehle, keine produktive VM-104-Änderung und keine automatischen Löschungen.
+
+### English
+
+- Added deterministic Smart Heating routes for settings, room configuration, and a direct dashboard return.
+- Rooms now own their complete passive configuration and may exist without an HA area; beta.60 mappings migrate losslessly and idempotently.
+- Optional zones reference room IDs only; rooms work without a zone.
+- HA areas are shown as suggestions with explicit enable/hide choices; Smart Heating never changes HA registry data.
+- No heating commands, productive VM-104 changes, or automatic deletions.

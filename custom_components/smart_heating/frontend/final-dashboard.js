@@ -38,3 +38,29 @@
   };
 })();
 queueMicrotask(() => document.querySelectorAll("smart-heating-card").forEach(card => card._renderModern?.()));
+document.addEventListener("click", (event) => {
+  const link = event.target?.closest?.("a.sh-room-link, a.room-settings-link");
+  if (!link) return;
+  const match = String(link.getAttribute("href") || "").match(/#zone=([^&]+)/);
+  if (!match) return;
+  event.preventDefault();
+  const roomId = decodeURIComponent(match[1]);
+  const card = link.closest("smart-heating-card");
+  const path = `/smart_heating?room_id=${encodeURIComponent(roomId)}`;
+  if (card?._hass?.navigate) card._hass.navigate(path);
+  else card?.dispatchEvent(new CustomEvent("location-changed", { detail: { path }, bubbles: true, composed: true }));
+}, true);
+const smartHeatingCardClass = customElements.get("smart-heating-card");
+if (smartHeatingCardClass && !smartHeatingCardClass.prototype._beta61Rooms) {
+  const roomsBase = smartHeatingCardClass.prototype._rooms;
+  smartHeatingCardClass.prototype._rooms = function () {
+    const management = this._management?.() || {};
+    if (Array.isArray(management.rooms) && management.rooms.length) {
+      const observed = Array.isArray(this._status?.().zones) ? this._status().zones : [];
+      const byId = new Map(observed.map((item) => [String(item.zone_id || item.id), item]));
+      return management.rooms.map((room) => ({ ...room, ...(byId.get(String(room.id)) || {}) }));
+    }
+    return roomsBase.call(this);
+  };
+  smartHeatingCardClass.prototype._beta61Rooms = true;
+}

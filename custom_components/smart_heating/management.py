@@ -8,7 +8,7 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from .models import ScheduleValidationError, WeeklySchedule
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 OPERATING_STATES = ("LEGACY", "TRANSITIONING", "SMART")
 CONTROL_OWNERS = ("legacy", "smart", "none")
 MODE_DEACTIVATION_ACTIONS = ("return_to_normal", "retain_last", "manual")
@@ -343,7 +343,12 @@ def default_management() -> dict[str, Any]:
     return {
         "schema_version": SCHEMA_VERSION,
         "persons": [],
+        # Rooms own all heating configuration.  ``zones`` is retained as an
+        # optional grouping collection and as a read-compatible projection for
+        # beta.60 data.
+        "rooms": [],
         "zones": [],
+        "area_filters": {},
         "relevant_area_ids": [],
         "sensors": {kind: [] for kind in SENSOR_TYPES},
         "controller": {},
@@ -520,7 +525,15 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
     result = default_management()
     result["schema_version"] = SCHEMA_VERSION
     result["persons"] = [deepcopy(item) for item in source.get("persons", []) if isinstance(item, Mapping)]
+    raw_rooms = source.get("rooms", [])
+    result["rooms"] = [deepcopy(item) for item in raw_rooms if isinstance(item, Mapping)] if isinstance(raw_rooms, list) else []
     result["zones"] = [deepcopy(item) for item in source.get("zones", []) if isinstance(item, Mapping)]
+    raw_filters = source.get("area_filters", {})
+    result["area_filters"] = {
+        str(area_id): str(state)
+        for area_id, state in raw_filters.items()
+        if str(area_id) and str(state) in {"enabled", "hidden", "suggested"}
+    } if isinstance(raw_filters, Mapping) else {}
     result["relevant_area_ids"] = [str(item) for item in source.get("relevant_area_ids", []) if str(item)]
     source_sensors = source.get("sensors", {})
     if isinstance(source_sensors, Mapping):
@@ -576,7 +589,12 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
     if result["internal"].get("operating_mode") not in OPERATING_MODES:
         result["internal"]["operating_mode"] = "automatic"
     result["internal"]["zones"] = deepcopy(result["internal"].get("zones", {})) if isinstance(result["internal"].get("zones", {}), Mapping) else {}
-    for collection in (result["persons"], result["zones"]):
+    # Beta.60 stored complete rooms in ``zones``.  Copy those records into the
+    # canonical room collection exactly once while retaining the old records
+    # for runtime/entity compatibility.  No entity or HA area is touched.
+    if not result["rooms"]:
+        result["rooms"] = [deepcopy(item) for item in result["zones"] if isinstance(item, Mapping) and not item.get("room_ids")]
+    for collection in (result["persons"], result["rooms"], result["zones"]):
         for item in collection:
             item["id"] = _id(item.get("id"))
             item.setdefault("enabled", True)
@@ -609,6 +627,28 @@ def normalize_management(value: Mapping[str, Any] | None) -> dict[str, Any]:
         settings.setdefault("night_temperature", zone.get("night_temperature", defaults["night_temperature"]))
         settings.setdefault("operating_mode", "automatic")
         settings.setdefault("schedule", deepcopy(zone.get("schedule", {})))
+    for room in result["rooms"]:
+        room.setdefault("area_ids", [])
+        room.setdefault("thermostat_entities", list(room.get("thermostat_entities", [])))
+        room.setdefault("temperature_entities", list(room.get("temperature_entities", [])))
+        room.setdefault("window_entities", [])
+        room.setdefault("tilt_entities", [])
+        room.setdefault("infrared_climate_entities", [])
+        room.setdefault("comfort_temperature", default_room_temperatures(room.get("name") or room.get("id"))["comfort_temperature"])
+        room.setdefault("night_temperature", default_room_temperatures(room.get("name") or room.get("id"))["night_temperature"])
+        room.setdefault("frost_temperature", 5.0)
+        room.setdefault("schedule", {})
+        room.setdefault("zone_ids", [])
+    # New optional groups refer to room IDs only.  Legacy room projections are
+    # not treated as groups and therefore do not duplicate room configuration.
+    room_ids = {str(item["id"]) for item in result["rooms"]}
+    for zone in result["zones"]:
+        if zone.get("room_ids"):
+            zone["room_ids"] = [str(item) for item in zone["room_ids"] if str(item) in room_ids]
+        else:
+            zone["room_ids"] = [str(zone["id"])] if str(zone.get("id")) in room_ids else []
+            zone.setdefault("legacy_room_projection", True)
+    result["relevant_area_ids"] = [area_id for area_id in result["relevant_area_ids"] if result["area_filters"].get(area_id, "enabled") != "hidden"]
     for kind, items in result["sensors"].items():
         for item in items:
             item["id"] = _id(item.get("id"))
@@ -669,7 +709,7 @@ def validate_management(value: Mapping[str, Any] | None) -> list[str]:
         if mode.get("binding_type") == "helper_create":
             errors.append(f"helper_creation_unsupported:{mode_id}")
     ids: set[str] = set()
-    for collection_name in ("persons", "zones"):
+    for collection_name in ("persons", "rooms"):
         for item in data[collection_name]:
             item_id = item["id"]
             if item_id in ids:
@@ -677,13 +717,23 @@ def validate_management(value: Mapping[str, Any] | None) -> list[str]:
             ids.add(item_id)
             if not str(item.get("name", "")).strip():
                 errors.append(f"missing_name:{collection_name}:{item_id}")
+    zone_ids_seen: set[str] = set()
+    for item in data["zones"]:
+        if item["id"] in zone_ids_seen:
+            errors.append(f"duplicate_id:zones:{item['id']}")
+        zone_ids_seen.add(item["id"])
+        if not str(item.get("name", "")).strip():
+            errors.append(f"missing_name:zones:{item['id']}")
     thermostat_owners: dict[str, str] = {}
+    room_ids = {item["id"] for item in data["rooms"]}
     zone_ids = {item["id"] for item in data["zones"]}
     person_ids = {item["id"] for item in data["persons"]}
     for person in data["persons"]:
         if any(zone_id not in zone_ids for zone_id in person.get("zone_ids", [])):
             errors.append(f"unknown_zone_reference:person:{person['id']}")
     for zone in data["zones"]:
+        if zone.get("room_ids") and any(room_id not in room_ids for room_id in zone["room_ids"]):
+            errors.append(f"unknown_room_reference:{zone['id']}")
         try:
             WeeklySchedule.from_mapping(zone.get("schedule", {})) if zone.get("schedule") else None
         except ScheduleValidationError as err:
@@ -741,6 +791,12 @@ def validate_management(value: Mapping[str, Any] | None) -> list[str]:
     return sorted(set(errors))
 
 
+def configured_rooms(management: Mapping[str, Any] | None) -> list[dict[str, Any]]:
+    """Return canonical room records with beta.60 fallback semantics."""
+    data = normalize_management(management)
+    return deepcopy(data.get("rooms") or data.get("zones", []))
+
+
 def discover_areas(hass: Any) -> list[dict[str, Any]]:
     """Read Home Assistant's public Area/Entity registries for room suggestions."""
     try:
@@ -767,9 +823,10 @@ def area_suggestions(hass: Any, management: Mapping[str, Any] | None = None) -> 
     result = []
     management = management or {}
     explicit_ids = set(management.get("relevant_area_ids", []))
+    area_filters = management.get("area_filters", {}) if isinstance(management.get("area_filters", {}), Mapping) else {}
     configured_area_ids = {
         area_id
-        for zone in management.get("zones", [])
+        for zone in [*management.get("rooms", []), *management.get("zones", [])]
         for area_id in zone.get("area_ids", [])
         if area_id
     }
@@ -806,18 +863,25 @@ def area_suggestions(hass: Any, management: Mapping[str, Any] | None = None) -> 
         temperatures = discover_temperature_entities(hass, area["entity_ids"])
         room_temperatures = [item for item in temperatures if item.get("temperature_role") == "room"]
         explicit = area["area_id"] in explicit_ids
+        filter_state = str(area_filters.get(area["area_id"], "suggested"))
         local_heating_device = bool(climates)
         area["suggested_indoor"] = False
-        area["relevant"] = explicit or local_heating_device or area["area_id"] in configured_area_ids
+        area["filter_state"] = filter_state
+        area["hidden"] = filter_state == "hidden"
+        # A newly discovered HA area is a suggestion only.  It becomes active
+        # after an explicit Smart-Heating choice or a saved room assignment.
+        area["relevant"] = not area["hidden"] and (explicit or filter_state == "enabled" or area["area_id"] in configured_area_ids)
         area["relevance_source"] = (
-            "confirmed" if explicit or area["area_id"] in configured_area_ids
+            "hidden" if area["hidden"]
+            else "confirmed" if explicit or filter_state == "enabled" or area["area_id"] in configured_area_ids
             else "local_heating_device" if local_heating_device
             else "unassigned"
         )
         area["relevance_label"] = {
             "confirmed": "bestätigt",
             "local_heating_device": "Gerätehinweis – Bestätigung empfohlen",
-            "unassigned": "nicht zugeordnet",
+            "unassigned": "Vorschlag – noch nicht aktiviert",
+            "hidden": "ausgeblendet",
         }[area["relevance_source"]]
         area["suggestions"] = {
             "thermostat_entities": [entity["entity_id"] for entity in climates],
@@ -1199,7 +1263,7 @@ def upsert_item(data: dict[str, Any], collection: str, item: Mapping[str, Any]) 
         normalized.setdefault("presence_entities", [])
         normalized.setdefault("zone_ids", [])
         normalized["presence_entities"] = [entity for entity in normalized["presence_entities"] if str(entity).startswith("person.")]
-    elif collection == "zones":
+    elif collection in {"rooms", "zones"}:
         legacy_thermostat = normalized.get("thermostat_entity")
         normalized.setdefault("thermostat_entities", [legacy_thermostat] if legacy_thermostat else [])
         normalized["thermostat_entities"] = list(dict.fromkeys(str(entity) for entity in normalized["thermostat_entities"] if str(entity).startswith("climate.")))
@@ -1212,6 +1276,12 @@ def upsert_item(data: dict[str, Any], collection: str, item: Mapping[str, Any]) 
         normalized.setdefault("comfort_temperature", None)
         normalized.setdefault("night_temperature", None)
         normalized.setdefault("schedule", {})
+        if collection == "rooms":
+            normalized.setdefault("area_ids", [])
+            normalized.setdefault("zone_ids", [])
+        else:
+            normalized.setdefault("room_ids", [])
+            normalized["room_ids"] = [str(item) for item in normalized["room_ids"] if str(item)]
         zone_settings = data.setdefault("internal", {}).setdefault("zones", {}).setdefault(normalized["id"], {})
         for key in ("comfort_temperature", "night_temperature", "frost_temperature"):
             if normalized.get(key) is not None:
@@ -1263,6 +1333,6 @@ def remove_item(data: dict[str, Any], collection: str, item_id: str) -> bool:
         before = len(data.get(key, []))
         data[key] = [item for item in data.get(key, []) if item.get("id") != item_id]
         removed = removed or len(data[key]) != before
-    if collection == "zones":
+    if collection in {"rooms", "zones"}:
         removed = data.setdefault("internal", {}).setdefault("zones", {}).pop(item_id, None) is not None or removed
     return removed
