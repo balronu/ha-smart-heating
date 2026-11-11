@@ -480,6 +480,55 @@ def _observed_status(hass: HomeAssistant, config: dict[str, Any]) -> dict[str, A
     return {"climate": climate, "outdoor_temperature": outdoor, "windows": windows, "window_status": window_status, "window_detail_status": window_detail_status, "heat_demand_status": (climate or {}).get("hvac_action") or "unknown"}
 
 
+def _operational_status(
+    hass: HomeAssistant,
+    config: Mapping[str, Any],
+    management: Mapping[str, Any],
+    status: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Build explicit read-only evidence for the status overview."""
+    zones = zone_status(hass, management.get("zones", []))
+    thermostats = [item for zone in zones for item in zone.get("thermostats", [])]
+    assigned = [item for item in thermostats if item.get("entity_id")]
+    available = [item for item in assigned if item.get("state") not in {"missing", "unknown", "unavailable"}]
+    legacy_entity = "automation.heizung_automatik_ersetzt_node_red"
+    legacy = hass.states.get(legacy_entity)
+    legacy_state = str(legacy.state) if legacy else "missing"
+    comparison = ((status or {}).get("shadow") or {}).get("comparison") or {}
+    blockers = []
+    if not assigned:
+        blockers.append("Kein Smart-Heating-Thermostat zugeordnet.")
+    else:
+        for item in assigned:
+            if item.get("state") in {"missing", "unknown", "unavailable"}:
+                blockers.append(f"Thermostat nicht erreichbar: {item['entity_id']} ({item.get('state')}).")
+    if legacy_state == "missing":
+        blockers.append(f"Legacy-Automation nicht vorhanden: {legacy_entity}.")
+    elif legacy_state in {"unknown", "unavailable"}:
+        blockers.append(f"Status der Legacy-Automation nicht verfügbar: {legacy_entity} ({legacy_state}).")
+    if legacy_state not in {"missing", "unknown", "unavailable"}:
+        blockers.append("Regeln der Legacy-Automation sind aus dem öffentlichen Entity-Status nicht verifiziert.")
+    if comparison.get("comparison") not in {"match_proven", "divergence_proven"}:
+        blockers.append(f"Shadow-Vergleich nicht möglich: {comparison.get('reason') or 'Legacy-Trace nicht nachgewiesen' }.")
+    for prerequisite in ((status or {}).get("shadow") or {}).get("missing_prerequisites", []):
+        labels = {"actor_path": "Aktorpfad", "scheduler_or_schedule_source": "Scheduler-/Zeitplanquelle"}
+        label = labels.get(prerequisite, str(prerequisite))
+        text = f"{label} nicht bestätigt."
+        if text not in blockers:
+            blockers.append(text)
+    return {
+        "local_thermostat": {
+            "assigned": bool(assigned),
+            "available": bool(available),
+            "entity_ids": [item.get("entity_id") for item in assigned],
+            "states": [{"entity_id": item.get("entity_id"), "state": item.get("state"), "available": item.get("state") not in {"missing", "unknown", "unavailable"}} for item in assigned],
+        },
+        "legacy_automation": {"entity_id": legacy_entity, "state": legacy_state, "available": legacy_state not in {"missing", "unknown", "unavailable"}, "enabled": legacy_state == "on", "rules_verified": False},
+        "shadow": {"comparison": comparison.get("comparison", "comparison_not_possible"), "reason": comparison.get("reason") or "Legacy-Trace nicht nachgewiesen."},
+        "smart_readiness": {"state": "blocked", "blockers": blockers, "unknown": False, "passive": True},
+    }
+
+
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/plan/get", vol.Required("entry_id"): cv.string})
 @websocket_api.async_response
 async def _ws_get_status(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
@@ -490,6 +539,7 @@ async def _ws_get_status(hass: HomeAssistant, connection: websocket_api.ActiveCo
     management = normalize_management(config.get("management"))
     status["presence"] = person_presence(hass, management["persons"])
     status["zones"] = zone_status(hass, management["zones"])
+    status["operational_status"] = _operational_status(hass, config, management, status)
     connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "schedule": load_schedule(config).as_dict(), "status": status, "options": {"name": entry.title, "timezone": config.get("timezone"), "operation_mode": config.get("operation_mode", "compatibility"), "discovery": config.get("discovery", {}), "special_modes": config.get("special_modes", {}), "control_plane": analyze_control_plane(hass, config), "management": management, "areas": area_suggestions(hass, management), "persons_discovered": discover_persons(hass)}})
 
 
@@ -578,7 +628,9 @@ async def _ws_admin_get(hass: HomeAssistant, connection: websocket_api.ActiveCon
         if item.get("entity_id") in configured_ids and not item.get("ignored")
     ]
     zone_target_previews = (coordinator.data or {}).get("zone_target_previews", []) if coordinator else []
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contacts, "window_role_diagnostics": build_window_role_diagnostics(config_entry_options=options_management, runtime_management=runtime_management, readback_management=management, assigned_contacts=assigned_contacts), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "backend_evaluations": zone_backend_summary(hass, management["zones"], management), "zone_target_previews": zone_target_previews, "zone_target_capability_summary": (coordinator.data or {}).get("zone_target_capability_summary", []) if coordinator else [], "zone_heat_demand_summary": summarize_zone_heat_demand(zone_target_previews), "preview": coordinator.data if coordinator else {}, "validation": validate_management(management)})
+    preview = coordinator.data if coordinator else {}
+    operational = _operational_status(hass, config, management, preview)
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contacts, "window_role_diagnostics": build_window_role_diagnostics(config_entry_options=options_management, runtime_management=runtime_management, readback_management=management, assigned_contacts=assigned_contacts), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "backend_evaluations": zone_backend_summary(hass, management["zones"], management), "zone_target_previews": zone_target_previews, "zone_target_capability_summary": (coordinator.data or {}).get("zone_target_capability_summary", []) if coordinator else [], "zone_heat_demand_summary": summarize_zone_heat_demand(zone_target_previews), "preview": preview, "status": preview, "control_plane": analyze_control_plane(hass, config), "operational_status": operational, "validation": validate_management(management)})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/person/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})

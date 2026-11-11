@@ -109,6 +109,26 @@ class ControlTests(unittest.TestCase):
         self.assertEqual(report["thermostat_writer"]["legacy_automation_candidates"], ["automation.heizung_automatik"])
         self.assertFalse(report["single_writer_proven"])
 
+    def test_control_plane_reports_known_automation_and_thermostat_evidence(self):
+        hass = Hass([
+            State("automation.heizung_automatik_ersetzt_node_red", "on"),
+            State("climate.heizthermostat_badezimmer", "heat"),
+        ])
+        report = analyze_control_plane(hass, {"climate_entity": "climate.heizthermostat_badezimmer"})
+        self.assertEqual(report["legacy_automation"]["state"], "on")
+        self.assertTrue(report["legacy_automation"]["available"])
+        self.assertFalse(report["legacy_automation"]["rules_verified"])
+        self.assertEqual(report["thermostat_writer"]["climate_state"], "heat")
+        self.assertTrue(report["thermostat_writer"]["climate_available"])
+
+    def test_control_plane_distinguishes_missing_from_unavailable(self):
+        hass = Hass([State("climate.heizthermostat_badezimmer", "unavailable")])
+        report = analyze_control_plane(hass, {"climate_entity": "climate.heizthermostat_badezimmer"})
+        self.assertEqual(report["legacy_automation"]["state"], "missing")
+        self.assertFalse(report["legacy_automation"]["available"])
+        self.assertEqual(report["thermostat_writer"]["climate_state"], "unavailable")
+        self.assertFalse(report["thermostat_writer"]["climate_available"])
+
     def test_heat_demand_is_not_claimed_without_hvac_action(self):
         hass = Hass([State("climate.esszimmer", "off", {"temperature": 17})])
         hass.services.emit_hvac_action = False
