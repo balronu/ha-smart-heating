@@ -84,8 +84,8 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         normalized = normalize_management(management)
         internal = normalized["internal"]
-        if not internal.get("internal_only", False):
-            self._previous_zone_demand.clear()
+        # Persisted Smart-Heating state is authoritative for the passive
+        # preview.  The legacy writer remains untouched and separate.
         zone_diagnostics = zone_backend_summary(self.hass, normalized["zones"], normalized)
         zone_previews = calculate_zone_target_previews(
             load_schedule(config),
@@ -136,24 +136,16 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
     result: dict[str, bool] = {}
     management = normalize_management(config.get("management"))
     internal = management["internal"]
-    # Preview-only controls must never affect legacy compatibility decisions.
-    # This also prevents stale internal flags from leaking after isolation is off.
-    if internal.get("internal_only", False):
-        if internal.get("enabled") is False:
-            result["internal_enabled"] = False
-        if internal.get("operating_mode") == "manual_heat":
-            result["manual_heat"] = True
-        elif internal.get("operating_mode") == "manual_setback":
-            result["manual_setback"] = True
-        for mode in ("party", "visit", "return_home", "summer", "chimney_sweep"):
-            if internal.get(mode):
-                result[mode] = True
+    if internal.get("enabled") is False or internal.get("operating_mode") == "off":
+        result["internal_enabled"] = False
+    if internal.get("operating_mode") == "manual_heat":
+        result["manual_heat"] = True
+    elif internal.get("operating_mode") == "manual_setback":
+        result["manual_setback"] = True
+    for mode in ("party", "visit", "return_home", "summer", "chimney_sweep"):
+        if internal.get(mode):
+            result[mode] = True
     # Internal-only test state must not be overwritten by legacy helper values.
-    if not internal.get("internal_only", False):
-        for mode, settings in management.get("safety", {}).get("modes", {}).items():
-            helper_entity = settings.get("helper_entity") if isinstance(settings, dict) else ""
-            if isinstance(helper_entity, str) and helper_entity and settings.get("enabled", False):
-                result[mode] = hass.states.is_state(helper_entity, "on")
     presence = person_presence(hass, management["persons"])
     if presence["home"]:
         result["someone_home"] = True
@@ -161,10 +153,6 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
         result["away"] = True
     if presence["unknown"]:
         result["presence_unknown"] = True
-    if not internal.get("internal_only", False):
-        for key, entity_id in config.get("special_modes", {}).items():
-            if isinstance(entity_id, str) and entity_id:
-                result[key] = hass.states.is_state(entity_id, "on")
     from .backend_engine import evaluate_window_contacts
     configured_contacts = []
     configured_ids = set()
@@ -189,14 +177,7 @@ def _read_overrides(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, bool]:
             result["someone_home"] = True
     if config.get("presence_entities"):
         result["away"] = not result.get("someone_home", False)
-    # The internal heating permission replaces the legacy input_boolean only
-    # in isolated preview mode; compatibility mode remains unchanged.
-    if internal.get("internal_only", False):
-        result["heating_permission"] = internal.get("enabled", True) is True
-    else:
-        permission = config.get("heating_permission")
-        if isinstance(permission, str) and permission:
-            result["heating_permission"] = hass.states.is_state(permission, "on")
+    result["heating_permission"] = internal.get("enabled", True) is True and internal.get("operating_mode") != "off"
     return result
 
 
@@ -212,14 +193,9 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     management = normalize_management(config.get("management"))
     internal = management["internal"]
     settings = next(iter(internal["zones"].values()), {})
-    if internal.get("internal_only", False):
-        # Independent global targets: never derive them from a legacy zone.
-        context["comfort_temperature"] = internal["comfort_temperature"]
-        context["night_temperature"] = internal["night_temperature"]
-    else:
-        # Preserve the established compatibility behavior until cutover.
-        context["comfort_temperature"] = settings.get("comfort_temperature", 20.0)
-        context["night_temperature"] = settings.get("night_temperature", 17.0)
+    # Internal targets are always the source for Smart Heating previews.
+    context["comfort_temperature"] = internal["comfort_temperature"]
+    context["night_temperature"] = internal["night_temperature"]
     context["special_modes"] = management.get("special_modes", [])
     context["control_plane"] = deepcopy(management.get("control_plane", {}))
     context["heating_sources"] = deepcopy(management.get("heating_sources", {}))
@@ -282,14 +258,13 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     if management.get("zones"):
         first_zone = management["zones"][0]
         context["zone_id"] = first_zone.get("id")
-        if internal.get("internal_only", False):
-            # Apply the selected zone's persisted targets, not another room's.
-            zone_targets = internal.get("zones", {}).get(str(first_zone.get("id")), {})
-            if isinstance(zone_targets, Mapping):
-                for key in ("comfort_temperature", "night_temperature"):
-                    value = zone_targets.get(key)
-                    if isinstance(value, (int, float)) and not isinstance(value, bool) and 5 <= value <= 35:
-                        context[key] = float(value)
+        # Apply the selected zone's persisted targets, not another room's.
+        zone_targets = internal.get("zones", {}).get(str(first_zone.get("id")), {})
+        if isinstance(zone_targets, Mapping):
+            for key in ("comfort_temperature", "night_temperature"):
+                value = zone_targets.get(key)
+                if isinstance(value, (int, float)) and not isinstance(value, bool) and 5 <= value <= 35:
+                    context[key] = float(value)
         context["thermostats"] = [
             {"entity_id": entity_id, "state": str(getattr(hass.states.get(entity_id), "state", "missing")), "available": bool(hass.states.get(entity_id)) and str(hass.states.get(entity_id).state) not in {"unknown", "unavailable"}}
             for entity_id in first_zone.get("thermostat_entities", [])
@@ -305,17 +280,6 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             context["chimney_temperature"] = float(chimney["temperature"])
         if frost.get("temperature") not in (None, ""):
             context["frost_temperature"] = float(frost["temperature"])
-    # In isolated mode the persisted internal temperatures are authoritative.
-    # Reading legacy input_numbers here would silently undo the isolation.
-    if not internal.get("internal_only", False):
-        for key, config_key in (("comfort_temperature", "comfort_setpoint"), ("night_temperature", "night_setpoint")):
-            entity_id = config.get(config_key)
-            state = hass.states.get(entity_id) if isinstance(entity_id, str) else None
-            if state:
-                try:
-                    context[key] = float(state.state)
-                except (TypeError, ValueError):
-                    pass
     climate = hass.states.get(config.get("climate_entity")) if config.get("climate_entity") else None
     if climate:
         context["hvac_supports_off"] = "off" in climate.attributes.get("hvac_modes", []) or climate.state == "off"
@@ -353,6 +317,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    await _async_migrate_legacy_helpers(hass, entry)
     coordinator = SmartHeatingCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
@@ -360,6 +325,52 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await _register_frontend(hass)
     return True
+
+
+async def _async_migrate_legacy_helpers(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Import readable legacy helper values once; never write to those helpers."""
+    config = effective_config(entry)
+    management = normalize_management(config.get("management"))
+    internal = management["internal"]
+    migration = internal.get("helper_migration") if isinstance(internal.get("helper_migration"), Mapping) else {}
+    if migration.get("status") == "completed":
+        return
+    imported: dict[str, Any] = {}
+    unknown: list[str] = []
+    permission = config.get("heating_permission")
+    if isinstance(permission, str) and permission:
+        state = hass.states.get(permission)
+        if state and str(state.state).lower() in {"on", "off"}:
+            internal["enabled"] = str(state.state).lower() == "on"
+            imported["enabled"] = permission
+        else:
+            unknown.append(permission)
+    for key, config_key in (("comfort_temperature", "comfort_setpoint"), ("night_temperature", "night_setpoint")):
+        entity_id = config.get(config_key)
+        state = hass.states.get(entity_id) if isinstance(entity_id, str) and entity_id else None
+        try:
+            number = float(state.state) if state else None
+        except (TypeError, ValueError):
+            number = None
+        if number is not None and 5 <= number <= 35:
+            internal[key] = number
+            imported[key] = entity_id
+        elif entity_id:
+            unknown.append(entity_id)
+    for mode, settings in management.get("safety", {}).get("modes", {}).items():
+        helper = settings.get("helper_entity") if isinstance(settings, Mapping) else ""
+        if not helper:
+            continue
+        state = hass.states.get(helper)
+        if state and str(state.state).lower() in {"on", "off"}:
+            internal[mode] = str(state.state).lower() == "on"
+            imported[mode] = helper
+        else:
+            unknown.append(helper)
+    internal["helper_migration"] = {"status": "completed", "imported": imported, "unknown": sorted(set(unknown)), "runtime": "internal_config_entry"}
+    options = dict(entry.options)
+    options["management"] = management
+    hass.config_entries.async_update_entry(entry, options=options)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -406,6 +417,7 @@ async def _register_frontend(hass: HomeAssistant) -> None:
         if inspect.isawaitable(result):
             await result
         frontend.add_extra_js_url(hass, f"/smart_heating/smart-heating-card.js?v={VERSION}")
+        frontend.add_extra_js_url(hass, f"/smart_heating/final-dashboard.js?v={VERSION}")
         if not hass.data.get(_PANEL_REGISTERED):
             frontend.async_register_built_in_panel(
                 hass,
@@ -630,7 +642,7 @@ async def _ws_admin_get(hass: HomeAssistant, connection: websocket_api.ActiveCon
     zone_target_previews = (coordinator.data or {}).get("zone_target_previews", []) if coordinator else []
     preview = coordinator.data if coordinator else {}
     operational = _operational_status(hass, config, management, preview)
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contacts, "window_role_diagnostics": build_window_role_diagnostics(config_entry_options=options_management, runtime_management=runtime_management, readback_management=management, assigned_contacts=assigned_contacts), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "backend_evaluations": zone_backend_summary(hass, management["zones"], management), "zone_target_previews": zone_target_previews, "zone_target_capability_summary": (coordinator.data or {}).get("zone_target_capability_summary", []) if coordinator else [], "zone_heat_demand_summary": summarize_zone_heat_demand(zone_target_previews), "preview": preview, "status": preview, "control_plane": analyze_control_plane(hass, config), "operational_status": operational, "validation": validate_management(management)})
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {**{key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "dashboard_path": config.get("dashboard_path", "")}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contacts, "window_role_diagnostics": build_window_role_diagnostics(config_entry_options=options_management, runtime_management=runtime_management, readback_management=management, assigned_contacts=assigned_contacts), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "backend_evaluations": zone_backend_summary(hass, management["zones"], management), "zone_target_previews": zone_target_previews, "zone_target_capability_summary": (coordinator.data or {}).get("zone_target_capability_summary", []) if coordinator else [], "zone_heat_demand_summary": summarize_zone_heat_demand(zone_target_previews), "preview": preview, "status": preview, "control_plane": analyze_control_plane(hass, config), "operational_status": operational, "validation": validate_management(management)})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/person/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
@@ -891,7 +903,7 @@ async def _ws_admin_internal_set(hass: HomeAssistant, connection: websocket_api.
                 connection.send_error(msg["id"], "invalid_configuration", "invalid_boolean")
                 return
         elif key == "operating_mode":
-            if value not in {"automatic", "manual_heat", "manual_setback"}:
+            if value not in {"automatic", "manual_heat", "manual_setback", "off"}:
                 connection.send_error(msg["id"], "invalid_configuration", "invalid_operating_mode")
                 return
         else:
@@ -938,9 +950,14 @@ async def _ws_admin_system_set(hass: HomeAssistant, connection: websocket_api.Ac
         return
     options = dict(entry.options)
     options.update({CONF_OPERATION_MODE: operation_mode, CONF_SUMMER_MODE: summer_mode, CONF_CHIMNEY_TEMPERATURE: chimney, CONF_FROST_TEMPERATURE: frost})
+    dashboard_path = item.get("dashboard_path", "")
+    if not isinstance(dashboard_path, str) or (dashboard_path and not dashboard_path.startswith("/")):
+        connection.send_error(msg["id"], "invalid_configuration", "invalid_dashboard_path")
+        return
+    options["dashboard_path"] = dashboard_path
     hass.config_entries.async_update_entry(entry, options=options)
     await _async_entry_updated(hass, entry)
-    connection.send_result(msg["id"], {"settings": {CONF_OPERATION_MODE: operation_mode, CONF_SUMMER_MODE: summer_mode, CONF_CHIMNEY_TEMPERATURE: chimney, CONF_FROST_TEMPERATURE: frost}})
+    connection.send_result(msg["id"], {"settings": {CONF_OPERATION_MODE: operation_mode, CONF_SUMMER_MODE: summer_mode, CONF_CHIMNEY_TEMPERATURE: chimney, CONF_FROST_TEMPERATURE: frost, "dashboard_path": dashboard_path}})
 
 
 def _special_mode_legacy(mode: dict[str, Any]) -> dict[str, Any]:

@@ -1265,3 +1265,10 @@ Compatibility: existing management data remains backward compatible; missing `ig
 - Ausschließlich passive Simulation: Es werden keine Climate-Serviceaufrufe
   erzeugt. Der Badezimmer-Raumzielwert 24 °C bleibt vom Heizkörper-Sollwert
   27 °C getrennt.
+## v0.1.0-beta.59 – Final passive architecture and consolidated Lovelace card
+
+- Replace the normal Lovelace dashboard with only heating controls, central heating status, and configured rooms.
+- Persist dashboard controls and room targets in Smart Heating's Config Entry; legacy helpers are read once for an idempotent migration and are never written or required at runtime.
+- Keep bathroom radiator and infrared sources separate, add explicit `off` operation state, and retain passive priority/shadow safeguards.
+- Add Dashboard/Settings navigation with an optional configurable dashboard path and keep all weekly-program, mapping, IR, diagnostic, migration, and test settings in the sidebar administration panel.
+- No climate service calls, legacy automation changes, VM 104 changes, backups, snapshots, or Phase-89 worktree changes.
