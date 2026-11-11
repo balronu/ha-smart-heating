@@ -1308,3 +1308,18 @@ Compatibility: existing management data remains backward compatible; missing `ig
 - Optional zones reference room IDs only; rooms work without a zone.
 - HA areas are shown as suggestions with explicit enable/hide choices; Smart Heating never changes HA registry data.
 - No heating commands, productive VM-104 changes, or automatic deletions.
+# v0.1.0-beta.62 – Räume, Navigation und responsive Verwaltung
+
+- Navigation nutzt stabile Home-Assistant-Routen: Einstellungen, Raumeditor und Dashboard-Rückweg funktionieren über den HA-Router, auch im Kioskmodus.
+- Räume sind die zentrale Konfigurationseinheit; optionale Raumgruppen referenzieren ausschließlich Raum-IDs und duplizieren keine Gerätezuordnung.
+- Bereichsvorschläge, gespeicherte Raumquellen und Statusdarstellung bleiben konsistent; ausgeblendete HA-Bereiche werden dauerhaft intern gefiltert.
+- Raumkarten verwenden Container Queries, die verfügbare Kartenbreite und getrennte Heizkörper-/IR-Quellen korrekt darstellen.
+- Beta bleibt passiv: keine neuen Helper, keine Climate-Serviceaufrufe und keine Änderungen an VM 104 oder der bestehenden Automation.
+
+## v0.1.0-beta.62 – Rooms, navigation and responsive administration
+
+- Navigation now uses stable Home Assistant routes for settings, room editing and dashboard return, including kiosk mode.
+- Rooms are the single configuration unit; optional room groups reference room IDs only and do not duplicate equipment assignments.
+- Area suggestions, saved room sources and status presentation stay consistent; hidden HA areas remain persistently filtered internally.
+- Room cards use container queries and the available card width while separating radiator and infrared sources.
+- Beta remains passive: no new helpers, no Climate service calls, and no changes to VM 104 or the existing automation.

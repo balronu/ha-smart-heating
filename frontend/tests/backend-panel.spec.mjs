@@ -17,11 +17,13 @@ test("renders independent backend sections and nested rooms", async ({ page }) =
   await expect(page.locator("details[data-room]")).toHaveCount(1);
 });
 
-test("saves a zone and preserves open sections after backend refresh", async ({ page }) => {
+test("saves an optional room group and preserves open sections after backend refresh", async ({ page }) => {
   await page.locator("details[data-section=rooms]").first().locator(":scope > summary").click();
   await page.locator("form[data-zone-form] input[name=name]").fill("Wohnbereich");
-  await page.getByRole("button", { name: "Zone speichern" }).click();
+  await page.locator("form[data-zone-form] input[name=room_ids]").first().check();
+  await page.getByRole("button", { name: "Raumgruppe speichern" }).click();
   await expect(page.locator("details[data-zone]")).toContainText("Wohnbereich");
+  await expect(page.locator("form[data-zone-form] select[name=thermostat_entities]")).toHaveCount(0);
   await expect(page.locator("details[data-section=rooms]")).toHaveAttribute("open", "");
 });
 
@@ -37,6 +39,11 @@ test("provides a Home Assistant navigation escape hatch", async ({ page }) => {
   await expect(page.locator(".ha-navigation-header")).toContainText("Verwaltung");
 });
 
+test("returns to the configured Lovelace dashboard through HA navigation", async ({ page }) => {
+  await page.locator("[data-dashboard-link]").click();
+  await expect.poll(() => page.evaluate(() => window.__navigations.at(-1))).toBe("/lovelace/0");
+});
+
 test("keeps mobile navigation compact without title wrapping or overflow", async ({ page }) => {
   const metrics = await page.evaluate(() => ({ body: document.body.scrollWidth, viewport: innerWidth, menu: document.querySelector("[data-ha-menu-button]").getBoundingClientRect().width, context: document.querySelector(".nav-context").textContent }));
   expect(metrics.body).toBeLessThanOrEqual(metrics.viewport + 1);
@@ -49,7 +56,7 @@ test("opens a room through the deterministic query route on the management panel
   await page.waitForTimeout(100);
   const room = page.locator("details[data-room=room-wohnzimmer]");
   await expect(room).toHaveAttribute("open", "");
-  await expect(room).toHaveAttribute("data-room-id", "wohnzimmer");
+  await expect(room).toHaveAttribute("data-room-id", "room-wohnzimmer");
 });
 
 test("offers a standalone room form without requiring an HA area", async ({ page }) => {
@@ -596,10 +603,10 @@ test("offers suitable bathroom devices outside the HA area and preserves the sel
     panel._data.climate_entities = [{ entity_id: "climate.heizthermostat_badezimmer", name: "Badezimmer Thermostat", state: "heat" }];
     panel._data.temperature_entities = [{ entity_id: "sensor.badezimmer_temperatur", name: "Badezimmer Temperatur", temperature_role: "room", state: "20" }, { entity_id: "sensor.gefrierschrank_temperatur", name: "Gefrierschrank", temperature_role: "technical", state: "-18" }];
     panel._data.areas.push({ area_id: "badezimmer", name: "Badezimmer", relevant: false, relevance_source: "unassigned", thermostat_entities: [], temperature_entities: [] });
-    panel._data.management.zones = [{ id: "bathroom-zone", name: "Badezimmer", area_ids: ["badezimmer"], thermostat_entities: ["climate.heizthermostat_badezimmer"], temperature_entities: ["sensor.badezimmer_temperatur"], enabled: true }];
+    panel._data.management.rooms = [{ id: "bathroom-zone", name: "Badezimmer", area_ids: ["badezimmer"], thermostat_entities: ["climate.heizthermostat_badezimmer"], temperature_entities: ["sensor.badezimmer_temperatur"], enabled: true }];
     panel._render();
   });
-  await page.getByText("Räume & Klimazonen", { exact: true }).click();
+  await page.getByText("Räume & Raumgruppen", { exact: true }).click();
   const room = page.locator("details[data-room=room-badezimmer]");
   await room.locator("summary").click();
   await expect(room.locator("select[name=thermostat_entity] option[value='climate.heizthermostat_badezimmer']")).toHaveCount(1);
@@ -618,10 +625,10 @@ test("uses one checked multi-thermostat selector and restores all saved entries"
       { entity_id: "climate.esszimmer_two", name: "Esszimmer Heizkörper 2", state: "unavailable", available: false },
     ];
     panel._data.areas[0].thermostat_entities = panel._data.climate_entities;
-    panel._data.management.zones = [{ id: "dining-zone", name: "Esszimmer", area_ids: ["wohnzimmer"], thermostat_entities: ["climate.esszimmer_one", "climate.esszimmer_two"], temperature_entities: [], enabled: true }];
+    panel._data.management.rooms = [{ id: "dining-zone", name: "Esszimmer", area_ids: ["wohnzimmer"], thermostat_entities: ["climate.esszimmer_one", "climate.esszimmer_two"], temperature_entities: [], enabled: true }];
     panel._render();
   });
-  await page.getByText("Räume & Klimazonen", { exact: true }).click();
+  await page.getByText("Räume & Raumgruppen", { exact: true }).click();
   const room = page.locator("details[data-room=room-wohnzimmer]");
   await room.locator("summary").click();
   await expect(room.locator("select[name=thermostat_entity]")).toHaveCount(1);
@@ -720,10 +727,10 @@ test("searches long cross-area device lists and keeps the saved bathroom choices
     panel._data.climate_entities = [{ entity_id: "climate.heizthermostat_badezimmer_mit_einer_sehr_langen_entity_id", name: "Badezimmer Thermostat", area_id: "badezimmer" }];
     panel._data.temperature_entities = [{ entity_id: "sensor.badezimmer_temperatur_mit_einer_sehr_langen_entity_id", name: "Badezimmer Temperatur", temperature_role: "room", area_id: "badezimmer" }, { entity_id: "sensor.fensterkontakt_temperatur", name: "Fensterkontakt Temperatur", temperature_role: "contact", area_id: "wohnzimmer" }];
     panel._data.areas.push({ area_id: "badezimmer", name: "Badezimmer", relevant: false, relevance_source: "unassigned", thermostat_entities: [], temperature_entities: [] });
-    panel._data.management.zones = [{ id: "bathroom-zone", name: "Badezimmer", area_ids: ["badezimmer"], thermostat_entities: ["climate.heizthermostat_badezimmer_mit_einer_sehr_langen_entity_id"], temperature_entities: ["sensor.badezimmer_temperatur_mit_einer_sehr_langen_entity_id"], enabled: true }];
+    panel._data.management.rooms = [{ id: "bathroom-zone", name: "Badezimmer", area_ids: ["badezimmer"], thermostat_entities: ["climate.heizthermostat_badezimmer_mit_einer_sehr_langen_entity_id"], temperature_entities: ["sensor.badezimmer_temperatur_mit_einer_sehr_langen_entity_id"], enabled: true }];
     panel._render();
   });
-  await page.getByText("Räume & Klimazonen", { exact: true }).click();
+  await page.getByText("Räume & Raumgruppen", { exact: true }).click();
   const room = page.locator("details[data-room=room-badezimmer]");
   await room.locator("summary").click();
   await expect(room.locator("select[name=thermostat_entity] optgroup")).toHaveAttribute("label", "Weitere geeignete Geräte");

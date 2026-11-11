@@ -1,4 +1,4 @@
-const VERSION = "0.1.0-beta.61";
+const VERSION = "0.1.0-beta.62";
 const DAYS = [["monday", "Montag", "Mo"], ["tuesday", "Dienstag", "Di"], ["wednesday", "Mittwoch", "Mi"], ["thursday", "Donnerstag", "Do"], ["friday", "Freitag", "Fr"], ["saturday", "Samstag", "Sa"], ["sunday", "Sonntag", "So"]];
 
 class SmartHeatingBackendPanel extends HTMLElement {
@@ -403,7 +403,7 @@ class SmartHeatingBackendPanel extends HTMLElement {
   async _admin(type, data, successMessage = "") { try { await this._hass.callWS({ type, entry_id: this._entryId, ...data }); this._data = this._adminPayload(await this._hass.callWS({ type: "smart_heating/admin/get", entry_id: this._entryId })); this._error = null; this._saveMessage = successMessage; } catch (error) { this._error = error.message || String(error); this._saveMessage = "Speichern fehlgeschlagen."; } this._render(); }
   _style() { return `.priority-list{display:grid;gap:8px;margin:12px 0}.priority-row{display:flex;align-items:center;gap:12px;border:1px solid var(--divider-color);border-radius:10px;padding:9px 12px;min-width:0}.priority-row strong{flex:1;min-width:0}.priority-position{font-weight:700}.priority-row.priority-locked{border:2px solid var(--primary-color);background:var(--secondary-background-color)}.priority-locked strong{font-weight:800}.priority-fixed{font-weight:600;color:var(--secondary-text-color)}.priority-buttons,.priority-actions{display:flex;gap:8px}.priority-buttons button{min-width:44px;min-height:40px}.priority-buttons button:disabled{opacity:.28!important;cursor:not-allowed!important;filter:grayscale(1);pointer-events:none}.priority-actions{flex-wrap:wrap}.priority-actions button{width:auto}@media(max-width:600px){.priority-row{gap:8px;padding:8px}.priority-buttons button{min-width:40px}.priority-actions button{flex:1}}.smart-heating-backend{--panel-max:1200px;max-width:var(--panel-max);margin:0 auto;padding:clamp(16px,3vw,32px);box-sizing:border-box;color:var(--primary-text-color);overflow-wrap:anywhere}.smart-heating-backend h1,.smart-heating-backend h2,.smart-heating-backend h3{margin:0}.smart-heating-backend p{line-height:1.5}.hero,.section-heading,.editor-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.hero{padding-bottom:20px;border-bottom:1px solid var(--divider-color)}.hero h1{font-size:clamp(1.7rem,4vw,2.4rem);margin:4px 0}.eyebrow{margin:0;color:var(--secondary-text-color);font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.passive-badge{align-self:center;border:1px solid var(--divider-color);border-radius:999px;padding:7px 12px;color:var(--secondary-text-color);white-space:nowrap;font-size:.85rem}.intro{max-width:75ch;margin:18px 0}.weekly-planner,.backend-sections{margin-top:24px}.weekly-planner{padding:clamp(16px,2.5vw,24px);border:1px solid var(--divider-color);border-radius:18px;background:var(--card-background-color)}.section-heading{margin-bottom:16px}.day-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}.day-card{min-width:0;margin:0;padding:10px;border:1px solid var(--divider-color);border-radius:12px;background:var(--secondary-background-color)}.day-card[data-selected=true]{border-color:var(--primary-color);box-shadow:0 0 0 1px var(--primary-color)}.day-card legend{padding:0;max-width:100%}.day-button{display:flex;align-items:center;gap:7px;flex-wrap:wrap;width:100%;min-height:42px;padding:0;border:0;background:transparent;color:var(--primary-text-color);font:inherit;font-weight:700;text-align:left;cursor:pointer}.day-short{display:none;color:var(--primary-color)}.day-summary{min-height:42px;margin:8px 0 0;color:var(--secondary-text-color);font-size:.86rem}.day-editor{width:100%;box-sizing:border-box;min-width:0;margin-top:10px;padding:12px;border:1px solid var(--divider-color);border-radius:12px;background:var(--secondary-background-color)}.editor-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}.editor-actions{display:flex;gap:8px;flex-wrap:wrap}.editor-actions button{width:auto;min-width:110px}.schedule-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:10px;align-items:end;margin:8px 0}.smart-heating-backend label{display:grid;gap:5px}.unit{color:var(--secondary-text-color);font-weight:400}.smart-heating-backend input,.smart-heating-backend select,.smart-heating-backend button{box-sizing:border-box;min-height:44px;padding:8px 10px;border:1px solid var(--divider-color);border-radius:10px;background:var(--secondary-background-color);color:var(--primary-text-color);font:inherit}.smart-heating-backend button{cursor:pointer}.smart-heating-backend button:focus-visible,.smart-heating-backend input:focus-visible,.smart-heating-backend select:focus-visible{outline:2px solid var(--primary-color);outline-offset:2px}.primary{border-color:var(--primary-color)!important;background:var(--primary-color)!important;color:var(--text-primary-color,#fff)!important;font-weight:700}.secondary{background:transparent!important}.planner-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.planner-actions .save-feedback{grid-column:1/-1}.copy-dialog{margin-top:12px;padding:14px;border:1px solid var(--divider-color);border-radius:12px}.copy-day-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}.copy-day{display:flex!important;align-items:center;justify-content:flex-start;gap:10px;min-width:0;width:100%;box-sizing:border-box;padding:12px;border:1px solid var(--divider-color);border-radius:10px;background:var(--card-background-color);cursor:pointer;white-space:nowrap;overflow-wrap:normal;word-break:normal}.copy-day:has(input:checked){border-color:var(--primary-color);background:var(--secondary-background-color)}.copy-day input{display:block;flex:0 0 20px;width:20px;height:20px;min-height:20px!important;margin:0;padding:0;accent-color:var(--primary-color)}.copy-day span{display:block;min-width:0;white-space:nowrap;word-break:normal;overflow-wrap:normal}.copy-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}.copy-actions button{width:auto;min-width:130px}.editor-heading{align-items:center!important;flex-direction:row!important}.editor-actions{display:flex;flex-direction:row;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;width:auto}.editor-actions button{width:auto!important;flex:0 1 auto;min-width:110px}.day-editor .schedule-row{grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:10px}.day-editor .schedule-row label{min-width:0}.day-editor .schedule-row input{width:100%;min-width:0}@media(max-width:700px){.copy-day-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.copy-day{padding:10px 8px;gap:7px;font-size:.92rem}.copy-actions{display:grid;grid-template-columns:1fr 1fr}.copy-actions button{width:100%;min-width:0}.editor-heading{align-items:stretch!important;flex-direction:column!important}.editor-actions{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.editor-actions button{min-width:0;width:100%!important;padding:8px 5px;font-size:.86rem}.day-editor .schedule-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.day-editor .schedule-row label:nth-child(3){grid-column:1 / -1}.day-editor .schedule-row button[data-schedule-remove]{grid-column:1 / -1;width:100%}.planner-actions{grid-template-columns:1fr}}@media(max-width:390px){.copy-day-grid{grid-template-columns:1fr 1fr}.copy-day{font-size:.85rem;padding:9px 6px;gap:5px}.editor-actions{grid-template-columns:1fr 1fr}.editor-actions button:first-child{grid-column:1 / -1}.copy-actions{grid-template-columns:1fr}}@media(max-width:700px){.copy-day-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.editor-actions{width:100%}.editor-actions button{flex:1}.planner-actions{grid-template-columns:1fr}}.save-feedback{margin:0;color:var(--success-color,#2e7d32);font-weight:600}.empty-state,.hint{color:var(--secondary-text-color)}.backend-sections details{margin:10px 0;padding:14px;border:1px solid var(--divider-color);border-radius:14px;background:var(--card-background-color)}.backend-sections summary{cursor:pointer;font-size:1.05rem;font-weight:700;min-height:28px}.section-body{padding:12px 0 2px}.rooms details{margin:7px 0}.smart-heating-backend form{display:grid;gap:10px;margin-top:14px}.smart-heating-backend select[multiple]{min-height:96px}.filters{display:grid;grid-template-columns:minmax(0,2fr) minmax(150px,1fr);gap:10px}.table-wrap{max-width:100%;overflow-x:auto;margin-top:14px}table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;vertical-align:top;padding:9px;border-bottom:1px solid var(--divider-color)}code{font-size:.8em;overflow-wrap:anywhere}.warning{color:var(--warning-color,#d79b00)}.error{color:var(--error-color)}@media(max-width:760px){.day-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.day-card[data-selected=true]{grid-column:span 4}.day-label{display:none}.day-short{display:inline}.schedule-row{grid-template-columns:repeat(2,minmax(0,1fr))}.schedule-row label:nth-child(3){grid-column:span 2}.schedule-row button{grid-column:span 2}.hero,.section-heading{flex-direction:column}.passive-badge{align-self:flex-start}.planner-actions{align-items:stretch;flex-direction:column}.planner-actions button{width:100%}}@media(max-width:420px){.smart-heating-backend{padding:12px}.day-grid{gap:6px}.day-card{padding:8px}.day-card[data-selected=true]{grid-column:span 4}.filters{grid-template-columns:1fr}.editor-heading{align-items:stretch;flex-direction:column}.editor-heading button{width:100%}}`; }
 }
-// beta.61 navigation contract: HA panel routes use a query parameter rather
+// beta.62 navigation contract: HA panel routes use a query parameter rather
 // than the old zone anchor, so desktop, mobile and kiosk routers resolve the
 // same selected room.
 const smartHeatingRenderBase = SmartHeatingBackendPanel.prototype._render;
@@ -507,4 +507,97 @@ SmartHeatingBackendPanel.prototype._enhanceRoomSelectors = function () {
   });
   if (!this.querySelector("style[data-thermostat-selection-style]")) { const style = document.createElement("style"); style.dataset.thermostatSelectionStyle = "true"; style.textContent = ".selected-thermostats{display:grid;gap:6px;margin-top:7px;padding:8px;border:1px solid var(--divider-color);border-radius:10px;background:var(--secondary-background-color)}.selected-thermostat{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.selected-thermostat code{display:block;color:var(--secondary-text-color);overflow-wrap:anywhere}.thermostat-availability{white-space:nowrap;font-size:.85em}.thermostat-availability.available{color:var(--success-color,#2e7d32)}.thermostat-availability.unavailable{color:var(--warning-color,#a66a00)}"; this.prepend(style); }
 };
+
+// Beta 62 canonical room/group contract.  Keep the legacy renderer as the
+// compatibility source, but make the visible management surface use rooms as
+// the only configuration records and groups as room-id references.
+const smartHeatingBeta62Render = SmartHeatingBackendPanel.prototype._render;
+SmartHeatingBackendPanel.prototype._render = function () {
+  smartHeatingBeta62Render.call(this);
+  const management = this._data?.management || {};
+  const configuredRooms = Array.isArray(management.rooms) ? management.rooms : [];
+  const legacyOnlyRooms = (management.zones || []).filter((zone) => !(zone.room_ids || []).length && !configuredRooms.some((room) => room.id === zone.id || (room.area_ids || []).some((areaId) => (zone.area_ids || []).includes(areaId))));
+  const rooms = [...configuredRooms, ...legacyOnlyRooms];
+  const byArea = new Map(rooms.flatMap((room) => (room.area_ids || []).map((areaId) => [String(areaId), room])));
+  const areaFilters = management.area_filters || {};
+  this.querySelectorAll("details[data-room]").forEach((node) => {
+    const areaId = node.dataset.room?.replace(/^room-/, "");
+    const room = byArea.get(String(areaId));
+    if (room) {
+      node.dataset.roomId = String(room.id);
+      node.dataset.canonicalRoom = "true";
+      node.querySelector(":scope > summary")?.setAttribute("data-room-route", `/smart_heating?room_id=${encodeURIComponent(room.id)}`);
+      const form = node.querySelector("form[data-room-form]");
+      if (form) {
+        form.dataset.roomId = String(room.id);
+        const thermostat = form.querySelector("select[name=thermostat_entity]");
+        const temperature = form.querySelector("select[name=temperature_entity]");
+        const assignedThermostats = room.thermostat_entities || [];
+        const assignedTemperatures = room.temperature_entities || [];
+        if (thermostat) [...thermostat.options].forEach((option) => { option.selected = assignedThermostats.includes(option.value); });
+        if (temperature) [...temperature.options].forEach((option) => { option.selected = assignedTemperatures.includes(option.value); });
+        const selectedSummary = node.querySelector("[data-selected-thermostats]");
+        if (selectedSummary && thermostat) selectedSummary.textContent = [...thermostat.selectedOptions].filter((option) => option.value).map((option) => { const source = (this._data?.climate_entities || []).find((item) => item.entity_id === option.value); const unavailable = ["unknown", "unavailable", "missing"].includes(String(source?.state)); return `${option.textContent.trim()}${unavailable ? " · nicht verfügbar" : ""}`; }).join(" · ") || "Keine Thermostate ausgewählt.";
+        const assigned = [...assignedThermostats, ...assignedTemperatures];
+        const sourceText = node.querySelector("p[data-canonical-sources]") || document.createElement("p");
+        sourceText.dataset.canonicalSources = "true";
+        sourceText.innerHTML = `<strong>Smart-Heating-Zuordnung:</strong> ${assigned.length ? assigned.map((id) => `<code>${this._esc(id)}</code>`).join(", ") : "keine Quelle zugeordnet"}`;
+        node.querySelector("form")?.before(sourceText);
+      }
+    }
+    if (areaFilters[areaId] === "hidden") node.hidden = true;
+  });
+
+  const zoneForm = this.querySelector("form[data-zone-form]");
+  if (zoneForm) {
+    const replacement = zoneForm.cloneNode(false);
+    replacement.innerHTML = `<h3>Optionale Raumgruppe</h3><p class="hint">Eine Raumgruppe referenziert nur bestehende Räume. Sensoren, Thermostate und Raumziele werden nicht dupliziert.</p><label>Name<input name="name" required></label><fieldset class="room-group-picker"><legend>Räume der Gruppe</legend>${rooms.map((room) => `<label class="room-group-option"><input type="checkbox" name="room_ids" value="${this._esc(room.id)}" data-room-group-id><span>${this._esc(room.name || room.id)}</span></label>`).join("") || "<p class=empty-state>Noch keine Räume konfiguriert.</p>"}</fieldset><button class="primary" type="submit">Raumgruppe speichern</button><p class="save-feedback" data-group-feedback aria-live="polite"></p>`;
+    zoneForm.replaceWith(replacement);
+    replacement.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const roomIds = [...replacement.querySelectorAll("input[name=room_ids]:checked")].map((input) => input.value);
+      this._admin("smart_heating/admin/zone/set", { item: { name: replacement.name.value.trim(), room_ids: roomIds } }, "Raumgruppe gespeichert.");
+    });
+  }
+  const roomSectionSummary = this.querySelector("details[data-section=rooms] > summary");
+  if (roomSectionSummary) roomSectionSummary.textContent = "Räume & Raumgruppen";
+  this.querySelectorAll("details[data-section=rooms] h3").forEach((heading) => { heading.textContent = heading.textContent.replace(/Klimazonen/g, "Raumgruppen").replace(/Klimazone/g, "Raumgruppe"); });
+  this.querySelectorAll("details[data-zone] summary").forEach((summary) => { summary.textContent = summary.textContent.replace(/Klimazone/g, "Raumgruppe").replace(/Zone/g, "Raumgruppe"); });
+  this.querySelectorAll("[data-zone-delete]").forEach((button) => { if (button.textContent.includes("Zone")) button.textContent = button.textContent.replace(/Zone/g, "Raumgruppe"); });
+  const roomsSection = this.querySelector("details[data-section=rooms] .section-body");
+  if (roomsSection && !roomsSection.querySelector("[data-room-group-list]")) {
+    const standalone = rooms.filter((room) => !(room.area_ids || []).length);
+    const list = document.createElement("section");
+    list.dataset.roomGroupList = "true";
+    list.innerHTML = `<h3>Räume ohne HA-Bereich</h3>${standalone.length ? standalone.map((room) => `<article class="standalone-room" data-room-id="${this._esc(room.id)}"><strong>${this._esc(room.name || room.id)}</strong><p class="hint">Eigenständig konfiguriert · keine HA-Bereichsänderung</p><a class="room-route-link" data-route="/smart_heating?room_id=${encodeURIComponent(room.id)}" href="/smart_heating?room_id=${encodeURIComponent(room.id)}">Raumeinstellungen öffnen</a></article>`).join("") : "<p class=empty-state>Keine eigenständigen Räume angelegt.</p>"}`;
+    roomsSection.prepend(list);
+  }
+  if (!this.querySelector("[data-beta62-style]")) {
+    const style = document.createElement("style");
+    style.dataset.beta62Style = "true";
+    style.textContent = `.smart-heating-backend .hero,.smart-heating-backend .section-heading{min-width:0}.smart-heating-backend .hero>div{min-width:0;flex:1 1 260px}.smart-heating-backend .hero .eyebrow,.smart-heating-backend .ha-navigation-header,.smart-heating-backend .nav-title{writing-mode:horizontal-tb;white-space:nowrap}.smart-heating-backend .hero .passive-badge{flex:0 0 auto}.smart-heating-backend .room-group-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;padding:10px;border:1px solid var(--divider-color);border-radius:10px}.smart-heating-backend .room-group-picker legend{font-weight:700}.smart-heating-backend .room-group-option{display:flex!important;grid-template-columns:none!important;align-items:center;gap:8px;min-width:0;padding:9px;border:1px solid var(--divider-color);border-radius:8px;white-space:normal}.smart-heating-backend .room-group-option input{flex:0 0 20px;width:20px;min-height:20px}.smart-heating-backend .standalone-room{padding:12px;border:1px solid var(--divider-color);border-radius:10px;margin:8px 0}.smart-heating-backend .standalone-room a,.smart-heating-backend .room-route-link{color:var(--primary-color);font-weight:700}.smart-heating-backend code{overflow-wrap:anywhere;word-break:break-word}`;
+    this.querySelector("main")?.append(style);
+  }
+  this._openLinkedZone();
+};
+
+const smartHeatingOpenRouteBase = SmartHeatingBackendPanel.prototype._openLinkedZone;
+SmartHeatingBackendPanel.prototype._openLinkedZone = function () {
+  const roomId = new URLSearchParams(window.location.search).get("room_id");
+  if (roomId) {
+    const room = [...this.querySelectorAll("details[data-room]")].find((node) => node.dataset.roomId === roomId || node.dataset.room === `room-${roomId}`);
+    if (room) { room.open = true; room.closest("details[data-section=rooms]")?.setAttribute("open", ""); room.scrollIntoView({ block: "start", behavior: "instant" }); }
+    return;
+  }
+  smartHeatingOpenRouteBase.call(this);
+};
+
+document.addEventListener("click", (event) => {
+  const link = event.target?.closest?.("a[data-route]");
+  if (!link) return;
+  const path = link.dataset.route || link.getAttribute("href");
+  if (!path || !path.startsWith("/smart_heating")) return;
+  const panel = link.closest("smart-heating-backend-panel");
+  if (panel?._hass?.navigate) { event.preventDefault(); panel._hass.navigate(path); }
+}, true);
 if (!customElements.get("smart-heating-backend-panel")) customElements.define("smart-heating-backend-panel", SmartHeatingBackendPanel);
