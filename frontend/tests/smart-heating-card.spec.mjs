@@ -103,6 +103,14 @@ test("keeps multiple card instances independent", async ({ page }) => { await ex
 
 test("uses the full narrow viewport without horizontal overflow", async ({ page }) => { const widths = await page.evaluate(() => ({ body: document.body.scrollWidth, viewport: window.innerWidth })); expect(widths.body).toBeLessThanOrEqual(widths.viewport + 1); });
 
+test("keeps internal test operation collapsed and uses a wider desktop grid", async ({ page }) => {
+  const panel = page.locator("smart-heating-card").first().getByTestId("internal-panel");
+  await expect(panel).not.toHaveAttribute("open", "");
+  const columns = await page.locator("smart-heating-card").first().locator(".sh-bottom").evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(" ").length);
+  if (await page.evaluate(() => innerWidth >= 1100)) expect(columns).toBe(3);
+  else expect(columns).toBeGreaterThanOrEqual(1);
+});
+
 test("beta57 keeps bathroom room target, radiator setpoint, and infrared values separate", async ({ page }) => {
   await page.evaluate(() => {
     const card = document.querySelector("smart-heating-card");
@@ -530,6 +538,7 @@ test("internal dashboard settings persist without legacy helper service calls", 
     card._render();
   });
   const card=page.locator("smart-heating-card").first();
+  await card.getByTestId("internal-panel").locator(":scope > summary").click();
   await card.locator('[data-internal-isolation]').click();
   await card.locator('[data-internal-enabled]').click();
   await card.locator('[data-internal-operating="manual_setback"]').click();
@@ -560,6 +569,7 @@ test("all five internal special modes atomically activate passive isolation with
     card._render();
   });
   const card=page.locator("smart-heating-card").first();
+  await card.getByTestId("internal-panel").locator(":scope > summary").click();
   for(const mode of ["party","visit","return_home","summer","chimney_sweep"]){
     await card.locator('[data-internal-mode="'+mode+'"]').click();
     await expect(card.locator('[data-internal-mode="'+mode+'"]')).toHaveAttribute("aria-pressed","true");
@@ -594,6 +604,7 @@ test("per-room internal temperatures use zone-scoped websocket writes",async({pa
     card._render();
   });
   const card=page.locator("smart-heating-card").first();
+  await card.getByTestId("internal-panel").locator(":scope > summary").click();
   await expect(card.locator('[data-zone-id="bathroom"][data-zone-key="comfort_temperature"]')).toHaveCount(2);
   await card.locator('[data-zone-id="bathroom"][data-zone-key="comfort_temperature"][data-zone-step="0.5"]').click();
   await card.locator('[data-zone-id="bedroom"][data-zone-key="comfort_temperature"][data-zone-step="-0.5"]').click();
@@ -636,6 +647,7 @@ test("shows room thermostat target diagnostics on mobile without service calls",
     card._render();
   });
   const card = page.locator("smart-heating-card").first();
+  await card.getByTestId("internal-panel").locator(":scope > summary").click();
   const panel = card.getByTestId("internal-panel");
   await expect(panel).toContainText("Thermostat-Eignung");
   await expect(panel).toContainText("Badezimmer");
@@ -663,6 +675,7 @@ test("thermostat diagnostics remain safe with missing data and unavailable devic
     card._render();
   });
   const card = page.locator("smart-heating-card").first();
+  await card.getByTestId("internal-panel").locator(":scope > summary").click();
   await expect(card.getByTestId("internal-panel")).toContainText("Noch keine Raumdiagnose verfügbar");
   await page.evaluate(() => {
     const card = document.querySelector("smart-heating-card");
@@ -708,7 +721,9 @@ test("renders all four thermostat suitability categories without controls", asyn
     window.__services = [];
     card._render();
   });
-  const panel = page.locator("smart-heating-card").first().getByTestId("internal-panel");
+  const card = page.locator("smart-heating-card").first();
+  await card.getByTestId("internal-panel").locator(":scope > summary").click();
+  const panel = card.getByTestId("internal-panel");
   for (const label of ["Vollständig geeignet", "Teilweise geeignet", "Nicht geeignet", "Nicht prüfbar"]) {
     await expect(panel).toContainText(label);
   }

@@ -71,6 +71,7 @@ test("keeps the bathroom radiator and IR climate source as separate passive assi
   await page.locator("details[data-room] summary").first().click();
   const form = page.locator("form[data-room-form]");
   await expect(form.locator("select[name=infrared_climate_entities]")).toBeVisible();
+  await expect(form.locator("select[name=thermostat_entity]")).toHaveValue("climate.heizthermostat_badezimmer");
   await expect(form.locator("[data-room-ir-settings]")).toContainText("Infrarot-Automatik");
   await expect(form.locator("[name=infrared_automatic_control]")).not.toBeChecked();
   await form.locator("select[name=thermostat_entity]").selectOption("climate.heizthermostat_badezimmer");
@@ -428,6 +429,29 @@ test("shows the passive operational overview and shadow blockers", async ({ page
   await page.locator("details[data-section=diagnostics] > summary").click();
   await expect(page.locator("[data-shadow-diagnostics]")).toContainText("Aktuelle Heizungssteuerung");
   await expect(page.locator("[data-shadow-diagnostics]")).toContainText("SMART");
+});
+
+test("shows available local thermostat and legacy automation as distinct evidence", async ({ page }) => {
+  await page.evaluate(() => {
+    const panel = document.querySelector("smart-heating-backend-panel");
+    panel._data.status = {
+      operation_mode: "compatibility",
+      operational_status: {
+        local_thermostat: { assigned: true, available: true, entity_ids: ["climate.heizthermostat_badezimmer"] },
+        legacy_automation: { entity_id: "automation.heizung_automatik_ersetzt_node_red", state: "on", available: true, rules_verified: false },
+        shadow: { comparison: "comparison_not_possible", reason: "Legacy-Trace nicht nachgewiesen" },
+        smart_readiness: { state: "blocked", unknown: false, blockers: ["Regeln der Legacy-Automation sind nicht verifiziert."] }
+      }
+    };
+    panel._data.control_plane = { activation_allowed: false };
+    panel._render();
+  });
+  const overview = page.locator("[data-operational-overview]");
+  await expect(overview).toContainText("zugeordnet · verfügbar");
+  await expect(overview).toContainText("vorhanden · aktiv");
+  await expect(overview).toContainText("1 bekannt");
+  await expect(overview).not.toContainText("Legacy-Automationnicht nachgewiesen");
+  await expect(overview).not.toContainText("SMART-Sperrgründ unbekannt");
 });
 
 test("keeps room-scope radios readable and disables room selection for all rooms", async ({ page }) => {
