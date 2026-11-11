@@ -146,7 +146,7 @@ Area without modifying those registries. An explicitly saved Smart Heating
 area override is internal Config Entry data, not a Home Assistant Area change.
 Saving is explicit; no contact deletion or disabling operation is exposed.
 
-## Beta 61 room model and navigation
+## Beta 62 room model and navigation
 
 Smart Heating rooms are the canonical configuration unit. A room owns its
 name, temperature/window sensors, thermostats, additional heat sources,
@@ -165,3 +165,10 @@ The management panel uses `/smart_heating?room_id=<room-id>` for room deep
 links and provides a direct dashboard return. Dashboard room links use the
 same route, including kiosk and touch layouts, so a selected room cannot fall
 through to the optional zone-management view.
+
+The beta-62 panel presents this model as one room editor: an HA Area may
+suggest a room, but the saved room record owns its equipment and targets.
+Optional Raumgruppen contain only room IDs and never duplicate room sources.
+The configured Lovelace route is used for the dashboard return, and browser
+history is preserved by the Home Assistant router. Hidden Area suggestions
+remain hidden in the internal filter without changing Home Assistant data.

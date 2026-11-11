@@ -39,9 +39,29 @@ test("uses internal websocket persistence for mode, central and room controls on
 });
 
 test("navigates from a room card to its matching room route", async ({ page }) => {
-  await page.evaluate(() => document.addEventListener("location-changed", event => { window.__route = event.detail.path; }, { once: true }));
   await page.locator(".sh-room-card").first().getByRole("link", { name: /Raumeinstellungen öffnen/ }).click();
-  await expect.poll(() => page.evaluate(() => window.__route)).toBe("/smart_heating?room_id=bathroom");
+  await expect.poll(() => page.evaluate(() => window.__navigations.at(-1))).toBe("/smart_heating?room_id=bathroom");
+  await expect.poll(() => page.evaluate(() => location.pathname + location.search)).toBe("/smart_heating?room_id=bathroom");
+});
+
+test("navigates to the registered Smart Heating panel from settings", async ({ page }) => {
+  await page.locator("[data-settings]").click();
+  await expect.poll(() => page.evaluate(() => window.__navigations.at(-1))).toBe("/smart_heating");
+});
+
+test("supports browser back after opening a room route", async ({ page }) => {
+  await page.locator(".sh-room-card").first().getByRole("link", { name: /Raumeinstellungen öffnen/ }).click();
+  await expect(page).toHaveURL(/\/smart_heating\?room_id=bathroom$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/frontend\/fixtures\/harness\.html$/);
+});
+
+test("uses the available card width for a narrow Lovelace column", async ({ page }) => {
+  await page.locator("smart-heating-card").evaluate((card) => { card.style.display = "block"; card.style.width = "600px"; });
+  const metrics = await page.locator(".sh-final").evaluate((node) => ({ width: node.getBoundingClientRect().width, scrollWidth: node.scrollWidth, clientWidth: node.clientWidth, cards: [...node.querySelectorAll(".sh-room-card")].map((item) => item.getBoundingClientRect().width) }));
+  expect(metrics.width).toBeLessThanOrEqual(600);
+  expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
+  expect(Math.min(...metrics.cards)).toBeGreaterThan(250);
 });
 
 test("captures the rendered card and has no horizontal overflow", async ({ page }, testInfo) => {
@@ -50,7 +70,7 @@ test("captures the rendered card and has no horizontal overflow", async ({ page 
   test.skip(testInfo.project.name === "kiosk", "kiosk has no reference screenshot baseline");
   const card = page.locator("smart-heating-card").first();
   await expect(card.locator(".sh-room-grid")).toBeVisible();
-  await expect(card).toHaveScreenshot(`beta60-${testInfo.project.name}.png`, {
+  await expect(card).toHaveScreenshot(`beta62-${testInfo.project.name}.png`, {
     animations: "disabled",
     caret: "hide",
     maxDiffPixels: 2500,

@@ -824,9 +824,20 @@ def area_suggestions(hass: Any, management: Mapping[str, Any] | None = None) -> 
     management = management or {}
     explicit_ids = set(management.get("relevant_area_ids", []))
     area_filters = management.get("area_filters", {}) if isinstance(management.get("area_filters", {}), Mapping) else {}
+    configured_rooms = [
+        room for room in management.get("rooms", [])
+        if isinstance(room, Mapping)
+    ]
+    # A saved room is the source of truth for equipment/status.  HA registry
+    # placement is only a suggestion and may legitimately differ from the
+    # internal room assignment (for example after an entity was moved).
+    rooms_by_area: dict[str, list[Mapping[str, Any]]] = {}
+    for room in configured_rooms:
+        for area_id in room.get("area_ids", []) or []:
+            rooms_by_area.setdefault(str(area_id), []).append(room)
     configured_area_ids = {
         area_id
-        for zone in [*management.get("rooms", []), *management.get("zones", [])]
+        for zone in [*configured_rooms, *management.get("zones", [])]
         for area_id in zone.get("area_ids", [])
         if area_id
     }
@@ -893,6 +904,17 @@ def area_suggestions(hass: Any, management: Mapping[str, Any] | None = None) -> 
         area["additional_temperature_entities"] = [item for item in temperatures if item.get("temperature_role") != "room"]
         area["window_contacts"] = contacts
         area["window_contact_count"] = len(contacts)
+        area_rooms = rooms_by_area.get(str(area["area_id"]), [])
+        if area_rooms:
+            canonical = area_rooms[0]
+            area["configured_room"] = deepcopy(canonical)
+            area["assigned_thermostat_entities"] = list(canonical.get("thermostat_entities", []) or [])
+            area["assigned_temperature_entities"] = list(canonical.get("temperature_entities", []) or [])
+            area["assigned_window_entities"] = list(canonical.get("window_entities", []) or [])
+            area["status_source"] = "smart_heating_room"
+            area["relevant"] = not area["hidden"] and canonical.get("enabled", True) is not False
+            area["relevance_source"] = "confirmed"
+            area["relevance_label"] = "bestätigt"
         result.append(area)
     return result
 
