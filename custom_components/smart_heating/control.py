@@ -33,9 +33,17 @@ def analyze_control_plane(hass: Any, config: Mapping[str, Any]) -> dict[str, Any
         label = f"{getattr(state, 'name', '')} {state.entity_id}".lower()
         if any(token in label for token in ("heizung", "heating", "thermostat", "tado")):
             automation_candidates.append(state.entity_id)
+    legacy_entity = "automation.heizung_automatik_ersetzt_node_red"
+    legacy_state = hass.states.get(legacy_entity)
+    legacy_raw = str(getattr(legacy_state, "state", "missing")) if legacy_state else "missing"
+    legacy_available = legacy_raw not in {"missing", "unknown", "unavailable"}
+    configured_climate = config.get(CONF_CLIMATE_ENTITY)
+    climate_state = hass.states.get(configured_climate) if isinstance(configured_climate, str) else None
+    climate_raw = str(getattr(climate_state, "state", "missing")) if climate_state else "missing"
     return {
         "schedule_writer": {"entity": config.get("heating_boolean"), "source": "entity_state_only", "supported_action_export": False},
-        "thermostat_writer": {"climate_entity": config.get(CONF_CLIMATE_ENTITY), "legacy_automation_candidates": sorted(automation_candidates), "supported_action_export": False},
+        "thermostat_writer": {"climate_entity": configured_climate, "climate_state": climate_raw, "climate_available": climate_raw not in {"missing", "unknown", "unavailable"}, "legacy_automation_candidates": sorted(automation_candidates), "supported_action_export": False},
+        "legacy_automation": {"entity_id": legacy_entity, "state": legacy_raw, "available": legacy_available, "enabled": True if legacy_raw == "on" else False if legacy_raw == "off" else None, "rules_verified": False, "rules_source": "not_available_from_public_state"},
         "tado_fallback": config.get(CONF_TADO_FALLBACK),
         "single_writer_proven": False,
         "activation_allowed": False,
