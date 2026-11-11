@@ -1,3 +1,10 @@
+## v0.1.0-beta.58 – Corrected status evidence and compact Lovelace layout
+
+- Distinguish assigned/available thermostats, missing entities, unavailable states, and unverified legacy rules in the passive status overview.
+- Show the known legacy automation and SMART blockers from read-only evidence instead of fallback “unknown” labels.
+- Keep room assignments visible even when a saved thermostat or temperature sensor is not currently returned by area discovery.
+- Put internal test operation and legacy helpers after the productive sections, collapsed by default; retain one-column mobile and wider desktop grid behavior.
+
 ## v0.1.0-beta.57 – Consolidated Lovelace room presentation
 
 - Bathroom room target, radiator thermostat setpoint, and infrared comfort/setpoint values are rendered separately.
