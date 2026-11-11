@@ -199,7 +199,9 @@ def calculate_zone_target_previews(
     It intentionally uses the same safety and schedule decision as the global
     preview and does not claim independent physical boiler control.
     """
-    if not internal.get("internal_only", False):
+    # Legacy fixtures remain hidden until explicitly isolated.  A completed
+    # one-time helper migration also establishes the internal runtime plane.
+    if not internal.get("internal_only", False) and internal.get("helper_migration", {}).get("status") != "completed":
         return []
     active = schedule.active_at(now, timezone)
     window = schedule.active_window_at(now, timezone)

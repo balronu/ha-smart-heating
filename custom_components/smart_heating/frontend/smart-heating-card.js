@@ -1,8 +1,11 @@
-/* Smart Heating card: passive heating overview, optional manual infrared switches. */
+/* Smart Heating card: passive overview; configuration lives in the sidebar panel. */
 const DAYS = [["monday","Montag","Mo"],["tuesday","Dienstag","Di"],["wednesday","Mittwoch","Mi"],["thursday","Donnerstag","Do"],["friday","Freitag","Fr"],["saturday","Samstag","Sa"],["sunday","Sonntag","So"]];
 const SECTIONS = ["operation","temperatures","special_modes","rooms","schedule","shadow","windows","diagnostics"];
-const DEFAULT_CONFIG = {entry_id:"",title:"Smart Heating",display_mode:"dashboard",visible_sections:SECTIONS,room_filter:[],sort:"configured",show_actual_temperature:true,show_target_temperature:true,show_windows:true,special_modes_compact:false,visible_room_count:3,visible_mode_count:4,pinned_rooms:[],allow_manual_ir_control:false,infrared_automatic_control:false,infrared_setback_strategy:"off",infrared_comfort_temperature:24,infrared_setback_temperature:17,infrared_climate_entity:""};
+const DEFAULT_CONFIG = {entry_id:"",title:"Smart Heating",display_mode:"dashboard",dashboard_path:""};
 const UNKNOWN = new Set(["","unknown","unavailable","missing","none","null","undefined"]);
+// Keep local fixtures and Home Assistant's versioned extra-JS registration on
+// the same final renderer path.
+queueMicrotask(() => import("./final-dashboard.js"));
 const PLAN_CACHE = new WeakMap();
 const SECTION_LABELS={operation:"Betriebsmodus",rooms:"Räume",temperatures:"Temperaturen",windows:"Fensterkontakte",special_modes:"Sondermodi",schedule:"Wochenplan",shadow:"Vergleich mit bisheriger Steuerung",diagnostics:"Diagnose"};
 const ENTRY_LOOKUP=new WeakMap();
@@ -112,7 +115,7 @@ class SmartHeatingCard extends HTMLElement {
       if(first)first.innerHTML=`<strong>Raum:</strong> ${actual==null?"Ist –":"Ist "+actual+" °C"} · ${room.dataset.roomTarget?"Ziel "+room.dataset.roomTarget+" °C":"Ziel –"}`;
     });
   }
-  _renderModern(){
+  _renderModernLegacy(){
     const currentOpen=new Set([...this.querySelectorAll("details[open]")].map(el=>el.dataset.panel).filter(Boolean));
     const esc=v=>this._esc(v);
     const st=id=>this._hass?.states?.[id];

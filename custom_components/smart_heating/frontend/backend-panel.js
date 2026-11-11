@@ -1,4 +1,4 @@
-const VERSION = "0.1.0-beta.58";
+const VERSION = "0.1.0-beta.59";
 const DAYS = [["monday", "Montag", "Mo"], ["tuesday", "Dienstag", "Di"], ["wednesday", "Mittwoch", "Mi"], ["thursday", "Donnerstag", "Do"], ["friday", "Freitag", "Fr"], ["saturday", "Samstag", "Sa"], ["sunday", "Sonntag", "So"]];
 
 class SmartHeatingBackendPanel extends HTMLElement {
@@ -92,7 +92,7 @@ class SmartHeatingBackendPanel extends HTMLElement {
   }
   _specialModeEffectSummary(mode) { const effect = mode.effect || {}; const action = { observe: "keine Temperaturänderung", comfort: "Komforttemperatur", setback: "Absenktemperatur", fixed_temperature: `feste ${effect.target_temperature ?? "—"} °C`, pause_demand: "Heizanforderung pausieren" }[effect.action || "observe"] || "passiv auswerten"; const rooms = (mode.zone_ids || []).length ? `${mode.zone_ids.length} ausgewählte Räume` : "alle Räume"; return `<strong>Dieser Sondermodus bewirkt:</strong> ${this._esc(action)} in ${this._esc(rooms)}; ${effect.override_schedule ? "übersteuert den Wochenplan" : "berücksichtigt den Wochenplan"}. ${mode.mode_type === "chimney_sweep" ? "Priorität 1000." : "Die Wirkung bleibt passiv."}`; }
   _readSpecialModeEffect(card, current) { const action = card.querySelector("[name=effect_action]")?.value || "observe"; const zones = [...(card.querySelector("[name=zone_ids]")?.selectedOptions || [])].map((option) => option.value); const scope = card.querySelector("[data-effect-scope]:checked")?.value || "all"; return { ...current, zone_ids: scope === "all" ? [] : zones, duration_minutes: card.querySelector("[name=duration_minutes]")?.value === "" ? null : Number(card.querySelector("[name=duration_minutes]")?.value), priority: current.mode_type === "chimney_sweep" ? 1000 : (card.querySelector("[name=priority]")?.value === "" ? current.priority : Number(card.querySelector("[name=priority]")?.value)), deactivation: { ...(current.deactivation || {}), action: card.querySelector("[name=deactivation_action]")?.value || "return_to_normal" }, effect: { ...(current.effect || {}), action, target_reference: action === "comfort" ? "comfort" : action === "setback" ? "setback" : (current.effect || {}).target_reference, target_temperature: card.querySelector("[name=target_temperature]")?.value === "" ? null : Number(card.querySelector("[name=target_temperature]")?.value), override_schedule: Boolean(card.querySelector("[name=override_schedule]")?.checked), respect_windows: current.mode_type === "chimney_sweep" ? false : card.querySelector("[name=respect_windows]")?.value !== "false", respect_presence: current.mode_type === "chimney_sweep" ? false : card.querySelector("[name=respect_presence]")?.value !== "false" } }; }
-  _navigationHeader() { return `<header class="ha-navigation-header"><button type="button" class="ha-menu-button" data-ha-menu-button aria-label="Seitenmenü öffnen">☰</button><span class="nav-context">Verwaltung</span></header>`; }
+  _navigationHeader() { return `<header class="ha-navigation-header"><button type="button" class="ha-menu-button" data-ha-menu-button aria-label="Seitenmenü öffnen">☰</button><span class="nav-context">Verwaltung</span><button type="button" class="secondary dashboard-link" data-dashboard-link>Zum Dashboard</button></header>`; }
   _renderSpecialModeManager() {
     const form = this.querySelector("form[data-safety-form]");
     if (!form || form.querySelector(".special-mode-manager")) return;
@@ -196,6 +196,7 @@ class SmartHeatingBackendPanel extends HTMLElement {
   }
   _bind() {
     this._renderSystemManager();
+    const systemForm = this.querySelector("form[data-system-form]"); if (systemForm && !systemForm.querySelector("[name=dashboard_path]")) { const label = document.createElement("label"); label.textContent = "Dashboard-Pfad (optional, z. B. /lovelace/0)"; const input = document.createElement("input"); input.name = "dashboard_path"; input.value = this._data?.settings?.dashboard_path || ""; input.placeholder = "leer = erkannte HA-Lovelace-Route"; label.append(input); systemForm.insertBefore(label, systemForm.querySelector("button")); }
     const main = this.querySelector("main.smart-heating-backend");
     if (main && !main.querySelector("[data-operational-overview]")) main.insertAdjacentHTML("afterbegin", this._operationalOverview());
     const diagnostics = this.querySelector("details[data-section=diagnostics] .section-body");
@@ -205,6 +206,7 @@ class SmartHeatingBackendPanel extends HTMLElement {
     this.querySelectorAll("[data-room-feedback]").forEach((node) => { node.textContent = String(this._saveMessage || "").startsWith("Raum") ? this._saveMessage : ""; });
     this.querySelectorAll("[data-safety-feedback]").forEach((node) => { node.textContent = String(this._saveMessage || "").startsWith("Sonder") ? this._saveMessage : ""; });
     const menu = this.querySelector("[data-ha-menu-button]"); if (menu) { menu.hass = this._hass; menu.addEventListener("click", () => { if (this._hass?.toggleSidebar) this._hass.toggleSidebar(); else this.dispatchEvent(new CustomEvent("hass-toggle-menu", { bubbles: true, composed: true })); }); }
+    this.querySelector("[data-dashboard-link]")?.addEventListener("click", () => { const path = this._data?.settings?.dashboard_path || this._config?.dashboard_path || Object.entries(this._hass?.panels || {}).find(([, panel]) => panel?.component_name === "lovelace")?.[0] || "/lovelace"; if (this._hass?.navigate) this._hass.navigate(path); else this.dispatchEvent(new CustomEvent("location-changed", { detail: { path }, bubbles: true, composed: true })); });
     this.querySelectorAll("button[data-schedule-edit]").forEach((button) => button.addEventListener("click", () => { this._captureSelectedDay(); const nextDay = button.dataset.scheduleEdit; this._editingDay = this._editingDay === nextDay ? null : nextDay; this._selectedDay = this._editingDay; this._render(); }));
     this.querySelectorAll("[data-schedule-input]").forEach((input) => input.addEventListener("input", () => { this._captureSelectedDay(); this._scheduleDirty = true; this._saveMessage = "Änderungen noch nicht gespeichert."; const feedback = this.querySelector(".save-feedback"); if (feedback) { feedback.textContent = this._saveMessage; feedback.classList.add("pending"); feedback.classList.remove("saved"); } }));
     this.querySelectorAll("button[data-schedule-add]").forEach((button) => button.addEventListener("click", () => { this._captureSelectedDay(); this._draftSchedule[button.dataset.scheduleAdd].push({ start: "06:00", end: "22:00" }); this._scheduleDirty = true; this._saveMessage = "Änderungen noch nicht gespeichert."; this._render(); }));
@@ -249,7 +251,7 @@ class SmartHeatingBackendPanel extends HTMLElement {
       }catch(error){if(output)output.textContent="Test fehlgeschlagen: "+(error.message||String(error));}
       finally{button.disabled=false;}
     });
-    this.querySelector("form[data-system-form]")?.addEventListener("submit", (event) => { event.preventDefault(); const form = event.currentTarget; this._admin("smart_heating/admin/system/set", { item: { operation_mode: form.operation_mode.value, summer_mode: form.summer_mode.value, chimney_temperature: Number(form.chimney_temperature.value), frost_temperature: Number(form.frost_temperature.value) } }, "Systemeinstellungen gespeichert."); });
+    this.querySelector("form[data-system-form]")?.addEventListener("submit", (event) => { event.preventDefault(); const form = event.currentTarget; this._admin("smart_heating/admin/system/set", { item: { operation_mode: form.operation_mode.value, summer_mode: form.summer_mode.value, chimney_temperature: Number(form.chimney_temperature.value), frost_temperature: Number(form.frost_temperature.value), dashboard_path: form.dashboard_path?.value.trim() || "" } }, "Systemeinstellungen gespeichert."); });
   }
   _bindEffectControls() {
     this.querySelectorAll(".special-mode-card[data-special-mode]").forEach((card) => {
