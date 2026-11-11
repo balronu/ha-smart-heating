@@ -145,3 +145,23 @@ The panel reads the entity/device/Area registries and groups contacts by HA
 Area without modifying those registries. An explicitly saved Smart Heating
 area override is internal Config Entry data, not a Home Assistant Area change.
 Saving is explicit; no contact deletion or disabling operation is exposed.
+
+## Beta 61 room model and navigation
+
+Smart Heating rooms are the canonical configuration unit. A room owns its
+name, temperature/window sensors, thermostats, additional heat sources,
+targets, schedules, and strategy. Home Assistant Areas are read-only
+suggestions and an internal area filter controls which suggestions are shown;
+the integration never edits or deletes HA Areas, entities, or devices.
+
+Zones are optional groups of room IDs. They may provide shared scheduling or
+heat-demand policy, while each room retains its own targets and equipment. The
+schema-7 normalizer projects legacy beta-60 zone records into rooms, preserves
+their settings, and can be run repeatedly without further changes. Legacy
+records remain available as compatibility projections until explicitly
+replaced by room/group data.
+
+The management panel uses `/smart_heating?room_id=<room-id>` for room deep
+links and provides a direct dashboard return. Dashboard room links use the
+same route, including kiosk and touch layouts, so a selected room cannot fall
+through to the optional zone-management view.

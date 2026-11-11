@@ -38,7 +38,16 @@ test("uses internal websocket persistence for mode, central and room controls on
   expect(await page.evaluate(() => window.__calls.some(call => call.type === "call_service"))).toBe(false);
 });
 
+test("navigates from a room card to its matching room route", async ({ page }) => {
+  await page.evaluate(() => document.addEventListener("location-changed", event => { window.__route = event.detail.path; }, { once: true }));
+  await page.locator(".sh-room-card").first().getByRole("link", { name: /Raumeinstellungen öffnen/ }).click();
+  await expect.poll(() => page.evaluate(() => window.__route)).toBe("/smart_heating?room_id=bathroom");
+});
+
 test("captures the rendered card and has no horizontal overflow", async ({ page }, testInfo) => {
+  // Kiosk navigation is tested in the kiosk project; screenshot baselines are
+  // intentionally limited to the reference viewport matrix.
+  test.skip(testInfo.project.name === "kiosk", "kiosk has no reference screenshot baseline");
   const card = page.locator("smart-heating-card").first();
   await expect(card.locator(".sh-room-grid")).toBeVisible();
   await expect(card).toHaveScreenshot(`beta60-${testInfo.project.name}.png`, {

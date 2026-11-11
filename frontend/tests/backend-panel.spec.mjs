@@ -44,6 +44,21 @@ test("keeps mobile navigation compact without title wrapping or overflow", async
   expect(metrics.context).toBe("Verwaltung");
 });
 
+test("opens a room through the deterministic query route on the management panel", async ({ page }) => {
+  await page.goto("/frontend/fixtures/backend-panel.html?room_id=wohnzimmer");
+  await page.waitForTimeout(100);
+  const room = page.locator("details[data-room=room-wohnzimmer]");
+  await expect(room).toHaveAttribute("open", "");
+  await expect(room).toHaveAttribute("data-room-id", "wohnzimmer");
+});
+
+test("offers a standalone room form without requiring an HA area", async ({ page }) => {
+  await page.locator("details[data-section=rooms] > summary").click();
+  const form = page.locator("form[data-standalone-room-form]");
+  await expect(form).toContainText("ohne HA-Bereich");
+  await expect(form.locator("input[name=name]")).toBeVisible();
+});
+
 test("edits a Smart-Heating room internally and leaves the HA area contract intact", async ({ page }) => {
   await page.locator("details[data-section=rooms]").first().locator(":scope > summary").click();
   await page.locator("details[data-room=room-wohnzimmer] summary").click();

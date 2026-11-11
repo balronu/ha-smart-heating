@@ -38,6 +38,7 @@ from .management import (
     is_eligible_temperature_entity,
     discover_persons,
     normalize_management,
+    configured_rooms,
     normalize_special_modes,
     person_presence,
     remove_item,
@@ -86,12 +87,13 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         internal = normalized["internal"]
         # Persisted Smart-Heating state is authoritative for the passive
         # preview.  The legacy writer remains untouched and separate.
-        zone_diagnostics = zone_backend_summary(self.hass, normalized["zones"], normalized)
+        rooms = configured_rooms(normalized)
+        zone_diagnostics = zone_backend_summary(self.hass, rooms, normalized)
         zone_previews = calculate_zone_target_previews(
             load_schedule(config),
             now=datetime.now().astimezone(),
             timezone=config.get("timezone", "Europe/Berlin"),
-            zones=normalized["zones"],
+            zones=rooms,
             internal=internal,
             zone_diagnostics=zone_diagnostics,
             previous_demand=self._previous_zone_demand,
@@ -114,7 +116,7 @@ class SmartHeatingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 load_schedule(config),
                 now=datetime.now().astimezone(),
                 timezone=config.get("timezone", "Europe/Berlin"),
-                zones=normalized["zones"],
+                zones=rooms,
                 internal=internal,
                 zone_diagnostics=zone_diagnostics,
                 previous_demand=reusable_zone_demand(
@@ -255,8 +257,9 @@ def _read_context(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     context["window_strategy"] = "none"
     context["window_groups"] = []
     context["window_delays"] = {"tilted": 0, "open": 0, "closed": 0}
-    if management.get("zones"):
-        first_zone = management["zones"][0]
+    rooms = configured_rooms(management)
+    if rooms:
+        first_zone = rooms[0]
         context["zone_id"] = first_zone.get("id")
         # Apply the selected zone's persisted targets, not another room's.
         zone_targets = internal.get("zones", {}).get(str(first_zone.get("id")), {})
@@ -298,6 +301,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
         websocket_api.async_register_command(hass, _ws_admin_person_delete)
         websocket_api.async_register_command(hass, _ws_admin_zone_set)
         websocket_api.async_register_command(hass, _ws_admin_room_save)
+        websocket_api.async_register_command(hass, _ws_admin_room_delete)
         websocket_api.async_register_command(hass, _ws_admin_zone_delete)
         websocket_api.async_register_command(hass, _ws_admin_sensor_set)
         websocket_api.async_register_command(hass, _ws_admin_sensor_delete)
@@ -499,7 +503,7 @@ def _operational_status(
     status: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     """Build explicit read-only evidence for the status overview."""
-    zones = zone_status(hass, management.get("zones", []))
+    zones = zone_status(hass, configured_rooms(management))
     thermostats = [item for zone in zones for item in zone.get("thermostats", [])]
     assigned = [item for item in thermostats if item.get("entity_id")]
     available = [item for item in assigned if item.get("state") not in {"missing", "unknown", "unavailable"}]
@@ -550,7 +554,7 @@ async def _ws_get_status(hass: HomeAssistant, connection: websocket_api.ActiveCo
     status["observed"] = _observed_status(hass, config)
     management = normalize_management(config.get("management"))
     status["presence"] = person_presence(hass, management["persons"])
-    status["zones"] = zone_status(hass, management["zones"])
+    status["zones"] = zone_status(hass, configured_rooms(management))
     status["operational_status"] = _operational_status(hass, config, management, status)
     connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "schedule": load_schedule(config).as_dict(), "status": status, "options": {"name": entry.title, "timezone": config.get("timezone"), "operation_mode": config.get("operation_mode", "compatibility"), "discovery": config.get("discovery", {}), "special_modes": config.get("special_modes", {}), "control_plane": analyze_control_plane(hass, config), "management": management, "areas": area_suggestions(hass, management), "persons_discovered": discover_persons(hass)}})
 
@@ -642,7 +646,8 @@ async def _ws_admin_get(hass: HomeAssistant, connection: websocket_api.ActiveCon
     zone_target_previews = (coordinator.data or {}).get("zone_target_previews", []) if coordinator else []
     preview = coordinator.data if coordinator else {}
     operational = _operational_status(hass, config, management, preview)
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {**{key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "dashboard_path": config.get("dashboard_path", "")}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contacts, "window_role_diagnostics": build_window_role_diagnostics(config_entry_options=options_management, runtime_management=runtime_management, readback_management=management, assigned_contacts=assigned_contacts), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, management["zones"]), "backend_evaluations": zone_backend_summary(hass, management["zones"], management), "zone_target_previews": zone_target_previews, "zone_target_capability_summary": (coordinator.data or {}).get("zone_target_capability_summary", []) if coordinator else [], "zone_heat_demand_summary": summarize_zone_heat_demand(zone_target_previews), "preview": preview, "status": preview, "control_plane": analyze_control_plane(hass, config), "operational_status": operational, "validation": validate_management(management)})
+    runtime_rooms = configured_rooms(management)
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id, "version": VERSION, "settings": {**{key: config.get(key) for key in (CONF_OPERATION_MODE, CONF_SUMMER_MODE, CONF_CHIMNEY_TEMPERATURE, CONF_FROST_TEMPERATURE)}, "dashboard_path": config.get("dashboard_path", "")}, "schedule": load_schedule(config).as_dict(), "management": management, "areas": area_suggestions(hass, management), "temperature_entities": discover_temperature_entities(hass), "climate_entities": discover_climate_entities(hass), "controller_entities": discover_controller_entities(hass, management.get("controller", {}).get("entity_id")), "helper_entities": discover_helper_entities(hass), "window_contacts": window_contacts, "window_role_diagnostics": build_window_role_diagnostics(config_entry_options=options_management, runtime_management=runtime_management, readback_management=management, assigned_contacts=assigned_contacts), "persons_discovered": discover_persons(hass), "presence": person_presence(hass, management["persons"]), "zones_status": zone_status(hass, runtime_rooms), "backend_evaluations": zone_backend_summary(hass, runtime_rooms, management), "zone_target_previews": zone_target_previews, "zone_target_capability_summary": (coordinator.data or {}).get("zone_target_capability_summary", []) if coordinator else [], "zone_heat_demand_summary": summarize_zone_heat_demand(zone_target_previews), "preview": preview, "status": preview, "control_plane": analyze_control_plane(hass, config), "operational_status": operational, "validation": validate_management(management)})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/person/set", vol.Required("entry_id"): cv.string, vol.Required("item"): dict})
@@ -679,7 +684,10 @@ async def _ws_admin_room_save(hass: HomeAssistant, connection: websocket_api.Act
     entry, management = _admin_entry(hass, msg["entry_id"])
     expected_roles: dict[str, str] = {}
     try:
-        upsert_item(management, "zones", msg["item"])
+        # Rooms own their full configuration.  A legacy-compatible zone record
+        # is updated only when the caller explicitly supplies one; normal room
+        # edits never create an artificial climate zone.
+        upsert_item(management, "rooms", msg["item"])
         for raw_contact in msg.get("contacts", []):
             if not isinstance(raw_contact, dict):
                 raise ValueError("invalid_window_contact")
@@ -729,6 +737,14 @@ async def _ws_admin_room_save(hass: HomeAssistant, connection: websocket_api.Act
     })
 
 
+@websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/room/delete", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def _ws_admin_room_delete(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Remove only an internal room record; HA areas and entities remain intact."""
+    await _admin_mutation(hass, connection, msg, "rooms", True)
+
+
 @websocket_api.websocket_command({vol.Required("type"): "smart_heating/admin/zone/delete", vol.Required("entry_id"): cv.string, vol.Required("item_id"): cv.string})
 @websocket_api.require_admin
 @websocket_api.async_response
@@ -744,11 +760,15 @@ async def _ws_admin_area_relevance_set(hass: HomeAssistant, connection: websocke
     entry, management = _admin_entry(hass, msg["entry_id"])
     area_id = msg["area_id"]
     selected = set(management.get("relevant_area_ids", []))
+    filters = dict(management.get("area_filters", {}))
     if msg["relevant"]:
         selected.add(area_id)
+        filters[area_id] = "enabled"
     else:
         selected.discard(area_id)
+        filters[area_id] = "hidden"
     management["relevant_area_ids"] = sorted(selected)
+    management["area_filters"] = filters
     try:
         _admin_save(hass, entry, management)
         await _async_entry_updated(hass, entry)

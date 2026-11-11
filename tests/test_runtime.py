@@ -333,11 +333,11 @@ class RuntimeTests(unittest.TestCase):
                     self.assertEqual(first_save["persisted_contact_roles"], {contact["entity_id"]: role for contact, role in zip(contacts, ("tilt", "open"))})
                     persisted = normalize_management(entry.options["management"])
                     self.assertEqual({item["entity_id"]: item["contact_role"] for item in persisted["sensors"]["window"]}, {contact["entity_id"]: role for contact, role in zip(contacts, ("tilt", "open"))})
-                    saved_zone = next(item for item in persisted["zones"] if item["id"] == "badezimmer")
-                    self.assertEqual(saved_zone["thermostat_entities"], room_item["thermostat_entities"])
-                    self.assertEqual(saved_zone["temperature_entities"], room_item["temperature_entities"])
+                    saved_room = next(item for item in persisted["rooms"] if item["id"] == "badezimmer")
+                    self.assertEqual(saved_room["thermostat_entities"], room_item["thermostat_entities"])
+                    self.assertEqual(saved_room["temperature_entities"], room_item["temperature_entities"])
                     self.assertEqual(
-                        {key: saved_zone[key] for key in ("comfort_temperature", "night_temperature", "frost_temperature")},
+                        {key: saved_room[key] for key in ("comfort_temperature", "night_temperature", "frost_temperature")},
                         {key: room_item[key] for key in ("comfort_temperature", "night_temperature", "frost_temperature")},
                     )
                     admin_readback = await ws_call(
@@ -413,11 +413,11 @@ class RuntimeTests(unittest.TestCase):
                         [{"start": "06:00:00", "end": "08:00:00", "target_temperature": 20.5}],
                     )
                     self.assertEqual({item["entity_id"]: item["contact_role"] for item in persisted_after_reload["sensors"]["window"]}, first_save["persisted_contact_roles"])
-                    reloaded_zone = next(item for item in persisted_after_reload["zones"] if item["id"] == "badezimmer")
-                    self.assertEqual(reloaded_zone["thermostat_entities"], room_item["thermostat_entities"])
-                    self.assertEqual(reloaded_zone["temperature_entities"], room_item["temperature_entities"])
+                    reloaded_room = next(item for item in persisted_after_reload["rooms"] if item["id"] == "badezimmer")
+                    self.assertEqual(reloaded_room["thermostat_entities"], room_item["thermostat_entities"])
+                    self.assertEqual(reloaded_room["temperature_entities"], room_item["temperature_entities"])
                     self.assertEqual(
-                        {key: reloaded_zone[key] for key in ("comfort_temperature", "night_temperature", "frost_temperature")},
+                        {key: reloaded_room[key] for key in ("comfort_temperature", "night_temperature", "frost_temperature")},
                         {key: room_item[key] for key in ("comfort_temperature", "night_temperature", "frost_temperature")},
                     )
                     reloaded_admin_readback = await ws_call(

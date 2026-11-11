@@ -8,6 +8,7 @@ export default defineConfig({
   use: { baseURL: "http://127.0.0.1:4173", screenshot: "only-on-failure", trace: "retain-on-failure" },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], colorScheme: "light" } },
+    { name: "kiosk", use: { ...devices["Desktop Chrome"], colorScheme: "light", launchOptions: { args: ["--kiosk"] } } },
     { name: "iphone", use: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 3, colorScheme: "light" } },
     { name: "ipad-portrait", use: { viewport: { width: 810, height: 1080 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2, colorScheme: "light" } },
     { name: "ipad-landscape", use: { viewport: { width: 1080, height: 810 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2, colorScheme: "light" } },
