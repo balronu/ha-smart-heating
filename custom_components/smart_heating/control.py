@@ -26,6 +26,20 @@ class ControlResult:
     heat_demand_status: str = "not_measured"
 
 
+def _state_get(hass: Any, entity_id: str | None) -> Any:
+    """Read a state from Home Assistant or a minimal mapping-style fixture."""
+    if not isinstance(entity_id, str):
+        return None
+    states = hass.states
+    getter = getattr(states, "get", None)
+    if callable(getter):
+        return getter(entity_id)
+    try:
+        return states[entity_id]
+    except (KeyError, TypeError, AttributeError):
+        return None
+
+
 def analyze_control_plane(hass: Any, config: Mapping[str, Any]) -> dict[str, Any]:
     """Report what public HA state can prove about the two writer layers."""
     automation_candidates = []
@@ -34,11 +48,11 @@ def analyze_control_plane(hass: Any, config: Mapping[str, Any]) -> dict[str, Any
         if any(token in label for token in ("heizung", "heating", "thermostat", "tado")):
             automation_candidates.append(state.entity_id)
     legacy_entity = "automation.heizung_automatik_ersetzt_node_red"
-    legacy_state = hass.states.get(legacy_entity)
+    legacy_state = _state_get(hass, legacy_entity)
     legacy_raw = str(getattr(legacy_state, "state", "missing")) if legacy_state else "missing"
     legacy_available = legacy_raw not in {"missing", "unknown", "unavailable"}
     configured_climate = config.get(CONF_CLIMATE_ENTITY)
-    climate_state = hass.states.get(configured_climate) if isinstance(configured_climate, str) else None
+    climate_state = _state_get(hass, configured_climate)
     climate_raw = str(getattr(climate_state, "state", "missing")) if climate_state else "missing"
     return {
         "schedule_writer": {"entity": config.get("heating_boolean"), "source": "entity_state_only", "supported_action_export": False},
@@ -55,7 +69,7 @@ def select_climate_entity(hass: Any, config: Mapping[str, Any]) -> str | None:
     """Select the primary climate and use Tado only when it is unavailable."""
     for key in (CONF_CLIMATE_ENTITY, CONF_TADO_FALLBACK):
         entity_id = config.get(key)
-        state = hass.states.get(entity_id) if isinstance(entity_id, str) else None
+        state = _state_get(hass, entity_id)
         if state and state.state not in {"unknown", "unavailable"}:
             return entity_id
     return None
@@ -82,7 +96,7 @@ async def async_apply_decision(
     if not entity_id:
         return ControlResult("unavailable", None, (), "No available primary or Tado fallback climate entity.")
 
-    state = hass.states.get(entity_id)
+    state = _state_get(hass, entity_id)
     old_hvac = state.state if state else None
     old_temp = state.attributes.get("temperature") if state else None
     calls: list[str] = []
@@ -93,7 +107,7 @@ async def async_apply_decision(
         if decision.target_temperature is not None and decision.target_hvac_mode != "off":
             await hass.services.async_call("climate", "set_temperature", {"entity_id": entity_id, "temperature": decision.target_temperature}, blocking=True)
             calls.append("climate.set_temperature")
-        observed = hass.states.get(entity_id)
+        observed = _state_get(hass, entity_id)
         if not observed or (decision.target_hvac_mode and observed.state != decision.target_hvac_mode):
             raise RuntimeError("Climate read-back did not match the requested HVAC mode")
         if decision.target_temperature is not None and decision.target_hvac_mode != "off":
