@@ -8,7 +8,7 @@
 <p align="center"><a href="https://github.com/balronu/ha-smart-heating/releases">Releases</a> · <a href="https://github.com/balronu/ha-smart-heating/issues">Fehler melden</a> · <a href="CHANGELOG.md">Changelog</a></p>
 
 > [!IMPORTANT]
-> **Stable – Coming Soon.** Smart Heating befindet sich in der Beta- und Praxistestphase. Die nächste Kandidatenversion ist **v0.1.0-beta.59**. Die Integration arbeitet **passiv**: Sie zeigt Planungen und Entscheidungen an, übernimmt aber **nicht** selbstständig die Heizungssteuerung. Ein späterer aktiver Betrieb wird erst nach gesonderter Prüfung und ausdrücklicher Freigabe möglich.
+> **Stable – Coming Soon.** Smart Heating befindet sich in der Beta- und Praxistestphase. Die nächste Kandidatenversion ist **v0.1.0-beta.60**. Die Integration arbeitet **passiv**: Sie zeigt Planungen und Entscheidungen an, übernimmt aber **nicht** selbstständig die Heizungssteuerung. Ein späterer aktiver Betrieb wird erst nach gesonderter Prüfung und ausdrücklicher Freigabe möglich.
 
 ## Aktuelle Vorabversion – getrennte Raumziele und Badezimmer-IR
 
