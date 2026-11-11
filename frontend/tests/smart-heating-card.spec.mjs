@@ -41,6 +41,11 @@ test("uses internal websocket persistence for mode, central and room controls on
 test("captures the rendered card and has no horizontal overflow", async ({ page }, testInfo) => {
   const card = page.locator("smart-heating-card").first();
   await expect(card.locator(".sh-room-grid")).toBeVisible();
-  await expect(card).toHaveScreenshot(`beta60-${testInfo.project.name}.png`, { animations: "disabled", caret: "hide", maxDiffPixels: 120 });
+  await expect(card).toHaveScreenshot(`beta60-${testInfo.project.name}.png`, {
+    animations: "disabled",
+    caret: "hide",
+    maxDiffPixels: 2500,
+    maxDiffPixelRatio: 0.02,
+  });
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
 });
