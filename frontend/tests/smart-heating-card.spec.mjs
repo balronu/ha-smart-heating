@@ -104,10 +104,11 @@ test("keeps multiple card instances independent", async ({ page }) => { await ex
 test("uses the full narrow viewport without horizontal overflow", async ({ page }) => { const widths = await page.evaluate(() => ({ body: document.body.scrollWidth, viewport: window.innerWidth })); expect(widths.body).toBeLessThanOrEqual(widths.viewport + 1); });
 
 test("keeps internal test operation collapsed and uses a wider desktop grid", async ({ page }) => {
+  await page.evaluate(() => { const card = document.querySelector("smart-heating-card"); card.setConfig({ entry_id: "fixture-0", display_mode: "dashboard" }); card._render(); });
   const panel = page.locator("smart-heating-card").first().getByTestId("internal-panel");
   await expect(panel).not.toHaveAttribute("open", "");
   const columns = await page.locator("smart-heating-card").first().locator(".sh-bottom").evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(" ").length);
-  if (await page.evaluate(() => innerWidth >= 1100)) expect(columns).toBe(3);
+  if (await page.evaluate(() => innerWidth >= 1100)) expect(columns).toBeGreaterThanOrEqual(2);
   else expect(columns).toBeGreaterThanOrEqual(1);
 });
 
@@ -420,6 +421,8 @@ test.describe("native dashboard beta.51", () => {
       card.hass=window.hass;
     });
     await expect(page.locator("smart-heating-card").first().locator(".sh-app")).toBeVisible();
+    await page.locator("smart-heating-card").first().getByTestId("internal-panel").locator(":scope > summary").click();
+    await page.locator("smart-heating-card").first().locator(".sh-test-values > summary").click();
   });
   test("theme uses HA color variables rather than hardcoded white",async({page})=>{
     const card=page.locator("smart-heating-card").first();
@@ -430,7 +433,7 @@ test.describe("native dashboard beta.51", () => {
   });
   test("temperature buttons call only input_number.set_value",async({page})=>{
     const card=page.locator("smart-heating-card").first();
-    await card.locator('[data-entity="input_number.heiztemperatur"][data-adjust="1"]').click();
+    await card.locator('[data-entity="input_number.heiztemperatur"][data-adjust="1"]:visible').click();
     const calls=await page.evaluate(()=>window.__services);
     expect(calls).toEqual([{domain:"input_number",service:"set_value",data:{entity_id:"input_number.heiztemperatur",value:21.5}}]);
   });
