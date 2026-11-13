@@ -38,7 +38,7 @@
 - The integration remains passive: no heating commands, legacy automation cutover or changes to existing Home Assistant helpers.
 - Release candidate only; passing CI and a version bump do not publish a GitHub prerelease.
 
-## v0.1.0-beta.54 – Lovelace iPhone hotfix (release candidate)
+## v0.1.0-beta.53 – Lovelace iPhone hotfix
 
 - Fix: preserve Lovelace scroll position when dashboard content refreshes after changes.
 - Fix: improve mobile readability of diagnostic priority rows and special-mode buttons.
